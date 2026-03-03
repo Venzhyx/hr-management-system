@@ -24,6 +24,8 @@
         private final EmployeeEmergencyRepository emergencyRepository;
         private final EmployeeEducationRepository educationRepository;
         private final EmployeeFamilyStatusRepository familyStatusRepository;
+        private final EmployeeDocumentRepository documentRepository;
+        private final EmployeeSettingsRepository settingsRepository;
         private final AttendanceRepository attendanceRepository;
         
         @Transactional
@@ -93,6 +95,30 @@
                 familyStatusRepository.save(familyStatus);
             }
             
+            // Create Documents
+            if (hasDocuments(request)) {
+                EmployeeDocument document = new EmployeeDocument();
+                document.setEmployee(savedEmployee);
+                document.setIdCardCopy(request.getIdCardCopy());
+                document.setFamilyCardCopy(request.getFamilyCardCopy());
+                document.setDrivingLicenseCopy(request.getDrivingLicenseCopy());
+                document.setAssuranceCardCopy(request.getAssuranceCardCopy());
+                document.setNpwpCardCopy(request.getNpwpCardCopy());
+                documentRepository.save(document);
+            }
+            
+            // Create Settings
+            if (hasSettings(request)) {
+                EmployeeSettings settings = new EmployeeSettings();
+                settings.setEmployee(savedEmployee);
+                settings.setStatus(request.getStatus());
+                settings.setEmployeeType(request.getEmployeeType());
+                settings.setRelatedUser(request.getRelatedUser());
+                settings.setMonthlyCost(request.getMonthlyCost());
+                settings.setAttendanceBadgeId(request.getAttendanceBadgeId());
+                settingsRepository.save(settings);
+            }
+            
             return getEmployee(savedEmployee.getId());
         }
         
@@ -122,6 +148,8 @@
         updateEmergency(employee, request);
         updateEducation(employee, request);
         updateFamilyStatus(employee, request);
+        updateDocuments(employee, request);
+        updateSettings(employee, request);
 
         return getEmployee(id);
     }
@@ -153,6 +181,8 @@
             // Set attendance employee_id to null instead of deleting
             attendanceRepository.setEmployeeIdToNull(id);
             
+            documentRepository.deleteByEmployeeId(id);
+            settingsRepository.deleteByEmployeeId(id);
             citizenshipRepository.deleteByEmployeeId(id);
             emergencyRepository.deleteByEmployeeId(id);
             educationRepository.deleteByEmployeeId(id);
@@ -278,6 +308,24 @@
                 response.setNumberOfDependentChildren(familyStatus.getNumberOfDependentChildren());
             });
             
+            // Documents
+            documentRepository.findByEmployeeId(employee.getId()).ifPresent(document -> {
+                response.setIdCardCopy(document.getIdCardCopy());
+                response.setFamilyCardCopy(document.getFamilyCardCopy());
+                response.setDrivingLicenseCopy(document.getDrivingLicenseCopy());
+                response.setAssuranceCardCopy(document.getAssuranceCardCopy());
+                response.setNpwpCardCopy(document.getNpwpCardCopy());
+            });
+            
+            // Settings
+            settingsRepository.findByEmployeeId(employee.getId()).ifPresent(settings -> {
+                response.setStatus(settings.getStatus());
+                response.setEmployeeType(settings.getEmployeeType());
+                response.setRelatedUser(settings.getRelatedUser());
+                response.setMonthlyCost(settings.getMonthlyCost());
+                response.setAttendanceBadgeId(settings.getAttendanceBadgeId());
+            });
+            
             return response;
         }
         
@@ -372,5 +420,45 @@
         
         private boolean hasFamilyStatus(EmployeeRequest request) {
             return request.getMaritalStatus() != null || request.getNumberOfDependentChildren() != null;
+        }
+        
+        private void updateDocuments(Employee employee, EmployeeRequest request) {
+            EmployeeDocument document = documentRepository.findByEmployeeId(employee.getId())
+                    .orElse(new EmployeeDocument());
+            
+            document.setEmployee(employee);
+            document.setIdCardCopy(request.getIdCardCopy());
+            document.setFamilyCardCopy(request.getFamilyCardCopy());
+            document.setDrivingLicenseCopy(request.getDrivingLicenseCopy());
+            document.setAssuranceCardCopy(request.getAssuranceCardCopy());
+            document.setNpwpCardCopy(request.getNpwpCardCopy());
+            
+            documentRepository.save(document);
+        }
+        
+        private void updateSettings(Employee employee, EmployeeRequest request) {
+            EmployeeSettings settings = settingsRepository.findByEmployeeId(employee.getId())
+                    .orElse(new EmployeeSettings());
+            
+            settings.setEmployee(employee);
+            settings.setStatus(request.getStatus());
+            settings.setEmployeeType(request.getEmployeeType());
+            settings.setRelatedUser(request.getRelatedUser());
+            settings.setMonthlyCost(request.getMonthlyCost());
+            settings.setAttendanceBadgeId(request.getAttendanceBadgeId());
+            
+            settingsRepository.save(settings);
+        }
+        
+        private boolean hasDocuments(EmployeeRequest request) {
+            return request.getIdCardCopy() != null || request.getFamilyCardCopy() != null ||
+                request.getDrivingLicenseCopy() != null || request.getAssuranceCardCopy() != null ||
+                request.getNpwpCardCopy() != null;
+        }
+        
+        private boolean hasSettings(EmployeeRequest request) {
+            return request.getStatus() != null || request.getEmployeeType() != null ||
+                request.getRelatedUser() != null || request.getMonthlyCost() != null ||
+                request.getAttendanceBadgeId() != null;
         }
     }

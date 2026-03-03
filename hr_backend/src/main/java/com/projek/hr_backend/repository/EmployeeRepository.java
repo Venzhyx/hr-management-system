@@ -1,7 +1,6 @@
 package com.projek.hr_backend.repository;
 
 import com.projek.hr_backend.model.Employee;
-import com.projek.hr_backend.model.EmployeeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -12,8 +11,6 @@ import java.util.List;
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     
     List<Employee> findByDepartmentId(Long departmentId);
-    
-    long countBySettingsEmployeeType(EmployeeType employeeType);
     
     @Query("SELECT FUNCTION('TO_CHAR', e.joinDate, 'YYYY-MM') as month, COUNT(e) as count " +
            "FROM Employee e " +

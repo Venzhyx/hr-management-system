@@ -84,4 +84,18 @@ public class EmployeeRequest {
     private Integer numberOfDependentChildren;
     private String marriageCertificateDocument;
     private String childCertificateDocument;
+    
+    // Documents
+    private String idCardCopy;
+    private String familyCardCopy;
+    private String drivingLicenseCopy;
+    private String assuranceCardCopy;
+    private String npwpCardCopy;
+    
+    // Settings
+    private EmployeeStatus status;
+    private EmployeeType employeeType;
+    private String relatedUser;
+    private Double monthlyCost;
+    private String attendanceBadgeId;
 }
