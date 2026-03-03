@@ -1,39 +1,62 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom"; // ✅ Ganti useLocation dengan useParams
 import { HiOutlineArrowLeft, HiOutlineOfficeBuilding, HiOutlineUser } from "react-icons/hi";
 import { useDepartment } from "../../../redux/hooks/useDepartment";
 import { useEmployee } from "../../../redux/hooks/useEmployee";
+import { useCompany } from "../../../redux/hooks/useCompany"; // ✅ Import useCompany
 
 const EditDepartment = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const departmentData = location.state?.department;
+  const { id } = useParams(); // ✅ Ambil ID dari URL
 
-  const { updateDepartment, fetchDepartments } = useDepartment(); // Tambahkan fetchDepartments
+  const { 
+    departments, 
+    updateDepartment, 
+    fetchDepartments,
+    getDepartmentById // ✅ Fungsi untuk ambil detail department
+  } = useDepartment();
+  
   const { employees, fetchEmployees } = useEmployee();
+  const { companies, fetchCompanies } = useCompany(); // ✅ Ambil companies dari hook
 
   const [formData, setFormData] = useState({
     departmentName: "",
-    managerId: ""
+    managerId: "",
+    parentDepartmentId: "", // ✅ Tambah field parent department
+    companyId: "" // ✅ Tambah field company
   });
 
+  const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch employees untuk dropdown manager
+  // Fetch data untuk dropdown
   useEffect(() => {
-    fetchEmployees();
+    const fetchData = async () => {
+      await Promise.all([
+        fetchEmployees(),
+        fetchDepartments(),
+        fetchCompanies()
+      ]);
+      setLoading(false);
+    };
+    fetchData();
   }, []);
 
-  // Set form data ketika departmentData tersedia
+  // Fetch department data berdasarkan ID
   useEffect(() => {
-    if (departmentData) {
-      setFormData({
-        departmentName: departmentData.departmentName || "",
-        managerId: departmentData.managerId ? departmentData.managerId.toString() : ""
-      });
+    if (id && departments.length > 0) {
+      const department = departments.find(dept => dept.id === parseInt(id));
+      if (department) {
+        setFormData({
+          departmentName: department.departmentName || "",
+          managerId: department.managerId ? department.managerId.toString() : "",
+          parentDepartmentId: department.parentDepartmentId ? department.parentDepartmentId.toString() : "",
+          companyId: department.companyId ? department.companyId.toString() : ""
+        });
+      }
     }
-  }, [departmentData]);
+  }, [id, departments]);
 
   // Validasi form
   const validateForm = () => {
@@ -43,6 +66,10 @@ const EditDepartment = () => {
       newErrors.departmentName = "Department name is required";
     } else if (formData.departmentName.trim().length < 2) {
       newErrors.departmentName = "Department name must be at least 2 characters";
+    }
+    
+    if (!formData.companyId) {
+      newErrors.companyId = "Company is required";
     }
     
     return newErrors;
@@ -79,40 +106,35 @@ const EditDepartment = () => {
 
     try {
       const payload = {
-        id: departmentData.id,
+        id: parseInt(id),
         departmentName: formData.departmentName.trim(),
-        managerId: formData.managerId ? parseInt(formData.managerId) : null
+        managerId: formData.managerId ? parseInt(formData.managerId) : null,
+        parentDepartmentId: formData.parentDepartmentId ? parseInt(formData.parentDepartmentId) : null, // ✅ Kirim parent department
+        companyId: parseInt(formData.companyId) // ✅ Kirim company ID
       };
 
       console.log("Updating department with payload:", payload);
       
-      // 1. Update department
-      await updateDepartment(payload);
+      await updateDepartment(payload).unwrap();
       
-      // 2. Refresh daftar departments di Redux
+      // Refresh daftar departments di Redux
       await fetchDepartments();
       
-      // 3. Navigate back dengan state untuk trigger refresh di list
-      navigate("/departments", { 
-        state: { refresh: true } 
-      });
+      // Navigate back
+      navigate("/departments");
       
     } catch (error) {
       console.error("Failed to update department:", error);
       
-      // Error handling yang lebih baik
       let errorMessage = "Failed to update department. Please try again.";
       
       if (error.response) {
-        // Error dari server
         errorMessage = error.response.data?.message || 
                       error.response.data?.error || 
                       `Server error: ${error.response.status}`;
       } else if (error.request) {
-        // Network error
         errorMessage = "Network error. Please check your connection.";
       } else {
-        // Other errors
         errorMessage = error.message || errorMessage;
       }
       
@@ -124,37 +146,22 @@ const EditDepartment = () => {
     }
   };
 
-  // Filter hanya employee yang aktif untuk manager dropdown
+  // Filter hanya employees yang aktif untuk manager dropdown
   const activeEmployees = employees?.filter(emp => emp.status === 'ACTIVE') || [];
+
+  // Filter departments untuk parent dropdown (exclude current department)
+  const availableParentDepartments = departments?.filter(dept => dept.id !== parseInt(id)) || [];
 
   // Cari nama manager yang terpilih
   const selectedManager = activeEmployees.find(emp => emp.id === parseInt(formData.managerId));
 
-  if (!departmentData) {
+  // Cari company yang terpilih
+  const selectedCompany = companies?.find(comp => comp.id === parseInt(formData.companyId));
+
+  if (loading) {
     return (
-      <div className="w-full px-4 md:px-6 py-6">
-        <div className="flex items-center space-x-4 mb-6">
-          <button
-            onClick={() => navigate("/departments")}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <HiOutlineArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">Edit Department</h1>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 flex justify-center items-center">
-          <div className="text-center">
-            <HiOutlineOfficeBuilding className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No department data found</p>
-            <p className="text-sm text-gray-400 mt-2">Please select a department to edit</p>
-            <button
-              onClick={() => navigate("/departments")}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-            >
-              Back to Departments
-            </button>
-          </div>
-        </div>
+      <div className="w-full px-4 md:px-6 py-6 flex justify-center items-center h-64">
+        <div className="text-gray-400">Loading department data...</div>
       </div>
     );
   }
@@ -193,8 +200,74 @@ const EditDepartment = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500">Editing Department</p>
-              <p className="text-lg font-semibold text-gray-800">{formData.departmentName || 'New Department'}</p>
+              <p className="text-lg font-semibold text-gray-800">{formData.departmentName || 'Department'}</p>
             </div>
+          </div>
+
+          {/* Company Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Company <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="companyId"
+              value={formData.companyId}
+              onChange={handleChange}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white ${
+                errors.companyId ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              }`}
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                backgroundPosition: 'right 0.75rem center',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: '1.25rem',
+              }}
+              disabled={isSubmitting}
+              required
+            >
+              <option value="">Select Company</option>
+              {companies?.map(company => (
+                <option key={company.id} value={company.id}>
+                  {company.companyName} (ID: {company.companyId})
+                </option>
+              ))}
+            </select>
+            {errors.companyId && (
+              <p className="mt-1 text-xs text-red-500">{errors.companyId}</p>
+            )}
+          </div>
+
+          {/* Parent Department Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Parent Department
+            </label>
+            <select
+              name="parentDepartmentId"
+              value={formData.parentDepartmentId}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                backgroundPosition: 'right 0.75rem center',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: '1.25rem',
+              }}
+              disabled={isSubmitting}
+            >
+              <option value="">None (Top Level Department)</option>
+              {availableParentDepartments.map(dept => {
+                const company = companies?.find(c => c.id === dept.companyId);
+                return (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.departmentName} {company ? `- ${company.companyName}` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Select parent department if this is a sub-department
+            </p>
           </div>
 
           {/* Department Name */}
@@ -214,6 +287,7 @@ const EditDepartment = () => {
                   : 'border-gray-300'
               }`}
               disabled={isSubmitting}
+              required
             />
             {errors.departmentName && (
               <p className="mt-1 text-xs text-red-500">{errors.departmentName}</p>
@@ -242,8 +316,7 @@ const EditDepartment = () => {
               {activeEmployees.length > 0 ? (
                 activeEmployees.map(emp => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.name} - {emp.jobTitle || 'No Title'} 
-                    {emp.employeeCode ? ` (${emp.employeeCode})` : ''}
+                    {emp.name} ({emp.jobTitle}) - {emp.employeeCode}
                   </option>
                 ))
               ) : (
@@ -255,41 +328,52 @@ const EditDepartment = () => {
             </p>
           </div>
 
-          {/* Current Manager Info */}
-          {selectedManager && (
-            <div className="md:col-span-2 bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+          {/* Selected Company Info */}
+          {selectedCompany && (
+            <div className="md:col-span-2 bg-blue-50 rounded-lg p-4 border border-blue-100">
               <div className="flex items-start">
-                <div className="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                  <HiOutlineUser className="w-5 h-5 text-indigo-700" />
+                <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                  <HiOutlineOfficeBuilding className="w-5 h-5 text-blue-700" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-indigo-600 font-medium mb-1">Current Manager</p>
-                  <p className="text-sm font-semibold text-indigo-900">
+                  <p className="text-xs text-blue-600 font-medium mb-1">Company</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {selectedCompany.companyName}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Company ID: {selectedCompany.companyId}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Selected Manager Info */}
+          {selectedManager && (
+            <div className="md:col-span-2 bg-green-50 rounded-lg p-4 border border-green-100">
+              <div className="flex items-start">
+                <div className="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                  <HiOutlineUser className="w-5 h-5 text-green-700" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-green-600 font-medium mb-1">Current Manager</p>
+                  <p className="text-sm font-semibold text-green-900">
                     {selectedManager.name}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {selectedManager.jobTitle && (
-                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                         {selectedManager.jobTitle}
                       </span>
                     )}
                     {selectedManager.employeeCode && (
-                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                         ID: {selectedManager.employeeCode}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* No Manager Selected Info */}
-          {!selectedManager && formData.managerId && (
-            <div className="md:col-span-2 bg-yellow-50 rounded-lg p-4 border border-yellow-100">
-              <p className="text-sm text-yellow-700">
-                Selected manager not found in active employees list.
-              </p>
             </div>
           )}
         </div>
@@ -326,10 +410,7 @@ const EditDepartment = () => {
         {/* Department Info */}
         <div className="mt-4 text-xs text-gray-400 bg-gray-50 p-3 rounded-lg">
           <div className="flex justify-between">
-            <span>Department ID: {departmentData.id}</span>
-            {departmentData.createdAt && (
-              <span>Created: {new Date(departmentData.createdAt).toLocaleDateString()}</span>
-            )}
+            <span>Department ID: {id}</span>
           </div>
         </div>
       </form>
