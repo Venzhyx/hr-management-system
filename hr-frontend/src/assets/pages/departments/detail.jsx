@@ -1,69 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  HiOutlineX, 
-  HiOutlinePencil, 
-  HiOutlineTrash, 
-  HiOutlineMail, 
-  HiOutlinePhone, 
-  HiOutlineCalendar, 
-  HiOutlineUser, 
-  HiOutlineOfficeBuilding,
+  HiOutlineXMark,
+  HiOutlinePencil,
+  HiOutlineTrash,
+  HiOutlineEnvelope,
+  HiOutlinePhone,
+  HiOutlineCalendar,
+  HiOutlineUser,
+  HiOutlineBuildingOffice2,
   HiOutlineUsers,
   HiOutlineCheckCircle,
   HiOutlineXCircle,
   HiOutlineArrowLeft,
-  HiOutlineExclamation,
-  HiOutlinePhotograph
-} from 'react-icons/hi';
+  HiOutlineExclamationCircle,
+  HiOutlinePhoto
+} from 'react-icons/hi2';
 import { useDepartment } from '../../../redux/hooks/useDepartment';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
+import { useCompany } from '../../../redux/hooks/useCompany';
 
 const DepartmentDetailModal = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const location = useLocation();
-  
-  // Data dari location.state
-  const stateDepartment = location.state?.department;
   
   const { getDepartmentById, deleteDepartment } = useDepartment();
   const { employees, fetchEmployees } = useEmployee();
+  const { companies, fetchCompanies } = useCompany();
   
-  const [department, setDepartment] = useState(stateDepartment || null);
-  const [loading, setLoading] = useState(!stateDepartment);
+  const [department, setDepartment] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [employeesInDepartment, setEmployeesInDepartment] = useState([]);
   const [deleting, setDeleting] = useState(false);
 
-  // Helper untuk dapat manager
-  const getManager = () => {
-    if (!department?.managerId) return null;
-    return employees.find(emp => emp.id === department.managerId);
-  };
-
-  // Fetch department data jika tidak ada di state
+  // Fetch department data
   useEffect(() => {
     const fetchDepartmentData = async () => {
-      if (!stateDepartment && id) {
-        try {
-          setLoading(true);
-          const data = await getDepartmentById(id);
-          setDepartment(data);
-        } catch (error) {
-          console.error('Error fetching department:', error);
-        } finally {
-          setLoading(false);
-        }
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const data = await getDepartmentById(id);
+        setDepartment(data);
+      } catch (error) {
+        console.error('Error fetching department:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchDepartmentData();
-  }, [id, stateDepartment, getDepartmentById]);
+  }, [id, getDepartmentById]);
 
-  // Fetch employees
+  // Fetch employees dan companies
   useEffect(() => {
     fetchEmployees();
+    fetchCompanies();
   }, []);
 
   // Filter employees berdasarkan department
@@ -79,7 +72,7 @@ const DepartmentDetailModal = () => {
   };
 
   const handleEdit = () => {
-    navigate('/departments/edit', { state: { department } });
+    navigate(`/departments/edit/${id}`);
   };
 
   const handleDeleteClick = () => {
@@ -90,7 +83,7 @@ const DepartmentDetailModal = () => {
   const handleConfirmDelete = async () => {
     try {
       setDeleting(true);
-      await deleteDepartment(department.id);
+      await deleteDepartment(department.id).unwrap();
       setShowDeleteModal(false);
       document.body.style.overflow = 'unset';
       navigate('/departments');
@@ -108,6 +101,24 @@ const DepartmentDetailModal = () => {
     document.body.style.overflow = 'unset';
   };
 
+  // Helper untuk dapat manager
+  const getManager = () => {
+    if (!department?.managerId) return null;
+    return employees.find(emp => emp.id === department.managerId);
+  };
+
+  // Helper untuk dapat company
+  const getCompany = () => {
+    if (!department?.companyId) return null;
+    return companies.find(comp => comp.id === department.companyId);
+  };
+
+  // Helper untuk dapat parent department
+  const getParentDepartment = () => {
+    if (!department?.parentDepartmentId) return null;
+    return employees.find(emp => emp.id === department.parentDepartmentId);
+  };
+
   // Prevent scroll on background
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -119,7 +130,7 @@ const DepartmentDetailModal = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
         <div className="bg-white rounded-xl p-8 shadow-2xl">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading department details...</p>
@@ -130,9 +141,9 @@ const DepartmentDetailModal = () => {
 
   if (!department) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
         <div className="bg-white rounded-xl max-w-md w-full mx-4 p-8 shadow-2xl text-center">
-          <HiOutlineOfficeBuilding className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <HiOutlineBuildingOffice2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-800 mb-2">Department Not Found</h3>
           <p className="text-gray-600 mb-6">The department you're looking for doesn't exist or has been deleted.</p>
           <button
@@ -146,29 +157,25 @@ const DepartmentDetailModal = () => {
     );
   }
 
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'long',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   // Hitung statistik
   const activeEmployees = employeesInDepartment.filter(emp => emp.status === 'ACTIVE').length;
 
   // Dapatkan data manager
   const manager = getManager();
+  
+  // Dapatkan data company
+  const company = getCompany();
+  
+  // Dapatkan parent department
+  const parentDepartment = department.parentDepartmentId 
+    ? employees.find(dept => dept.id === department.parentDepartmentId)
+    : null;
 
   return (
     <>
-      {/* Modal Backdrop */}
+      {/* Modal Backdrop dengan efek blur saja */}
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto py-10"
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto py-10"
         onClick={handleClose}
       >
         {/* Modal Content */}
@@ -205,29 +212,35 @@ const DepartmentDetailModal = () => {
                 <span>Delete</span>
               </button>
               <button onClick={handleClose} className="ml-2 text-gray-400 hover:text-gray-600">
-                <HiOutlineX className="w-6 h-6" />
+                <HiOutlineXMark className="w-6 h-6" />
               </button>
             </div>
           </div>
 
           {/* Content */}
           <div className="p-6">
-            {/* Department Header - Tanpa icon dan ID, active pindah ke bawah nama */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">{department.departmentName}</h1>
+            {/* Department Header - Tanpa icon, hanya teks biasa */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-800">{department.departmentName}</h1>
+              <p className="text-sm text-gray-500 mt-1">Department ID: {department.id}</p>
             </div>
 
-            {/* Company & Parent Department Cards */}
+            {/* Company & Parent Department Cards - Data dari backend */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
               {/* Company Card */}
               <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-blue-600 mb-1">Company</p>
-                    <p className="text-lg font-semibold text-blue-900">PT. Example Company</p>
+                    <p className="text-lg font-semibold text-blue-900">
+                      {company?.companyName || 'No Company Assigned'}
+                    </p>
+                    {company && (
+                      <p className="text-xs text-blue-500 mt-1">ID: {company.companyId}</p>
+                    )}
                   </div>
                   <div className="w-12 h-12 bg-blue-200 rounded-xl flex items-center justify-center">
-                    <HiOutlineOfficeBuilding className="w-6 h-6 text-blue-700" />
+                    <HiOutlineBuildingOffice2 className="w-6 h-6 text-blue-700" />
                   </div>
                 </div>
               </div>
@@ -238,11 +251,16 @@ const DepartmentDetailModal = () => {
                   <div>
                     <p className="text-sm font-medium text-amber-600 mb-1">Parent Department</p>
                     <p className="text-lg font-semibold text-amber-900">
-                      {department.parentDepartment || '-'}
+                      {parentDepartment?.name || department.parentDepartmentName || '-'}
                     </p>
+                    {parentDepartment && (
+                      <p className="text-xs text-amber-500 mt-1">
+                        {parentDepartment.jobTitle || 'Department'}
+                      </p>
+                    )}
                   </div>
                   <div className="w-12 h-12 bg-amber-200 rounded-xl flex items-center justify-center">
-                    <HiOutlineOfficeBuilding className="w-6 h-6 text-amber-700" />
+                    <HiOutlineBuildingOffice2 className="w-6 h-6 text-amber-700" />
                   </div>
                 </div>
               </div>
@@ -261,18 +279,18 @@ const DepartmentDetailModal = () => {
                         {manager?.photo ? (
                           <img
                             src={manager.photo}
-                            alt={department.managerName}
+                            alt={manager.name}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <div className="w-full h-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-semibold text-sm">
-                            {department.managerName?.split(' ').map(n => n[0]).join('') || 'NA'}
+                            {manager?.name?.split(' ').map(n => n[0]).join('') || 'N/A'}
                           </div>
                         )}
                       </div>
                       <div>
                         <p className="text-lg font-semibold text-indigo-900">
-                          {department.managerName || 'No Manager'}
+                          {manager?.name || 'No Manager Assigned'}
                         </p>
                         {manager && (
                           <p className="text-xs text-indigo-500">{manager.jobTitle || 'Employee'}</p>
@@ -291,7 +309,7 @@ const DepartmentDetailModal = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-purple-600">Total Members</p>
-                    <p className="text-lg font-semibold text-purple-900 mt-1">{employeesInDepartment.length}</p>
+                    <p className="text-3xl font-bold text-purple-900 mt-1">{employeesInDepartment.length}</p>
                   </div>
                   <div className="w-12 h-12 bg-purple-200 rounded-xl flex items-center justify-center">
                     <HiOutlineUsers className="w-6 h-6 text-purple-700" />
@@ -353,7 +371,12 @@ const DepartmentDetailModal = () => {
                                   </div>
                                 )}
                               </div>
-                              <span className="text-sm font-medium text-gray-900">{emp.name}</span>
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">{emp.name}</span>
+                                {emp.employeeCode && (
+                                  <p className="text-xs text-gray-500">{emp.employeeCode}</p>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">
@@ -375,14 +398,42 @@ const DepartmentDetailModal = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="text-center py-8 text-gray-400">
+                        <td colSpan="4" className="text-center py-12 text-gray-400">
                           <HiOutlineUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                          <p>No employees in this department</p>
+                          <p className="text-base">No employees in this department</p>
+                          <p className="text-sm text-gray-300 mt-1">
+                            Add employees to this department to see them here
+                          </p>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            {/* Created & Updated Info */}
+            <div className="mt-6 text-xs text-gray-400 bg-gray-50 p-3 rounded-lg">
+              <div className="flex flex-wrap justify-between">
+                <span>Department ID: {department.id}</span>
+                {department.createdAt && (
+                  <span>Created: {new Date(department.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
+                )}
+                {department.updatedAt && department.updatedAt !== department.createdAt && (
+                  <span>Updated: {new Date(department.updatedAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
+                )}
               </div>
             </div>
           </div>
@@ -392,7 +443,7 @@ const DepartmentDetailModal = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center"
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] flex items-center justify-center"
           onClick={handleCancelDelete}
         >
           <div 
@@ -410,26 +461,27 @@ const DepartmentDetailModal = () => {
             {employeesInDepartment.length > 0 && (
               <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-700 flex items-center">
-                  <HiOutlineExclamation className="w-4 h-4 mr-2 flex-shrink-0" />
-                  This department has {employeesInDepartment.length} employee(s). Deleting will affect them.
+                  <HiOutlineExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                  This department has <span className="font-semibold">{employeesInDepartment.length}</span> employee(s). 
+                  Deleting this department will affect them.
                 </p>
               </div>
             )}
             <div className="flex justify-end space-x-3">
               <button
                 onClick={handleCancelDelete}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 disabled={deleting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center disabled:bg-red-400"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center disabled:bg-red-400 disabled:cursor-not-allowed"
                 disabled={deleting}
               >
                 <HiOutlineTrash className="w-4 h-4 mr-2" />
-                {deleting ? 'Deleting...' : 'Delete'}
+                {deleting ? 'Deleting...' : 'Delete Department'}
               </button>
             </div>
           </div>

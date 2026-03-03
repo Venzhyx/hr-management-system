@@ -27,7 +27,6 @@ import {
   HiOutlineAcademicCap,
   HiOutlineFolder,
   HiOutlineIdentification,
-  // ===== FIX: TAMBAHKAN ICON YANG MISSING =====
   HiOutlineHome,
   HiOutlineUsers,
   HiOutlineCreditCard,
@@ -114,44 +113,49 @@ const Toast = ({ toast, onClose }) => {
   );
 };
 
+// ✅ FIX: ProfileCard dengan garis bawah untuk nama dan job title
 const ProfileCard = ({ formData, handleChange, photoPreview, handlePhotoChange }) => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
-    <div className="p-6">
+  <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 overflow-hidden">
+    <div className="p-8">
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Employee's Name *"
-            className="text-2xl font-bold text-gray-800 w-full mb-1 px-2 py-1 border-b border-transparent focus:border-indigo-300 focus:outline-none"
-            required
-          />
-          <input
-            type="text"
-            name="jobTitle"
-            value={formData.jobTitle}
-            onChange={handleChange}
-            placeholder="Job Title *"
-            className="text-sm text-gray-500 w-full px-2 py-1 border-b border-transparent focus:border-indigo-300 focus:outline-none"
-            required
-          />
+          <div className="border-b-2 border-indigo-200 pb-2 mb-4">
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Employee's Name *"
+              className="text-3xl font-bold text-gray-800 w-full px-2 py-1 bg-transparent focus:outline-none focus:border-indigo-500 transition-colors"
+              required
+            />
+          </div>
+          <div className="border-b border-gray-200 pb-1">
+            <input
+              type="text"
+              name="jobTitle"
+              value={formData.jobTitle}
+              onChange={handleChange}
+              placeholder="Job Title *"
+              className="text-base text-gray-600 w-full px-2 py-1 bg-transparent focus:outline-none focus:border-indigo-500 transition-colors"
+              required
+            />
+          </div>
         </div>
         
         <div className="flex-shrink-0 ml-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-indigo-100 shadow-md">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-indigo-100 shadow-md">
               {photoPreview ? (
                 <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-indigo-50 flex items-center justify-center">
-                  <HiOutlinePhotograph className="w-8 h-8 text-indigo-300" />
+                  <HiOutlinePhotograph className="w-10 h-10 text-indigo-300" />
                 </div>
               )}
             </div>
-            <label htmlFor="photo-upload" className="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-indigo-700 shadow-lg transition-all">
-              <HiOutlineUpload className="w-3 h-3" />
+            <label htmlFor="photo-upload" className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700 shadow-lg transition-all">
+              <HiOutlineUpload className="w-4 h-4" />
             </label>
             <input type="file" id="photo-upload" className="hidden" accept="image/*" onChange={handlePhotoChange} />
           </div>
@@ -161,34 +165,39 @@ const ProfileCard = ({ formData, handleChange, photoPreview, handlePhotoChange }
   </div>
 );
 
+// ✅ FIX: WorkInformationCard dengan ukuran lebih besar dan manager otomatis
 const WorkInformationCard = ({ 
   formData, 
   handleChange, 
   companies, 
   departments, 
+  employees,
   activeEmployees,
   companyLoading,
-  departmentLoading 
+  departmentLoading,
+  onManagerAutoFill
 }) => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
-    <div className="p-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Work Information</h2>
+  <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 overflow-hidden">
+    <div className="p-8">
+      <h2 className="text-xl font-semibold text-gray-800 mb-6">Work Information</h2>
       {companyLoading || departmentLoading ? (
-        <div className="text-center py-8 text-gray-400">Loading reference data...</div>
+        <div className="text-center py-12 text-gray-400">Loading reference data...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Work Email */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Work Email *</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineMail className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Work Email *</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineMail className="w-5 h-5 text-gray-400" />
+              </div>
               <input 
                 type="email" 
                 name="workEmail" 
                 value={formData.workEmail} 
                 onChange={handleChange} 
                 placeholder="e.g., john@company.com" 
-                className="flex-1 py-2 focus:outline-none text-sm" 
+                className="flex-1 px-3 py-3 focus:outline-none text-base" 
                 required
               />
             </div>
@@ -196,16 +205,18 @@ const WorkInformationCard = ({
 
           {/* Work Phone */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Work Phone *</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlinePhone className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Work Phone *</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlinePhone className="w-5 h-5 text-gray-400" />
+              </div>
               <input 
                 type="tel" 
                 name="workPhone" 
                 value={formData.workPhone} 
                 onChange={handleChange} 
                 placeholder="e.g., 021-1234567" 
-                className="flex-1 py-2 focus:outline-none text-sm" 
+                className="flex-1 px-3 py-3 focus:outline-none text-base" 
                 required
               />
             </div>
@@ -213,30 +224,34 @@ const WorkInformationCard = ({
 
           {/* Work Mobile */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Work Mobile</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlinePhone className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Work Mobile</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlinePhone className="w-5 h-5 text-gray-400" />
+              </div>
               <input 
                 type="tel" 
                 name="workMobile" 
                 value={formData.workMobile} 
                 onChange={handleChange} 
                 placeholder="e.g., 08123456789" 
-                className="flex-1 py-2 focus:outline-none text-sm" 
+                className="flex-1 px-3 py-3 focus:outline-none text-base" 
               />
             </div>
           </div>
 
           {/* Company */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Company *</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Company *</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineOfficeBuilding className="w-5 h-5 text-gray-400" />
+              </div>
               <select 
                 name="companyId" 
                 value={formData.companyId} 
                 onChange={handleChange} 
-                className="flex-1 py-2 bg-transparent focus:outline-none text-sm"
+                className="flex-1 px-3 py-3 bg-transparent focus:outline-none text-base"
                 required
               >
                 <option value="">Select Company</option>
@@ -249,14 +264,19 @@ const WorkInformationCard = ({
 
           {/* Department */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Department *</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Department *</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineOfficeBuilding className="w-5 h-5 text-gray-400" />
+              </div>
               <select 
                 name="departmentId" 
                 value={formData.departmentId} 
-                onChange={handleChange} 
-                className="flex-1 py-2 bg-transparent focus:outline-none text-sm"
+                onChange={(e) => {
+                  handleChange(e);
+                  onManagerAutoFill(e.target.value);
+                }} 
+                className="flex-1 px-3 py-3 bg-transparent focus:outline-none text-base"
                 required
               >
                 <option value="">Select Department</option>
@@ -269,16 +289,18 @@ const WorkInformationCard = ({
 
           {/* Job Position */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Job Position *</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineBriefcase className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Job Position *</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineBriefcase className="w-5 h-5 text-gray-400" />
+              </div>
               <input 
                 type="text" 
                 name="jobPosition" 
                 value={formData.jobPosition} 
                 onChange={handleChange} 
                 placeholder="e.g., Senior Developer" 
-                className="flex-1 py-2 focus:outline-none text-sm" 
+                className="flex-1 px-3 py-3 focus:outline-none text-base" 
                 required
               />
             </div>
@@ -286,14 +308,16 @@ const WorkInformationCard = ({
 
           {/* Manager */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Manager</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineUser className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineUser className="w-5 h-5 text-gray-400" />
+              </div>
               <select 
                 name="managerId" 
                 value={formData.managerId} 
                 onChange={handleChange} 
-                className="flex-1 py-2 bg-transparent focus:outline-none text-sm"
+                className="flex-1 px-3 py-3 bg-transparent focus:outline-none text-base"
               >
                 <option value="">Select Manager</option>
                 {activeEmployees.map(emp => (
@@ -305,14 +329,16 @@ const WorkInformationCard = ({
 
           {/* Coach */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Coach</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineUserGroup className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Coach</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineUserGroup className="w-5 h-5 text-gray-400" />
+              </div>
               <select 
                 name="coachId" 
                 value={formData.coachId} 
                 onChange={handleChange} 
-                className="flex-1 py-2 bg-transparent focus:outline-none text-sm"
+                className="flex-1 px-3 py-3 bg-transparent focus:outline-none text-base"
               >
                 <option value="">Select Coach</option>
                 {activeEmployees.map(emp => (
@@ -324,15 +350,17 @@ const WorkInformationCard = ({
 
           {/* Join Date */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Join Date *</label>
-            <div className="flex items-center border-b border-gray-200 focus-within:border-indigo-500">
-              <HiOutlineCalendar className="w-4 h-4 text-gray-400 mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Join Date *</label>
+            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
+              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
+                <HiOutlineCalendar className="w-5 h-5 text-gray-400" />
+              </div>
               <input 
                 type="date" 
                 name="joinDate" 
                 value={formData.joinDate} 
                 onChange={handleChange} 
-                className="flex-1 py-2 focus:outline-none text-sm" 
+                className="flex-1 px-3 py-3 focus:outline-none text-base" 
                 required
               />
             </div>
@@ -347,7 +375,6 @@ const WorkInformationCard = ({
 const AddEmployee = () => {
   const navigate = useNavigate();
   
-  // ===== FIX: GABUNGIN useEmployee JADI SATU =====
   const { 
     createEmployee, 
     employees,
@@ -372,7 +399,6 @@ const AddEmployee = () => {
 
   // ===== FORM DATA =====
   const [formData, setFormData] = useState({
-    // Basic Info - Required
     name: '',
     jobTitle: '',
     workEmail: '',
@@ -381,53 +407,42 @@ const AddEmployee = () => {
     departmentId: '',
     jobPosition: '',
     joinDate: '',
-    
-    // Optional
     workMobile: '',
     managerId: '',
     coachId: '',
-    // ===== FIX: HAPUS AUTO-GENERATE EMPLOYEE CODE, BIAR BACKEND YANG BUAT =====
     employeeCode: ''
   });
 
   // ===== PRIVATE INFORMATION SECTIONS =====
-  
-  // 2.1 Private Contact
   const [privateContact, setPrivateContact] = useState({
     address: '',
     email: '',
     phone: ''
   });
 
-  // Bank Accounts
   const [bankAccounts, setBankAccounts] = useState([
     { id: 1, bankName: '', accountNumber: '', accountHolder: '' }
   ]);
 
-  // Assurance
   const [assurances, setAssurances] = useState([
     { id: 1, type: '', policyNumber: '', provider: '', expiryDate: '' }
   ]);
 
-  // Tax Info (NPWP)
   const [taxInfo, setTaxInfo] = useState({
     npwp: '',
     workDistance: 0
   });
 
-  // 2.2 Emergency
   const [emergencyContact, setEmergencyContact] = useState({
     name: '',
     phone: ''
   });
 
-  // 2.3 Family Status
   const [familyInfo, setFamilyInfo] = useState({
     maritalStatus: '',
     numberOfChildren: 0
   });
 
-  // 2.4 Citizenship
   const [citizenship, setCitizenship] = useState({
     nationality: '',
     countryOfBirth: '',
@@ -439,14 +454,12 @@ const AddEmployee = () => {
     placeOfBirth: ''
   });
 
-  // 2.5 Education
   const [education, setEducation] = useState({
     certificateLevel: '',
     fieldOfStudy: '',
     school: ''
   });
 
-  // Additional sections
   const [documents, setDocuments] = useState({
     idCard: null,
     familyCard: null,
@@ -472,16 +485,32 @@ const AddEmployee = () => {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // ===== HELPER =====
-  // ===== FIX: CEK STRUKTUR STATUS DARI BACKEND =====
-  // Asumsi backend pakai field 'status' langsung di employee, bukan di settings
   const activeEmployees = employees?.filter(emp => emp.status === 'ACTIVE') || [];
+
+  // ✅ Fungsi untuk auto-fill manager berdasarkan department
+  const handleManagerAutoFill = (departmentId) => {
+    if (!departmentId) {
+      setFormData(prev => ({ ...prev, managerId: '' }));
+      return;
+    }
+
+    // Cari department yang dipilih
+    const selectedDept = departments?.find(dept => dept.id === parseInt(departmentId));
+    
+    if (selectedDept?.managerId) {
+      // Jika department sudah punya manager, set managerId
+      setFormData(prev => ({ ...prev, managerId: selectedDept.managerId.toString() }));
+    } else {
+      // Jika tidak ada manager, kosongkan
+      setFormData(prev => ({ ...prev, managerId: '' }));
+    }
+  };
 
   // ===== HANDLERS =====
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error for this field
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -529,7 +558,6 @@ const AddEmployee = () => {
       setSettings(prev => ({ ...prev, [name]: value }));
     }
     
-    // Clear error for employeeType
     if (name === 'employeeType' && errors.employeeType) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -617,7 +645,6 @@ const AddEmployee = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    // Required fields - Basic Info
     if (!formData.name) newErrors.name = 'Name is required';
     if (!formData.jobTitle) newErrors.jobTitle = 'Job title is required';
     if (!formData.workEmail) {
@@ -631,7 +658,6 @@ const AddEmployee = () => {
     if (!formData.jobPosition) newErrors.jobPosition = 'Job position is required';
     if (!formData.joinDate) newErrors.joinDate = 'Join date is required';
     
-    // ===== FIX: VALIDASI EMPLOYEE TYPE =====
     if (!settings.employeeType) {
       newErrors.employeeType = 'Employee type is required';
     }
@@ -661,7 +687,6 @@ const AddEmployee = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -671,13 +696,10 @@ const AddEmployee = () => {
         type: 'error'
       });
       
-      // ===== FIX: BETTER SCROLL TO ERROR =====
       const firstErrorField = Object.keys(validationErrors)[0];
       
-      // Check if error is in settings tab
       if (firstErrorField === 'employeeType') {
         setActiveMainTab('settings');
-        // Give time for tab to render
         setTimeout(() => {
           document.querySelector(`[name="${firstErrorField}"]`)?.scrollIntoView({ 
             behavior: 'smooth', 
@@ -696,7 +718,6 @@ const AddEmployee = () => {
     setIsSubmitting(true);
 
     try {
-      // Upload files
       const [
         photoUrl,
         idCardUrl,
@@ -717,72 +738,39 @@ const AddEmployee = () => {
         documents.transcript ? uploadFile(documents.transcript.file) : Promise.resolve(null)
       ]);
 
-      // Build payload
       const payload = {
-        // Basic Info
-        // ===== FIX: HAPUS EMPLOYEE CODE, BIAR BACKEND YANG GENERATE =====
-        // employeeCode: formData.employeeCode,
         name: formData.name,
         jobTitle: formData.jobTitle,
-        
-        // Relations
         companyId: parseInt(formData.companyId),
         departmentId: parseInt(formData.departmentId),
         managerId: formData.managerId ? parseInt(formData.managerId) : null,
         coachId: formData.coachId ? parseInt(formData.coachId) : null,
-        
-        // Contact
         workEmail: formData.workEmail,
         workPhone: formData.workPhone,
         workMobile: formData.workMobile || null,
-        
-        // Position
         jobPosition: formData.jobPosition,
-        
-        // Dates
         joinDate: formData.joinDate,
-        
-        // Photo
         photoUrl,
-        
-        // 2.1 Private Contact
         privateAddress: privateContact.address || null,
         privateEmail: privateContact.email || null,
         privatePhone: privateContact.phone || null,
-        
-        // Bank Accounts
-        // ===== FIX: FILTER LEBIH KETAT =====
         bankAccounts: bankAccounts.map(acc => ({
           bankName: acc.bankName,
           accountNumber: acc.accountNumber,
           accountHolder: acc.accountHolder
         })).filter(acc => acc.bankName && acc.accountNumber && acc.accountHolder),
-        
-        // Assurances
-        // ===== FIX: FILTER LEBIH KETAT =====
         assurances: assurances.map(ass => ({
           type: ass.type,
           policyNumber: ass.policyNumber,
           provider: ass.provider,
           expiryDate: ass.expiryDate || null
         })).filter(ass => ass.type && ass.policyNumber && ass.provider),
-        
-        // Tax Info
         npwpNumber: taxInfo.npwp || null,
-        // ===== FIX: PAKAI Number() instead of parseFloat =====
-        homeToWorkDistance: taxInfo.workDistance
-          ? Number(taxInfo.workDistance)
-          : null,
-        
-        // 2.2 Emergency
+        homeToWorkDistance: taxInfo.workDistance ? Number(taxInfo.workDistance) : null,
         emergencyContactName: emergencyContact.name || null,
         emergencyContactPhone: emergencyContact.phone || null,
-        
-        // 2.3 Family Status
         maritalStatus: familyInfo.maritalStatus || null,
         numberOfDependentChildren: familyInfo.numberOfChildren ? parseInt(familyInfo.numberOfChildren) : 0,
-        
-        // 2.4 Citizenship
         nationality: citizenship.nationality || null,
         countryOfBirth: citizenship.countryOfBirth || null,
         idNumber: citizenship.idNumber || null,
@@ -791,13 +779,9 @@ const AddEmployee = () => {
         gender: citizenship.gender || null,
         dateOfBirth: citizenship.dateOfBirth || null,
         placeOfBirth: citizenship.placeOfBirth || null,
-        
-        // 2.5 Education
         certificateLevel: education.certificateLevel || null,
         fieldOfStudy: education.fieldOfStudy || null,
         school: education.school || null,
-        
-        // Documents
         idCardDocument: idCardUrl,
         familyCardDocument: familyCardUrl,
         drivingLicenseDocument: drivingLicenseUrl,
@@ -805,8 +789,6 @@ const AddEmployee = () => {
         npwpCardDocument: npwpCardUrl,
         certificateDocument: certificateUrl,
         transcriptDocument: transcriptUrl,
-        
-        // Settings
         employeeType: settings.employeeType,
         relatedUserId: settings.relatedUserId ? parseInt(settings.relatedUserId) : null,
         monthlyCost: settings.monthlyCost ? parseFloat(settings.monthlyCost) : null,
@@ -851,7 +833,7 @@ const AddEmployee = () => {
       <Toast toast={toast} onClose={closeToast} />
 
       {/* Header */}
-      <div className="flex items-center space-x-4 mb-6">
+      <div className="flex items-center space-x-4 mb-8">
         <button 
           type="button"
           onClick={() => navigate('/employees')} 
@@ -876,9 +858,11 @@ const AddEmployee = () => {
         handleChange={handleChange}
         companies={companies}
         departments={departments}
+        employees={employees}
         activeEmployees={activeEmployees}
         companyLoading={companyLoading}
         departmentLoading={departmentLoading}
+        onManagerAutoFill={handleManagerAutoFill}
       />
 
       {/* Additional Information Card */}
@@ -923,56 +907,56 @@ const AddEmployee = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-8">
           {/* PRIVATE INFORMATION TAB */}
           {activeMainTab === 'private' && (
             <div className="space-y-8">
               {/* 2.1 Private Contact */}
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-3 pb-1 border-b border-gray-200 flex items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
                   <HiOutlineHome className="w-5 h-5 mr-2 text-indigo-500" />
                   2.1 Private Contact
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Private Address</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Private Address</label>
                     <textarea 
                       name="address" 
                       value={privateContact.address} 
                       onChange={handlePrivateContactChange} 
-                      rows="2" 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      rows="3" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Street, City, Province, Postal Code"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Private Email</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Private Email</label>
                     <input 
                       type="email" 
                       name="email" 
                       value={privateContact.email} 
                       onChange={handlePrivateContactChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="personal@email.com"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Private Phone</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Private Phone</label>
                     <input 
                       type="tel" 
                       name="phone" 
                       value={privateContact.phone} 
                       onChange={handlePrivateContactChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="+62 XXX XXXX"
                     />
                   </div>
                 </div>
 
                 {/* Bank Accounts */}
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">Bank Accounts</label>
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-md font-medium text-gray-700">Bank Accounts</label>
                     <button 
                       type="button"
                       onClick={addBankAccount} 
@@ -982,9 +966,9 @@ const AddEmployee = () => {
                       <span>Add Bank</span>
                     </button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {bankAccounts.map((account) => (
-                      <div key={account.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200 relative">
+                      <div key={account.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
                         {bankAccounts.length > 1 && (
                           <button 
                             type="button"
@@ -994,7 +978,7 @@ const AddEmployee = () => {
                             <HiOutlineTrash className="w-4 h-4" />
                           </button>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Bank Name</label>
                             <select 
@@ -1007,7 +991,7 @@ const AddEmployee = () => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Bank ID / Account Number</label>
+                            <label className="block text-xs text-gray-500 mb-1">Account Number</label>
                             <input 
                               type="text" 
                               value={account.accountNumber} 
@@ -1033,9 +1017,9 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Assurance */}
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">Assurance</label>
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-md font-medium text-gray-700">Assurance</label>
                     <button 
                       type="button"
                       onClick={addAssurance} 
@@ -1045,9 +1029,9 @@ const AddEmployee = () => {
                       <span>Add Assurance</span>
                     </button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {assurances.map((assurance) => (
-                      <div key={assurance.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200 relative">
+                      <div key={assurance.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
                         {assurances.length > 1 && (
                           <button 
                             type="button"
@@ -1057,7 +1041,7 @@ const AddEmployee = () => {
                             <HiOutlineTrash className="w-4 h-4" />
                           </button>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Type</label>
                             <select 
@@ -1072,7 +1056,7 @@ const AddEmployee = () => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Policy Number / ID</label>
+                            <label className="block text-xs text-gray-500 mb-1">Policy Number</label>
                             <input 
                               type="text" 
                               value={assurance.policyNumber} 
@@ -1107,20 +1091,20 @@ const AddEmployee = () => {
                 </div>
 
                 {/* NPWP */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">NPWP ID</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">NPWP ID</label>
                     <input 
                       type="text" 
                       name="npwp" 
                       value={taxInfo.npwp} 
                       onChange={handleTaxChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="XX.XXX.XXX.X-XXX.XXX"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Home-Work Distance (KM)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Home-Work Distance (KM)</label>
                     <div className="relative">
                       <input 
                         type="number" 
@@ -1129,10 +1113,10 @@ const AddEmployee = () => {
                         onChange={handleTaxChange} 
                         min="0" 
                         step="0.1"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-12" 
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-12" 
                         placeholder="0.0"
                       />
-                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">KM</span>
+                      <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">KM</span>
                     </div>
                   </div>
                 </div>
@@ -1140,30 +1124,30 @@ const AddEmployee = () => {
 
               {/* 2.2 Emergency */}
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-3 pb-1 border-b border-gray-200 flex items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
                   <HiOutlinePhone className="w-5 h-5 mr-2 text-red-500" />
                   2.2 Emergency
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Name</label>
                     <input 
                       type="text" 
                       name="name" 
                       value={emergencyContact.name} 
                       onChange={handleEmergencyChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Emergency Contact Name"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
                     <input 
                       type="tel" 
                       name="phone" 
                       value={emergencyContact.phone} 
                       onChange={handleEmergencyChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Emergency Contact Phone"
                     />
                   </div>
@@ -1172,18 +1156,18 @@ const AddEmployee = () => {
 
               {/* 2.3 Family Status */}
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-3 pb-1 border-b border-gray-200 flex items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
                   <HiOutlineUsers className="w-5 h-5 mr-2 text-green-500" />
                   2.3 Family Status
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
                     <select 
                       name="maritalStatus" 
                       value={familyInfo.maritalStatus} 
                       onChange={handleFamilyChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="">Select Status</option>
                       {MARITAL_OPTIONS.map(opt => (
@@ -1192,14 +1176,14 @@ const AddEmployee = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Dependent Children</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of Dependent Children</label>
                     <input 
                       type="number" 
                       name="numberOfChildren" 
                       value={familyInfo.numberOfChildren} 
                       onChange={handleFamilyChange} 
                       min="0" 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="0"
                     />
                   </div>
@@ -1208,74 +1192,74 @@ const AddEmployee = () => {
 
               {/* 2.4 Citizenship */}
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-3 pb-1 border-b border-gray-200 flex items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
                   <HiOutlineGlobe className="w-5 h-5 mr-2 text-blue-500" />
                   2.4 Citizenship
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Citizenship</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Citizenship</label>
                     <select 
                       name="nationality" 
                       value={citizenship.nationality} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="">Select Citizenship</option>
                       {NATIONALITY_OPTIONS.map(nat => <option key={nat} value={nat}>{nat}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nationality (Country)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Nationality (Country)</label>
                     <input 
                       type="text" 
                       name="countryOfBirth" 
                       value={citizenship.countryOfBirth} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Country"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Identification No</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Identification No</label>
                     <input 
                       type="text" 
                       name="idNumber" 
                       value={citizenship.idNumber} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="KTP / ID Number"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Passport No</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Passport No</label>
                     <input 
                       type="text" 
                       name="passportNumber" 
                       value={citizenship.passportNumber} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Passport Number"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Family Card No</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Family Card No</label>
                     <input 
                       type="text" 
                       name="familyCardNumber" 
                       value={citizenship.familyCardNumber} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Family Card Number"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                     <select 
                       name="gender" 
                       value={citizenship.gender} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="">Select Gender</option>
                       {GENDER_OPTIONS.map(opt => (
@@ -1284,23 +1268,23 @@ const AddEmployee = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
                     <input 
                       type="date" 
                       name="dateOfBirth" 
                       value={citizenship.dateOfBirth} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Place of Birth</label>
                     <input 
                       type="text" 
                       name="placeOfBirth" 
                       value={citizenship.placeOfBirth} 
                       onChange={handleCitizenshipChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="City of Birth"
                     />
                   </div>
@@ -1309,18 +1293,18 @@ const AddEmployee = () => {
 
               {/* 2.5 Education */}
               <div>
-                <h3 className="text-md font-medium text-gray-700 mb-3 pb-1 border-b border-gray-200 flex items-center">
+                <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
                   <HiOutlineAcademicCap className="w-5 h-5 mr-2 text-purple-500" />
                   2.5 Education
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Certificate Level</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Certificate Level</label>
                     <select 
                       name="certificateLevel" 
                       value={education.certificateLevel} 
                       onChange={handleEducationChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="">Select Level</option>
                       {CERTIFICATE_OPTIONS.map(opt => (
@@ -1329,24 +1313,24 @@ const AddEmployee = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Field of Study</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Field of Study</label>
                     <input 
                       type="text" 
                       name="fieldOfStudy" 
                       value={education.fieldOfStudy} 
                       onChange={handleEducationChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="e.g., Computer Science"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">School / University</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">School / University</label>
                     <input 
                       type="text" 
                       name="school" 
                       value={education.school} 
                       onChange={handleEducationChange} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                       placeholder="Institution Name"
                     />
                   </div>
@@ -1358,8 +1342,8 @@ const AddEmployee = () => {
           {/* DOCUMENTS TAB */}
           {activeMainTab === 'documents' && (
             <div className="space-y-6">
-              <h3 className="text-md font-medium text-gray-700 mb-3">Required Documents</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-lg font-medium text-gray-700 mb-4">Required Documents</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
                   { key: 'idCard', label: 'ID Card / KTP' },
                   { key: 'familyCard', label: 'Family Card' },
@@ -1369,12 +1353,12 @@ const AddEmployee = () => {
                   { key: 'certificate', label: 'Certificate / Ijazah' },
                   { key: 'transcript', label: 'Academic Transcript' },
                 ].map((doc) => (
-                  <div key={doc.key} className="border border-gray-200 rounded-lg p-4">
+                  <div key={doc.key} className="border border-gray-200 rounded-lg p-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">{doc.label}</span>
+                      <span className="text-base font-medium text-gray-700">{doc.label}</span>
                       {documents[doc.key] ? (
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600 truncate max-w-[150px]">
+                          <span className="text-sm text-gray-600 truncate max-w-[200px]">
                             {documents[doc.key].fileName}
                           </span>
                           <button
@@ -1382,12 +1366,12 @@ const AddEmployee = () => {
                             onClick={() => handleRemoveDocument(doc.key)}
                             className="text-red-500 hover:text-red-700"
                           >
-                            <HiOutlineTrash className="w-4 h-4" />
+                            <HiOutlineTrash className="w-5 h-5" />
                           </button>
                         </div>
                       ) : (
                         <label className="cursor-pointer text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-                          <HiOutlineUpload className="w-4 h-4 inline mr-1" />
+                          <HiOutlineUpload className="w-5 h-5 inline mr-1" />
                           Upload
                           <input
                             type="file"
@@ -1406,11 +1390,11 @@ const AddEmployee = () => {
           {/* SETTINGS TAB */}
           {activeMainTab === 'settings' && (
             <div className="space-y-6">
-              <h3 className="text-md font-medium text-gray-700 mb-3">Employee Settings</h3>
+              <h3 className="text-lg font-medium text-gray-700 mb-4">Employee Settings</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Employee Type */}
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Employee Type *
                     {errors.employeeType && (
@@ -1421,7 +1405,7 @@ const AddEmployee = () => {
                     name="employeeType" 
                     value={settings.employeeType} 
                     onChange={handleSettingsChange} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                       errors.employeeType ? 'border-red-500' : 'border-gray-300'
                     }`}
                     required
@@ -1434,13 +1418,13 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Related User */}
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Related User</label>
                   <select 
                     name="relatedUserId" 
                     value={settings.relatedUserId} 
                     onChange={handleSettingsChange} 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Select Related User</option>
                     {activeEmployees.map(emp => (
@@ -1450,23 +1434,23 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Monthly Cost */}
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Cost</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">Rp</span>
+                    <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">Rp</span>
                     <input 
                       type="number" 
                       name="monthlyCost" 
                       value={settings.monthlyCost} 
                       onChange={handleSettingsChange} 
                       min="0" 
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                     />
                   </div>
                 </div>
 
                 {/* Badge ID */}
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Attendance Badge ID</label>
                   <input 
                     type="text" 
@@ -1474,42 +1458,42 @@ const AddEmployee = () => {
                     value={settings.attendanceBadgeId} 
                     onChange={handleSettingsChange} 
                     placeholder="e.g., RFID-12345" 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                   />
                 </div>
               </div>
 
               {/* Application Settings */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Application Settings</h4>
+              <div className="bg-gray-50 p-5 rounded-lg">
+                <h4 className="text-base font-medium text-gray-700 mb-4">Application Settings</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="flex items-center space-x-2">
+                  <label className="flex items-center space-x-3">
                     <input 
                       type="checkbox" 
                       name="enableNotifications" 
                       checked={settings.enableNotifications} 
                       onChange={handleSettingsChange} 
-                      className="rounded text-indigo-600" 
+                      className="w-4 h-4 rounded text-indigo-600" 
                     />
                     <span className="text-sm text-gray-700">Enable notifications</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex items-center space-x-3">
                     <input 
                       type="checkbox" 
                       name="allowRemoteAccess" 
                       checked={settings.allowRemoteAccess} 
                       onChange={handleSettingsChange} 
-                      className="rounded text-indigo-600" 
+                      className="w-4 h-4 rounded text-indigo-600" 
                     />
                     <span className="text-sm text-gray-700">Allow remote access</span>
                   </label>
-                  <label className="flex items-center space-x-2">
+                  <label className="flex items-center space-x-3">
                     <input 
                       type="checkbox" 
                       name="overtimeEligible" 
                       checked={settings.overtimeEligible} 
                       onChange={handleSettingsChange} 
-                      className="rounded text-indigo-600" 
+                      className="w-4 h-4 rounded text-indigo-600" 
                     />
                     <span className="text-sm text-gray-700">Overtime eligible</span>
                   </label>
@@ -1520,11 +1504,11 @@ const AddEmployee = () => {
         </div>
 
         {/* Form Actions */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+        <div className="px-8 py-5 bg-gray-50 border-t border-gray-200 flex justify-end space-x-4">
           <button
             type="button"
             onClick={() => navigate('/employees')}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-sm"
+            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-base"
             disabled={isSubmitting}
           >
             Cancel
@@ -1532,11 +1516,11 @@ const AddEmployee = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             {isSubmitting ? (
               <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
