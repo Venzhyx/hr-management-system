@@ -1,0 +1,71 @@
+package com.projek.hr_backend.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "employees")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Employee {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String name;
+    
+    @Column(nullable = false)
+    private String jobTitle;
+    
+    @Column(nullable = false)
+    private String workEmail;
+    
+    @Column(nullable = false)
+    private String workPhone;
+    
+    private String workMobile;
+    
+    @Column(nullable = false)
+    private LocalDate joinDate;
+    
+    private String photo;
+    
+    @ManyToOne
+    @JoinColumn(name = "company_id")
+    private Company company;
+    
+    @ManyToOne
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+    
+    @ManyToOne
+    @JoinColumn(name = "manager_id")
+    private Employee manager;
+    
+    @ManyToOne
+    @JoinColumn(name = "coach_id")
+    private Employee coach;
+    
+    @OneToOne(mappedBy = "employee", cascade = CascadeType.ALL)
+    private EmployeePrivateInfo privateInfo;
+
+    @OneToOne(mappedBy = "employee", cascade = CascadeType.ALL)
+    private EmployeeSettings settings;
+    
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}
