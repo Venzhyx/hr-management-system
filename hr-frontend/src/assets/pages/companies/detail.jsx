@@ -127,7 +127,7 @@ const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
   // Handle edit navigation
   const handleEdit = () => {
     onClose();
-    navigate(`/companies/edit/${companyId}`); // ✅ FIX: Gunakan navigate, bukan window.location
+    navigate(`/companies/edit/${companyId}`); // ✅ FIX:yhh Gunakan navigate, bukan window.location
   };
 
   if (!isOpen) return null;
@@ -305,7 +305,7 @@ const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center"
               >
                 <HiOutlinePencil className="w-4 h-4 mr-2" />
-                Edit Company
+                Edit Companies
               </button>
             </div>
           </div>
