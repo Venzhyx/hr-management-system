@@ -58,7 +58,7 @@ const DepartmentTreeNode = ({ node, level = 0 }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                  <HiOutlineOfficeBuilding className="w-5 h-5 text-indigo-600" />
+                  <HiOutlineOfficeBuildingOld className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900">{node.departmentName}</h4>
@@ -147,7 +147,7 @@ const DepartmentTreeModal = ({ isOpen, onClose, departments }) => {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {departments.length === 0 ? (
                 <div className="text-center py-12">
-                  <HiOutlineOfficeBuilding className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <HiOutlineOfficeBuildingOld className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">No departments found</p>
                 </div>
               ) : (

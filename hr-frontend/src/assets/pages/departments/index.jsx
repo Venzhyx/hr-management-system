@@ -136,14 +136,13 @@ const DepartmentsList = () => {
     });
   };
 
-  // ✅ FIX: Navigasi dengan ID
   const handleViewDetails = (department) => {
-    navigate(`/departments/detail/${department.id}`);
-  };
+  navigate('/departments/detail', { state: { department } });
+};
 
-  const handleEdit = (department) => {
-    navigate(`/departments/edit/${department.id}`);
-  };
+const handleEdit = (department) => {
+  navigate('/departments/edit', { state: { department } });
+};
 
   // DELETE FUNCTION DENGAN MODAL
   const handleDeleteClick = (department) => {
