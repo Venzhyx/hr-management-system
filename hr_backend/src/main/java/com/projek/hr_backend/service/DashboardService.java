@@ -3,6 +3,7 @@ package com.projek.hr_backend.service;
 import com.projek.hr_backend.dto.DashboardSummaryResponse;
 import com.projek.hr_backend.model.EmployeeType;
 import com.projek.hr_backend.repository.EmployeeRepository;
+import com.projek.hr_backend.repository.EmployeeSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,12 +16,13 @@ import java.util.Map;
 public class DashboardService {
     
     private final EmployeeRepository employeeRepository;
+    private final EmployeeSettingsRepository employeeSettingsRepository;
     
     public DashboardSummaryResponse getDashboardSummary() {
         long totalEmployee = employeeRepository.count();
-        long totalFullTime = employeeRepository.countBySettingsEmployeeType(EmployeeType.FULL_TIME);
-        long totalPartTime = employeeRepository.countBySettingsEmployeeType(EmployeeType.PART_TIME);
-        long totalContract = employeeRepository.countBySettingsEmployeeType(EmployeeType.CONTRACT);
+        long totalFullTime = employeeSettingsRepository.countByEmployeeType(EmployeeType.FULL_TIME);
+        long totalPartTime = employeeSettingsRepository.countByEmployeeType(EmployeeType.PART_TIME);
+        long totalContract = employeeSettingsRepository.countByEmployeeType(EmployeeType.CONTRACT);
         
         Map<String, Long> monthlyJoinStatistic = new LinkedHashMap<>();
         List<Object[]> statistics = employeeRepository.getMonthlyJoinStatistics();

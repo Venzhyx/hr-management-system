@@ -58,9 +58,6 @@ public class Employee {
     
     @OneToOne(mappedBy = "employee", cascade = CascadeType.ALL)
     private EmployeePrivateInfo privateInfo;
-
-    @OneToOne(mappedBy = "employee", cascade = CascadeType.ALL)
-    private EmployeeSettings settings;
     
     @CreationTimestamp
     @Column(updatable = false)
