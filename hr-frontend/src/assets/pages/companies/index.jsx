@@ -22,14 +22,16 @@ import {
   HiOutlineSortDescending
 } from "react-icons/hi";
 import { useCompany } from '../../../redux/hooks/useCompany';
-import CompanyDetailModal from './detail'; // ✅ Import modal
+import CompanyDetailModal from './detail';
+import { fetchCompanies } from '../../../redux/slices/companySlice';
 
 const CompaniesList = () => {
   const navigate = useNavigate();
   const { 
     companies,
     loading,
-    deleteCompany
+    deleteCompany,
+    fetchCompanies
   } = useCompany();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,7 +41,7 @@ const CompaniesList = () => {
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // ✅ State untuk detail modal
+  // State untuk detail modal
   const [selectedCompanyId, setSelectedCompanyId] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   
@@ -77,6 +79,8 @@ const CompaniesList = () => {
       );
     }
 
+    
+
     // Sorting
     filtered.sort((a, b) => {
       let aValue = a[sortConfig.field];
@@ -101,6 +105,11 @@ const CompaniesList = () => {
     setFilteredCompanies(filtered);
     setCurrentPage(1);
   }, [companies, searchTerm, sortConfig]);
+
+
+  useEffect(() => {
+  fetchCompanies();
+}, []);
 
   // Auto hide toast
   useEffect(() => {
@@ -204,7 +213,7 @@ const CompaniesList = () => {
 
   const isFilterActive = searchTerm !== '';
 
-  // ✅ Handle view detail - buka modal
+  // Handle view detail - buka modal
   const handleViewDetail = (companyId) => {
     setSelectedCompanyId(companyId);
     setShowDetailModal(true);
@@ -273,7 +282,7 @@ const CompaniesList = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search Bar dengan Filter Panel - SAMA PERSIS dengan EmployeesList */}
       <div className="bg-white rounded-xl border border-gray-200 p-2 flex items-center shadow-sm">
         <div className="flex-1 relative">
           <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -286,7 +295,7 @@ const CompaniesList = () => {
           />
         </div>
         <div className="flex items-center space-x-2 px-2">
-          {/* Filter Button */}
+          {/* Filter Button dengan Panel */}
           <div className="relative filter-panel-container">
             <button 
               onClick={() => setShowFilterPanel(!showFilterPanel)}
@@ -300,9 +309,10 @@ const CompaniesList = () => {
               <HiOutlineFilter className="w-5 h-5" />
             </button>
 
-            {/* Filter Panel */}
+            {/* FILTER PANEL dengan RESET - SAMA PERSIS */}
             {showFilterPanel && (
               <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-50 animate-fadeIn">
+                
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="text-sm font-semibold text-gray-700">
                     Filter Companies
@@ -317,17 +327,19 @@ const CompaniesList = () => {
 
                 {/* Search Filter Info */}
                 <div className="mb-4">
-                  <p className="text-xs text-gray-500 mb-2">
-                    Search by name or address
-                  </p>
-                  {isFilterActive && (
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Active Search
+                  </label>
+                  {isFilterActive ? (
                     <div className="p-2 bg-indigo-50 rounded-lg text-xs text-indigo-700">
-                      Active filter: "{searchTerm}"
+                      "{searchTerm}"
                     </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">No active search</p>
                   )}
                 </div>
 
-                {/* Reset Filter */}
+                {/* Tombol Reset Filter */}
                 {isFilterActive && (
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     <button
@@ -356,7 +368,7 @@ const CompaniesList = () => {
             <p className="text-sm text-gray-500 mt-1">{filteredCompanies.length} total companies</p>
           </div>
           
-          {/* Add Button */}
+          {/* TOMBOL ADD - SAMA PERSIS */}
           <Link
             to="/companies/add"
             className="flex items-center space-x-2 px-5 py-2.5 bg-[#4361EE] text-white rounded-lg hover:bg-[#3651d4] transition-colors text-base shadow-sm"
@@ -403,10 +415,18 @@ const CompaniesList = () => {
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center overflow-hidden ring-2 ring-white shadow-sm">
                         {company.logo ? (
-                          <img src={company.logo} alt={company.companyName} className="w-full h-full object-cover" />
-                        ) : (
-                          <HiOutlineOfficeBuilding className="w-5 h-5 text-indigo-600" />
-                        )}
+                        <img 
+                          src={company.logo} 
+                          alt={company.companyName} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <HiOutlineOfficeBuilding className="w-5 h-5 text-indigo-600" />
+                      )}
                       </div>
                     </div>
                   </td>
@@ -421,7 +441,6 @@ const CompaniesList = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-base text-gray-500">
                     <div className="flex items-center space-x-2">
-                      {/* ✅ Buka modal detail */}
                       <button
                         onClick={() => handleViewDetail(company.id)}
                         className="text-indigo-600 hover:text-indigo-800 p-1.5 rounded hover:bg-indigo-50 transition-colors"
@@ -464,7 +483,7 @@ const CompaniesList = () => {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - SAMA PERSIS dengan EmployeesList */}
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-600">
@@ -505,7 +524,7 @@ const CompaniesList = () => {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* DELETE CONFIRMATION MODAL - SAMA PERSIS dengan EmployeesList */}
       {showDeleteModal && selectedCompany && (
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -543,7 +562,7 @@ const CompaniesList = () => {
                 </div>
               </div>
               
-              {/* Error Message */}
+              {/* Error Message dengan alasan spesifik */}
               {deleteError && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-700 flex items-start">
@@ -553,7 +572,7 @@ const CompaniesList = () => {
                 </div>
               )}
 
-              {/* Warning */}
+              {/* Warning Default */}
               {!deleteError && (
                 <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
                   <span className="font-medium">Warning:</span> This action cannot be undone. All data related to this company will be permanently removed.
@@ -595,7 +614,7 @@ const CompaniesList = () => {
         </div>
       )}
 
-      {/* ✅ Company Detail Modal */}
+      {/* Company Detail Modal */}
       <CompanyDetailModal
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}

@@ -226,9 +226,6 @@ const DepartmentDetailModal = () => {
                     <p className="text-lg font-semibold text-blue-900">
                       {company?.companyName || 'No Company Assigned'}
                     </p>
-                    {company && (
-                      <p className="text-xs text-blue-500 mt-1">ID: {company.companyId}</p>
-                    )}
                   </div>
                   <div className="w-12 h-12 bg-blue-200 rounded-xl flex items-center justify-center">
                     <HiOutlineBuildingOffice2 className="w-6 h-6 text-blue-700" />

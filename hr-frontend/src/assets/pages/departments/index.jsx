@@ -389,9 +389,6 @@ const handleEdit = (department) => {
                         </div>
                         <div>
                           <span className="text-base font-medium text-gray-900">{dept.departmentName}</span>
-                          {parentDept && (
-                            <p className="text-xs text-gray-400 mt-1">Sub-dept of: {parentDept.departmentName}</p>
-                          )}
                         </div>
                       </div>
                     </td>

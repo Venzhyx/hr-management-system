@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // ✅ FIX: Import useNavigate
+import { useNavigate } from 'react-router-dom';
 import { 
   HiOutlineXMark,
   HiOutlineBuildingOffice2,
@@ -13,7 +13,9 @@ import {
   HiOutlineXCircle,
   HiOutlinePhoto,
   HiOutlinePencil,
-  HiOutlineExclamationCircle
+  HiOutlineExclamationCircle,
+  HiOutlineCalendar,
+  HiOutlineClock
 } from 'react-icons/hi2';
 import API from "../../../api/api";
 
@@ -40,19 +42,35 @@ const ErrorState = ({ message, onRetry }) => (
   </div>
 );
 
-const InfoRow = ({ label, value, icon: Icon }) => (
-  <div className="flex items-start space-x-3">
-    {Icon && <Icon className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />}
-    <div className="flex-1">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className="text-sm text-gray-900 break-words">{value || '-'}</p>
+const InfoRow = ({ label, value, icon: Icon, colSpan = 1 }) => (
+  <div className={`${colSpan > 1 ? `sm:col-span-${colSpan}` : ''}`}>
+    <div className="flex items-start space-x-3">
+      {Icon && <Icon className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />}
+      <div className="flex-1">
+        <p className="text-xs text-gray-500 mb-1">{label}</p>
+        <p className="text-sm text-gray-900 break-words">{value || '-'}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const DetailSection = ({ title, icon: Icon, children }) => (
+  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+        {Icon && <Icon className="w-5 h-5 mr-2 text-indigo-600" />}
+        {title}
+      </h3>
+    </div>
+    <div className="p-6">
+      {children}
     </div>
   </div>
 );
 
 // ==================== MAIN COMPONENT ====================
 const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
-  const navigate = useNavigate(); // ✅ FIX: Gunakan useNavigate
+  const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -127,75 +145,137 @@ const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
   // Handle edit navigation
   const handleEdit = () => {
     onClose();
-    navigate(`/companies/edit/${companyId}`); // ✅ FIX:yhh Gunakan navigate, bukan window.location
+    navigate(`/companies/edit/${companyId}`);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-50 overflow-y-auto"
-      aria-labelledby="modal-title"
-      role="dialog"
-      aria-modal="true"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto py-10"
+      onClick={handleOverlayClick}
     >
-      {/* Overlay */}
+      {/* Modal Content */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity backdrop-blur-sm"
-        onClick={handleOverlayClick}
-      />
-
-      {/* Modal Container */}
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-          {/* Modal Content */}
-          <div className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center space-x-3">
-                <div className="bg-indigo-100 rounded-lg p-2">
-                  <HiOutlineBuildingOffice2 className="w-5 h-5 text-indigo-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900" id="modal-title">
-                  Company Details
-                </h3>
-              </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
-              >
-                <HiOutlineXMark className="w-5 h-5" />
-              </button>
+        className="bg-white rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto relative shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center z-10">
+          <div className="flex items-center space-x-3">
+            <div className="bg-indigo-100 rounded-lg p-2">
+              <HiOutlineBuildingOffice2 className="w-5 h-5 text-indigo-600" />
             </div>
+            <h2 className="text-xl font-semibold text-gray-800">Company Details</h2>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleEdit}
+              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <HiOutlinePencil className="w-5 h-5" />
+              <span>Edit</span>
+            </button>
+            <button 
+              onClick={onClose}
+              className="ml-2 text-gray-400 hover:text-gray-600"
+            >
+              <HiOutlineXMark className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
 
-            {/* Body */}
-            <div className="px-6 py-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-              {isLoading ? (
-                <LoadingSpinner />
-              ) : error ? (
-                <ErrorState message={error} onRetry={fetchCompanyDetail} />
-              ) : company ? (
-                <div className="space-y-8">
-                  {/* ✅ FIX: Logo Section - pakai logo, bukan logoUrl */}
-                  {company.logo && (
-                    <div className="flex justify-center sm:justify-start">
-                      <div className="w-24 h-24 rounded-lg overflow-hidden border-4 border-indigo-100 shadow-md bg-gray-50">
-                        <img 
-                          src={company.logo} 
-                          alt={company.companyName} 
-                          className="w-full h-full object-cover"
-                        />
+        {/* Modal Content */}
+        <div className="p-6">
+          {isLoading ? (
+            <LoadingSpinner />
+          ) : error ? (
+            <ErrorState message={error} onRetry={fetchCompanyDetail} />
+          ) : company ? (
+            <div className="space-y-6">
+              {/* Left Column - Logo & Quick Info */}
+              <div className="grid grid-cols-12 gap-6">
+                {/* Logo Section */}
+                <div className="col-span-12 lg:col-span-4">
+                  <div className="bg-gray-50 rounded-xl p-6 sticky top-24">
+                    <div className="flex flex-col items-center">
+                      {/* Logo */}
+                      <div className="w-40 h-40 rounded-xl overflow-hidden border-4 border-indigo-100 shadow-md bg-white mb-4">
+                        {company.logo ? (
+                          <img 
+                            src={company.logo} 
+                            alt={company.companyName} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '';
+                              e.target.parentElement.innerHTML = `
+                                <div class="w-full h-full bg-indigo-50 flex items-center justify-center">
+                                  <svg class="w-16 h-16 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                  </svg>
+                                </div>
+                              `;
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-indigo-50 flex items-center justify-center">
+                            <HiOutlineBuildingOffice2 className="w-16 h-16 text-indigo-300" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Company Name */}
+                      <h2 className="text-xl font-bold text-gray-800 text-center mb-2">
+                        {company.companyName}
+                      </h2>
+                      <p className="text-sm text-gray-500">ID: {company.companyId || '-'}</p>
+
+                      {/* Quick Stats */}
+                      <div className="w-full mt-6 pt-6 border-t border-gray-200">
+                        <div className="space-y-3">
+                          <div className="flex items-center text-gray-600">
+                            <HiOutlineEnvelope className="w-5 h-5 mr-3 text-gray-400" />
+                            <span className="text-sm truncate">{company.email || '-'}</span>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <HiOutlinePhone className="w-5 h-5 mr-3 text-gray-400" />
+                            <span className="text-sm">{company.phone || '-'}</span>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <HiOutlineMapPin className="w-5 h-5 mr-3 text-gray-400" />
+                            <span className="text-sm truncate">{company.city || company.country || '-'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+                </div>
 
-                  {/* ✅ FIX: Basic Information - hanya field yang ada di entity */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                      <HiOutlineBuildingOffice2 className="w-4 h-4 mr-2 text-indigo-500" />
-                      Basic Information
-                    </h4>
+                {/* Right Column - Details */}
+                <div className="col-span-12 lg:col-span-8 space-y-6">
+                  {/* Basic Information */}
+                  <DetailSection title="Basic Information" icon={HiOutlineBuildingOffice2}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <InfoRow 
                         label="Company ID" 
@@ -221,20 +301,17 @@ const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
                         label="Website" 
                         value={company.website} 
                         icon={HiOutlineLink}
+                        colSpan={2}
                       />
                     </div>
-                  </div>
+                  </DetailSection>
 
-                  {/* ✅ FIX: Address Information - sesuai entity */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                      <HiOutlineMapPin className="w-4 h-4 mr-2 text-green-500" />
-                      Address Information
-                    </h4>
+                  {/* Address Information */}
+                  <DetailSection title="Address Information" icon={HiOutlineMapPin}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="sm:col-span-2">
                         <InfoRow 
-                          label="Address" 
+                          label="Street Address" 
                           value={company.address} 
                           icon={HiOutlineMapPin}
                         />
@@ -245,70 +322,45 @@ const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
                         icon={HiOutlineBuildingOffice2}
                       />
                       <InfoRow 
-                        label="Country" 
-                        value={company.country} 
-                        icon={HiOutlineGlobeAlt}
-                      />
-                      <InfoRow 
                         label="ZIP Code" 
                         value={company.zip} 
                         icon={HiOutlineTag}
                       />
+                      <InfoRow 
+                        label="Country" 
+                        value={company.country} 
+                        icon={HiOutlineGlobeAlt}
+                      />
                     </div>
-                  </div>
+                  </DetailSection>
 
-                  {/* ✅ FIX: Informasi Tambahan */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                      <HiOutlineTag className="w-4 h-4 mr-2 text-purple-500" />
-                      Additional Information
-                    </h4>
+                  {/* Additional Information */}
+                  <DetailSection title="Additional Information" icon={HiOutlineTag}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Created At</p>
+                        <p className="text-xs text-gray-500 mb-1 flex items-center">
+                          <HiOutlineCalendar className="w-4 h-4 mr-1" />
+                          Created At
+                        </p>
                         <p className="text-sm text-gray-900">
-                          {company.createdAt ? new Date(company.createdAt).toLocaleDateString('id-ID', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          }) : '-'}
+                          {formatDateTime(company.createdAt)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Last Updated</p>
+                        <p className="text-xs text-gray-500 mb-1 flex items-center">
+                          <HiOutlineClock className="w-4 h-4 mr-1" />
+                          Last Updated
+                        </p>
                         <p className="text-sm text-gray-900">
-                          {company.updatedAt ? new Date(company.updatedAt).toLocaleDateString('id-ID', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          }) : '-'}
+                          {formatDateTime(company.updatedAt)}
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </DetailSection>
                 </div>
-              ) : null}
+              </div>
             </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={handleEdit} // ✅ FIX: Pakai handleEdit
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center"
-              >
-                <HiOutlinePencil className="w-4 h-4 mr-2" />
-                Edit Companies
-              </button>
-            </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>
