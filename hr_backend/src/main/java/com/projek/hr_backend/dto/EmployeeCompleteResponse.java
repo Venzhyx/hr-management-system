@@ -15,20 +15,15 @@ public class EmployeeCompleteResponse {
     
     // Employee Basic Info
     private Long id;
-    private String employeeCode;
     private String name;
     private String jobTitle;
-    private String jobPosition;
     private String workEmail;
     private String workPhone;
     private String workMobile;
-    private EmployeeType employeeType;
-    private EmployeeStatus status;
     private LocalDate joinDate;
     private String photo;
-    private String contractDocument;
-    private Double monthlyCost;
-    private String relatedUser;
+    private Long companyId;
+    private String companyName;
     private Long departmentId;
     private String departmentName;
     private Long managerId;
@@ -42,10 +37,11 @@ public class EmployeeCompleteResponse {
     private String privatePhone;
     private String bankName;
     private String accountNumber;
+    private Integer bankId;
+    private String assurance;
+    private String assuranceId;
+    private String npwpId;
     private Double homeToWorkDistance;
-    private String bpjsId;
-    private String bankBookDocument;
-    private String bpjsCardDocument;
     
     // Citizenship
     private String nationality;
@@ -75,6 +71,21 @@ public class EmployeeCompleteResponse {
     private Integer numberOfDependentChildren;
     private String marriageCertificateDocument;
     private String childCertificateDocument;
+    
+    // Documents
+    private String idCardCopy;
+    private String familyCardCopy;
+    private String drivingLicenseCopy;
+    private String assuranceCardCopy;
+    private String npwpCardCopy;
+    
+    // Settings
+    private EmployeeStatus status;
+    private EmployeeType employeeType;
+    private String relatedUser;
+    private String relatedUserName;
+    private Double monthlyCost;
+    private String attendanceBadgeId;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

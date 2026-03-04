@@ -20,6 +20,7 @@ import {
 } from 'react-icons/hi';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
+import API from '../../../api/api';
 
 const EmployeesList = () => {
   const { 
@@ -34,6 +35,8 @@ const EmployeesList = () => {
     pagination,
     setPage
   } = useEmployee();
+
+  const API_BASE = API.defaults.baseURL.replace("/api", "");
 
   console.log("Pagination:", pagination);
 
@@ -604,15 +607,7 @@ const EmployeesList = () => {
                     <SortIcon field="name" />
                   </div>
                 </th>
-                <th 
-                  className="px-6 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600"
-                  onClick={() => handleSort('employeeCode')}
-                >
-                  <div className="flex items-center">
-                    CODE
-                    <SortIcon field="employeeCode" />
-                  </div>
-                </th>
+
                 <th 
                   className="px-6 py-4 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:text-indigo-600"
                   onClick={() => handleSort('jobTitle')}
@@ -660,8 +655,12 @@ const EmployeesList = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-white shadow-sm">
-                        {emp.photo ? (
-                          <img src={emp.photo} alt={emp.name} className="w-full h-full object-cover" />
+                       {emp.photo ? (
+                          <img
+                            src={emp.photo}
+                            alt={emp.name}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <span className="text-indigo-700 font-semibold text-sm">
                             {emp.name?.split(' ').map(n => n[0]).join('')}
@@ -671,7 +670,6 @@ const EmployeesList = () => {
                       <span className="ml-3 text-base font-medium text-gray-900">{emp.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600">{emp.employeeCode}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600">{emp.jobTitle}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600">
                     {emp.joinDate
@@ -694,10 +692,18 @@ const EmployeesList = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-base text-gray-500">
                     <div className="flex items-center space-x-2">
-                      <Link to={`/employees/detail`} state={{ employee: emp }} className="text-indigo-600 hover:text-indigo-800 p-1.5 rounded hover:bg-indigo-50 transition-colors" title="View Details">
-                        <HiOutlineEye className="w-5 h-5" />
-                      </Link>
-                      <Link to={`/employees/edit`} state={{ employee: emp }} className="text-blue-600 hover:text-blue-800 p-1.5 rounded hover:bg-blue-50 transition-colors" title="Edit">
+                     <Link 
+                      to={`/employees/detail/${emp.id}`} 
+                      className="text-indigo-600 hover:text-indigo-800 p-1.5 rounded hover:bg-indigo-50 transition-colors" 
+                      title="View Details"
+                    >
+                      <HiOutlineEye className="w-5 h-5" />
+                    </Link>
+                      <Link 
+                        to={`/employees/edit/${emp.id}`} 
+                        className="text-blue-600 hover:text-blue-800 p-1.5 rounded hover:bg-blue-50 transition-colors" 
+                        title="Edit"
+                      >
                         <HiOutlinePencil className="w-5 h-5" />
                       </Link>
                       <button 
@@ -804,9 +810,7 @@ const EmployeesList = () => {
                       Are you sure you want to delete{' '}
                       <span className="font-semibold text-gray-900">{selectedEmployee.name}</span>?
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Employee Code: <span className="font-medium">{selectedEmployee.employeeCode}</span>
-                    </p>
+                    
                   </div>
                 </div>
                 

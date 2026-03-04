@@ -40,7 +40,8 @@ const DepartmentsList = () => {
   const {
     departments,
     loading: deptLoading,
-    deleteDepartment
+    deleteDepartment,
+    fetchDepartments
   } = useDepartment();
 
   // AMBIL EMPLOYEES DARI REDUX
@@ -59,6 +60,9 @@ const DepartmentsList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  useEffect(() => {
+  fetchDepartments();
+}, []);
   // Helper untuk dapat manager berdasarkan ID
   const getManager = (managerId) => {
     return employees.find(emp => emp.id === managerId);
@@ -135,11 +139,9 @@ const DepartmentsList = () => {
       direction: sortConfig.field === field && sortConfig.direction === 'asc' ? 'desc' : 'asc'
     });
   };
-
-  const handleViewDetails = (department) => {
-  navigate('/departments/detail', { state: { department } });
-};
-
+const handleViewDetails = (department) => {
+  navigate(`/departments/detail/${department.id}`);
+}
 const handleEdit = (department) => {
   navigate('/departments/edit', { state: { department } });
 };

@@ -3,35 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { 
   HiOutlineArrowLeft, 
   HiOutlinePhotograph, 
-  HiOutlineDocument, 
   HiOutlineUpload, 
   HiOutlineTrash,
   HiOutlineCheckCircle,
   HiOutlineXCircle,
   HiOutlineX,
-  HiOutlineDownload,
-  HiOutlineCurrencyDollar,
-  HiOutlineUserGroup,
-  HiOutlineInformationCircle,
   HiOutlineMail,
   HiOutlinePhone,
-  HiOutlineTag,
   HiOutlineCalendar,
   HiOutlineBriefcase,
   HiOutlineUser,
   HiOutlineOfficeBuilding,
   HiOutlinePlus,
   HiOutlineCog,
-  HiOutlineHeart,
   HiOutlineGlobe,
+  HiOutlineUserGroup,
   HiOutlineAcademicCap,
-  HiOutlineFolder,
-  HiOutlineIdentification,
   HiOutlineHome,
   HiOutlineUsers,
   HiOutlineCreditCard,
-  HiOutlineShieldCheck,
-  HiOutlineBookOpen
+  HiOutlineDocument,
+  HiOutlineDocumentText,
+  HiOutlineIdentification,
+  HiOutlineShieldCheck
 } from 'react-icons/hi';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
 import { useDepartment } from '../../../redux/hooks/useDepartment';
@@ -43,12 +37,6 @@ const EMPLOYEE_TYPE_OPTIONS = [
   { label: "Full Time", value: "FULL_TIME" },
   { label: "Part Time", value: "PART_TIME" },
   { label: "Contract", value: "CONTRACT" }
-];
-
-const STATUS_OPTIONS = [
-  { label: "Active", value: "ACTIVE" },
-  { label: "Resigned", value: "RESIGNED" },
-  { label: "Terminated", value: "TERMINATED" }
 ];
 
 const GENDER_OPTIONS = [
@@ -69,13 +57,6 @@ const CERTIFICATE_OPTIONS = [
   { label: "Bachelor", value: "BACHELOR" },
   { label: "Master", value: "MASTER" },
   { label: "Doctorate", value: "DOCTORATE" }
-];
-
-const ASSURANCE_TYPE_OPTIONS = [
-  { label: "Health Insurance", value: "HEALTH" },
-  { label: "Life Insurance", value: "LIFE" },
-  { label: "Vehicle Insurance", value: "VEHICLE" },
-  { label: "Property Insurance", value: "PROPERTY" }
 ];
 
 const BANK_OPTIONS = ['BCA', 'Mandiri', 'BNI', 'BRI', 'CIMB Niaga', 'Danamon', 'Permata'];
@@ -113,7 +94,7 @@ const Toast = ({ toast, onClose }) => {
   );
 };
 
-// ✅ FIX: ProfileCard dengan garis bawah untuk nama dan job title
+// ProfileCard dengan garis bawah untuk nama dan job title
 const ProfileCard = ({ formData, handleChange, photoPreview, handlePhotoChange }) => (
   <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 overflow-hidden">
     <div className="p-8">
@@ -165,7 +146,7 @@ const ProfileCard = ({ formData, handleChange, photoPreview, handlePhotoChange }
   </div>
 );
 
-// ✅ FIX: WorkInformationCard dengan ukuran lebih besar dan manager otomatis
+// WorkInformationCard dengan ukuran lebih besar dan manager otomatis
 const WorkInformationCard = ({ 
   formData, 
   handleChange, 
@@ -287,25 +268,6 @@ const WorkInformationCard = ({
             </div>
           </div>
 
-          {/* Job Position */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Job Position *</label>
-            <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300">
-                <HiOutlineBriefcase className="w-5 h-5 text-gray-400" />
-              </div>
-              <input 
-                type="text" 
-                name="jobPosition" 
-                value={formData.jobPosition} 
-                onChange={handleChange} 
-                placeholder="e.g., Senior Developer" 
-                className="flex-1 px-3 py-3 focus:outline-none text-base" 
-                required
-              />
-            </div>
-          </div>
-
           {/* Manager */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
@@ -378,8 +340,7 @@ const AddEmployee = () => {
   const { 
     createEmployee, 
     employees,
-    fetchEmployees,
-    loading: employeeLoading 
+    fetchEmployees
   } = useEmployee();
   
   const { departments, fetchDepartments, loading: departmentLoading } = useDepartment();
@@ -403,14 +364,12 @@ const AddEmployee = () => {
     jobTitle: '',
     workEmail: '',
     workPhone: '',
+    workMobile: '',
     companyId: '',
     departmentId: '',
-    jobPosition: '',
     joinDate: '',
-    workMobile: '',
     managerId: '',
-    coachId: '',
-    employeeCode: ''
+    coachId: ''
   });
 
   // ===== PRIVATE INFORMATION SECTIONS =====
@@ -420,12 +379,14 @@ const AddEmployee = () => {
     phone: ''
   });
 
-  const [bankAccounts, setBankAccounts] = useState([
-    { id: 1, bankName: '', accountNumber: '', accountHolder: '' }
+  // 🔥 BANK MULTIPLE - ARRAY
+  const [banks, setBanks] = useState([
+    { bankName: '', accountNumber: '' }
   ]);
 
+  // 🔥 ASSURANCE MULTIPLE - ARRAY
   const [assurances, setAssurances] = useState([
-    { id: 1, type: '', policyNumber: '', provider: '', expiryDate: '' }
+    { assurance: '', assuranceId: '' }
   ]);
 
   const [taxInfo, setTaxInfo] = useState({
@@ -448,7 +409,6 @@ const AddEmployee = () => {
     countryOfBirth: '',
     idNumber: '',
     passportNumber: '',
-    familyCardNumber: '',
     gender: '',
     dateOfBirth: '',
     placeOfBirth: ''
@@ -460,20 +420,20 @@ const AddEmployee = () => {
     school: ''
   });
 
+  // ===== DOCUMENTS STATE =====
   const [documents, setDocuments] = useState({
     idCard: null,
     familyCard: null,
     drivingLicense: null,
     insurance: null,
     npwpCard: null,
-    certificate: null,
-    transcript: null
+    certificate: null
   });
 
   const [settings, setSettings] = useState({
     employeeType: '',
     relatedUserId: '',
-    monthlyCost: 0,
+    monthlyCost: '',
     attendanceBadgeId: '',
     enableNotifications: true,
     allowRemoteAccess: false,
@@ -487,21 +447,18 @@ const AddEmployee = () => {
   // ===== HELPER =====
   const activeEmployees = employees?.filter(emp => emp.status === 'ACTIVE') || [];
 
-  // ✅ Fungsi untuk auto-fill manager berdasarkan department
+  // Fungsi untuk auto-fill manager berdasarkan department
   const handleManagerAutoFill = (departmentId) => {
     if (!departmentId) {
       setFormData(prev => ({ ...prev, managerId: '' }));
       return;
     }
 
-    // Cari department yang dipilih
-    const selectedDept = departments?.find(dept => dept.id === parseInt(departmentId));
+    const selectedDept = departments?.find(dept => dept.id === parseInt(departmentId, 10));
     
     if (selectedDept?.managerId) {
-      // Jika department sudah punya manager, set managerId
       setFormData(prev => ({ ...prev, managerId: selectedDept.managerId.toString() }));
     } else {
-      // Jika tidak ada manager, kosongkan
       setFormData(prev => ({ ...prev, managerId: '' }));
     }
   };
@@ -523,6 +480,44 @@ const AddEmployee = () => {
   const handlePrivateContactChange = (e) => {
     const { name, value } = e.target;
     setPrivateContact(prev => ({ ...prev, [name]: value }));
+  };
+
+  // 🔥 BANK HANDLERS - MULTIPLE
+  const addBank = () => {
+    setBanks(prev => [...prev, { bankName: '', accountNumber: '' }]);
+  };
+
+  const removeBank = (index) => {
+    if (banks.length > 1) {
+      setBanks(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleBankChange = (index, field, value) => {
+    setBanks(prev => {
+      const newBanks = [...prev];
+      newBanks[index][field] = value;
+      return newBanks;
+    });
+  };
+
+  // 🔥 ASSURANCE HANDLERS - MULTIPLE
+  const addAssurance = () => {
+    setAssurances(prev => [...prev, { assurance: '', assuranceId: '' }]);
+  };
+
+  const removeAssurance = (index) => {
+    if (assurances.length > 1) {
+      setAssurances(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleAssuranceChange = (index, field, value) => {
+    setAssurances(prev => {
+      const newAssurances = [...prev];
+      newAssurances[index][field] = value;
+      return newAssurances;
+    });
   };
 
   const handleCitizenshipChange = (e) => {
@@ -550,69 +545,7 @@ const AddEmployee = () => {
     setTaxInfo(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSettingsChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      setSettings(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setSettings(prev => ({ ...prev, [name]: value }));
-    }
-    
-    if (name === 'employeeType' && errors.employeeType) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.employeeType;
-        return newErrors;
-      });
-    }
-  };
-
-  // Bank Account handlers
-  const addBankAccount = () => {
-    setBankAccounts([...bankAccounts, { 
-      id: bankAccounts.length + 1, 
-      bankName: '', 
-      accountNumber: '', 
-      accountHolder: '' 
-    }]);
-  };
-
-  const removeBankAccount = (id) => {
-    if (bankAccounts.length > 1) {
-      setBankAccounts(bankAccounts.filter(acc => acc.id !== id));
-    }
-  };
-
-  const handleBankChange = (id, field, value) => {
-    setBankAccounts(bankAccounts.map(acc => 
-      acc.id === id ? { ...acc, [field]: value } : acc
-    ));
-  };
-
-  // Assurance handlers
-  const addAssurance = () => {
-    setAssurances([...assurances, { 
-      id: assurances.length + 1, 
-      type: '', 
-      policyNumber: '', 
-      provider: '',
-      expiryDate: ''
-    }]);
-  };
-
-  const removeAssurance = (id) => {
-    if (assurances.length > 1) {
-      setAssurances(assurances.filter(ass => ass.id !== id));
-    }
-  };
-
-  const handleAssuranceChange = (id, field, value) => {
-    setAssurances(assurances.map(ass => 
-      ass.id === id ? { ...ass, [field]: value } : ass
-    ));
-  };
-
-  // Document handlers
+  // ===== DOCUMENT HANDLERS =====
   const handleDocumentUpload = (type, file) => {
     if (file) {
       setDocuments(prev => ({
@@ -631,6 +564,23 @@ const AddEmployee = () => {
       ...prev,
       [type]: null
     }));
+  };
+
+  const handleSettingsChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setSettings(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setSettings(prev => ({ ...prev, [name]: value }));
+    }
+    
+    if (name === 'employeeType' && errors.employeeType) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.employeeType;
+        return newErrors;
+      });
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -655,12 +605,8 @@ const AddEmployee = () => {
     if (!formData.workPhone) newErrors.workPhone = 'Work phone is required';
     if (!formData.companyId) newErrors.companyId = 'Company is required';
     if (!formData.departmentId) newErrors.departmentId = 'Department is required';
-    if (!formData.jobPosition) newErrors.jobPosition = 'Job position is required';
     if (!formData.joinDate) newErrors.joinDate = 'Join date is required';
-    
-    if (!settings.employeeType) {
-      newErrors.employeeType = 'Employee type is required';
-    }
+    if (!settings.employeeType) newErrors.employeeType = 'Employee type is required';
     
     return newErrors;
   };
@@ -718,88 +664,87 @@ const AddEmployee = () => {
     setIsSubmitting(true);
 
     try {
-      const [
-        photoUrl,
-        idCardUrl,
-        familyCardUrl,
-        drivingLicenseUrl,
-        insuranceUrl,
-        npwpCardUrl,
-        certificateUrl,
-        transcriptUrl
-      ] = await Promise.all([
-        photo ? uploadFile(photo) : Promise.resolve(null),
-        documents.idCard ? uploadFile(documents.idCard.file) : Promise.resolve(null),
-        documents.familyCard ? uploadFile(documents.familyCard.file) : Promise.resolve(null),
-        documents.drivingLicense ? uploadFile(documents.drivingLicense.file) : Promise.resolve(null),
-        documents.insurance ? uploadFile(documents.insurance.file) : Promise.resolve(null),
-        documents.npwpCard ? uploadFile(documents.npwpCard.file) : Promise.resolve(null),
-        documents.certificate ? uploadFile(documents.certificate.file) : Promise.resolve(null),
-        documents.transcript ? uploadFile(documents.transcript.file) : Promise.resolve(null)
-      ]);
+      // Upload photo
+      const photoUrl = photo ? await uploadFile(photo) : null;
 
+      // Upload dokumen-dokumen (opsional)
+      const idCardUrl = documents.idCard ? await uploadFile(documents.idCard.file) : null;
+      const familyCardUrl = documents.familyCard ? await uploadFile(documents.familyCard.file) : null;
+      const drivingLicenseUrl = documents.drivingLicense ? await uploadFile(documents.drivingLicense.file) : null;
+      const insuranceUrl = documents.insurance ? await uploadFile(documents.insurance.file) : null;
+      const npwpCardUrl = documents.npwpCard ? await uploadFile(documents.npwpCard.file) : null;
+      const certificateUrl = documents.certificate ? await uploadFile(documents.certificate.file) : null;
+
+      // ✅ PAYLOAD SESUAI DTO BACKEND (ambil data pertama untuk sementara)
       const payload = {
+        // BASIC
         name: formData.name,
         jobTitle: formData.jobTitle,
-        companyId: parseInt(formData.companyId),
-        departmentId: parseInt(formData.departmentId),
-        managerId: formData.managerId ? parseInt(formData.managerId) : null,
-        coachId: formData.coachId ? parseInt(formData.coachId) : null,
-        workEmail: formData.workEmail,
-        workPhone: formData.workPhone,
         workMobile: formData.workMobile || null,
-        jobPosition: formData.jobPosition,
-        joinDate: formData.joinDate,
-        photoUrl,
+        workPhone: formData.workPhone,
+        workEmail: formData.workEmail,
+        joinDate: formData.joinDate || null,
+        photo: photoUrl || null,
+
+        companyId: parseInt(formData.companyId, 10),
+        departmentId: parseInt(formData.departmentId, 10),
+        managerId: formData.managerId ? parseInt(formData.managerId, 10) : null,
+        coachId: formData.coachId ? parseInt(formData.coachId, 10) : null,
+
+        // PRIVATE
         privateAddress: privateContact.address || null,
         privateEmail: privateContact.email || null,
         privatePhone: privateContact.phone || null,
-        bankAccounts: bankAccounts.map(acc => ({
-          bankName: acc.bankName,
-          accountNumber: acc.accountNumber,
-          accountHolder: acc.accountHolder
-        })).filter(acc => acc.bankName && acc.accountNumber && acc.accountHolder),
-        assurances: assurances.map(ass => ({
-          type: ass.type,
-          policyNumber: ass.policyNumber,
-          provider: ass.provider,
-          expiryDate: ass.expiryDate || null
-        })).filter(ass => ass.type && ass.policyNumber && ass.provider),
-        npwpNumber: taxInfo.npwp || null,
+        
+        // 🔥 BANK - ambil dari array pertama
+        bankName: banks[0]?.bankName || null,
+        accountNumber: banks[0]?.accountNumber || null,
+        
+        // 🔥 ASSURANCE - ambil dari array pertama
+        assurance: assurances[0]?.assurance || null,
+        assuranceId: assurances[0]?.assuranceId || null,
+        
+        npwpId: taxInfo.npwp || null,
         homeToWorkDistance: taxInfo.workDistance ? Number(taxInfo.workDistance) : null,
-        emergencyContactName: emergencyContact.name || null,
-        emergencyContactPhone: emergencyContact.phone || null,
-        maritalStatus: familyInfo.maritalStatus || null,
-        numberOfDependentChildren: familyInfo.numberOfChildren ? parseInt(familyInfo.numberOfChildren) : 0,
+
+        // CITIZENSHIP
         nationality: citizenship.nationality || null,
-        countryOfBirth: citizenship.countryOfBirth || null,
-        idNumber: citizenship.idNumber || null,
+        identificationNumber: citizenship.idNumber || null,
         passportNumber: citizenship.passportNumber || null,
-        familyCardNumber: citizenship.familyCardNumber || null,
         gender: citizenship.gender || null,
         dateOfBirth: citizenship.dateOfBirth || null,
         placeOfBirth: citizenship.placeOfBirth || null,
+        countryOfBirth: citizenship.countryOfBirth || null,
+
+        // EMERGENCY
+        emergencyContactName: emergencyContact.name || null,
+        emergencyContactPhone: emergencyContact.phone || null,
+
+        // EDUCATION
         certificateLevel: education.certificateLevel || null,
         fieldOfStudy: education.fieldOfStudy || null,
         school: education.school || null,
-        idCardDocument: idCardUrl,
-        familyCardDocument: familyCardUrl,
-        drivingLicenseDocument: drivingLicenseUrl,
-        insuranceDocument: insuranceUrl,
-        npwpCardDocument: npwpCardUrl,
-        certificateDocument: certificateUrl,
-        transcriptDocument: transcriptUrl,
+
+        // FAMILY
+        maritalStatus: familyInfo.maritalStatus || null,
+        numberOfDependentChildren: familyInfo.numberOfChildren ? parseInt(familyInfo.numberOfChildren, 10) : null,
+
+        // SETTINGS
+        status: "ACTIVE",
         employeeType: settings.employeeType,
-        relatedUserId: settings.relatedUserId ? parseInt(settings.relatedUserId) : null,
-        monthlyCost: settings.monthlyCost ? parseFloat(settings.monthlyCost) : null,
+        relatedUser: settings.relatedUserId ? settings.relatedUserId.toString() : null,
+        monthlyCost: settings.monthlyCost !== '' ? parseFloat(settings.monthlyCost) : null,
         attendanceBadgeId: settings.attendanceBadgeId || null,
-        enableNotifications: settings.enableNotifications,
-        allowRemoteAccess: settings.allowRemoteAccess,
-        overtimeEligible: settings.overtimeEligible
+
+        // DOCUMENTS
+        idCardCopy: idCardUrl,
+        familyCardCopy: familyCardUrl,
+        drivingLicenseCopy: drivingLicenseUrl,
+        assuranceCardCopy: insuranceUrl,
+        npwpCardCopy: npwpCardUrl,
       };
 
-      console.log('Submitting employee:', payload);
-      
+      console.log('Submitting payload:', payload);
       await createEmployee(payload);
       
       setToast({
@@ -953,37 +898,38 @@ const AddEmployee = () => {
                   </div>
                 </div>
 
-                {/* Bank Accounts */}
+                {/* 🔥 BANK ACCOUNTS - MULTIPLE */}
                 <div className="mb-6">
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-md font-medium text-gray-700">Bank Accounts</label>
                     <button 
                       type="button"
-                      onClick={addBankAccount} 
+                      onClick={addBank} 
                       className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-700 text-sm"
                     >
                       <HiOutlinePlus className="w-4 h-4" />
                       <span>Add Bank</span>
                     </button>
                   </div>
+                  
                   <div className="space-y-4">
-                    {bankAccounts.map((account) => (
-                      <div key={account.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
-                        {bankAccounts.length > 1 && (
+                    {banks.map((bank, index) => (
+                      <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
+                        {banks.length > 1 && (
                           <button 
                             type="button"
-                            onClick={() => removeBankAccount(account.id)} 
+                            onClick={() => removeBank(index)} 
                             className="absolute top-2 right-2 text-red-500 hover:text-red-700"
                           >
                             <HiOutlineTrash className="w-4 h-4" />
                           </button>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">Bank Name</label>
                             <select 
-                              value={account.bankName} 
-                              onChange={(e) => handleBankChange(account.id, 'bankName', e.target.value)} 
+                              value={bank.bankName} 
+                              onChange={(e) => handleBankChange(index, 'bankName', e.target.value)} 
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             >
                               <option value="">Select Bank</option>
@@ -994,20 +940,10 @@ const AddEmployee = () => {
                             <label className="block text-xs text-gray-500 mb-1">Account Number</label>
                             <input 
                               type="text" 
-                              value={account.accountNumber} 
-                              onChange={(e) => handleBankChange(account.id, 'accountNumber', e.target.value)} 
+                              value={bank.accountNumber} 
+                              onChange={(e) => handleBankChange(index, 'accountNumber', e.target.value)} 
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
                               placeholder="Account Number"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Account Holder</label>
-                            <input 
-                              type="text" 
-                              value={account.accountHolder} 
-                              onChange={(e) => handleBankChange(account.id, 'accountHolder', e.target.value)} 
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
-                              placeholder="Name on Account"
                             />
                           </div>
                         </div>
@@ -1016,72 +952,51 @@ const AddEmployee = () => {
                   </div>
                 </div>
 
-                {/* Assurance */}
+                {/* 🔥 ASSURANCE - MULTIPLE */}
                 <div className="mb-6">
                   <div className="flex justify-between items-center mb-3">
-                    <label className="block text-md font-medium text-gray-700">Assurance</label>
+                    <label className="block text-md font-medium text-gray-700">Assurance / Insurance</label>
                     <button 
                       type="button"
                       onClick={addAssurance} 
                       className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-700 text-sm"
                     >
                       <HiOutlinePlus className="w-4 h-4" />
-                      <span>Add Assurance</span>
+                      <span>Add Insurance</span>
                     </button>
                   </div>
+                  
                   <div className="space-y-4">
-                    {assurances.map((assurance) => (
-                      <div key={assurance.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
+                    {assurances.map((assurance, index) => (
+                      <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
                         {assurances.length > 1 && (
                           <button 
                             type="button"
-                            onClick={() => removeAssurance(assurance.id)} 
+                            onClick={() => removeAssurance(index)} 
                             className="absolute top-2 right-2 text-red-500 hover:text-red-700"
                           >
                             <HiOutlineTrash className="w-4 h-4" />
                           </button>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Type</label>
-                            <select 
-                              value={assurance.type} 
-                              onChange={(e) => handleAssuranceChange(assurance.id, 'type', e.target.value)} 
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            >
-                              <option value="">Select Type</option>
-                              {ASSURANCE_TYPE_OPTIONS.map(type => (
-                                <option key={type.value} value={type.value}>{type.label}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Policy Number</label>
+                            <label className="block text-xs text-gray-500 mb-1">Insurance Name</label>
                             <input 
                               type="text" 
-                              value={assurance.policyNumber} 
-                              onChange={(e) => handleAssuranceChange(assurance.id, 'policyNumber', e.target.value)} 
+                              value={assurance.assurance} 
+                              onChange={(e) => handleAssuranceChange(index, 'assurance', e.target.value)} 
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
+                              placeholder="e.g., BPJS Kesehatan"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Policy / ID Number</label>
+                            <input 
+                              type="text" 
+                              value={assurance.assuranceId} 
+                              onChange={(e) => handleAssuranceChange(index, 'assuranceId', e.target.value)} 
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
                               placeholder="Policy Number"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Provider</label>
-                            <input 
-                              type="text" 
-                              value={assurance.provider} 
-                              onChange={(e) => handleAssuranceChange(assurance.id, 'provider', e.target.value)} 
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
-                              placeholder="Insurance Provider"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Expiry Date</label>
-                            <input 
-                              type="date" 
-                              value={assurance.expiryDate} 
-                              onChange={(e) => handleAssuranceChange(assurance.id, 'expiryDate', e.target.value)} 
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
                             />
                           </div>
                         </div>
@@ -1243,17 +1158,6 @@ const AddEmployee = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Family Card No</label>
-                    <input 
-                      type="text" 
-                      name="familyCardNumber" 
-                      value={citizenship.familyCardNumber} 
-                      onChange={handleCitizenshipChange} 
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                      placeholder="Family Card Number"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                     <select 
                       name="gender" 
@@ -1345,44 +1249,48 @@ const AddEmployee = () => {
               <h3 className="text-lg font-medium text-gray-700 mb-4">Required Documents</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { key: 'idCard', label: 'ID Card / KTP' },
-                  { key: 'familyCard', label: 'Family Card' },
-                  { key: 'drivingLicense', label: 'Driving License' },
-                  { key: 'insurance', label: 'Insurance' },
-                  { key: 'npwpCard', label: 'NPWP Card' },
-                  { key: 'certificate', label: 'Certificate / Ijazah' },
-                  { key: 'transcript', label: 'Academic Transcript' },
-                ].map((doc) => (
-                  <div key={doc.key} className="border border-gray-200 rounded-lg p-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-medium text-gray-700">{doc.label}</span>
-                      {documents[doc.key] ? (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600 truncate max-w-[200px]">
-                            {documents[doc.key].fileName}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDocument(doc.key)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <HiOutlineTrash className="w-5 h-5" />
-                          </button>
+                  { key: 'idCard', label: 'ID Card / KTP', icon: HiOutlineIdentification },
+                  { key: 'familyCard', label: 'Family Card', icon: HiOutlineUsers },
+                  { key: 'drivingLicense', label: 'Driving License', icon: HiOutlineDocument },
+                  { key: 'insurance', label: 'Insurance', icon: HiOutlineShieldCheck },
+                  { key: 'npwpCard', label: 'NPWP Card', icon: HiOutlineDocument },
+                ].map((doc) => {
+                  const Icon = doc.icon;
+                  return (
+                    <div key={doc.key} className="border border-gray-200 rounded-lg p-5 hover:border-indigo-200 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Icon className="w-5 h-5 text-indigo-500" />
+                          <span className="text-base font-medium text-gray-700">{doc.label}</span>
                         </div>
-                      ) : (
-                        <label className="cursor-pointer text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-                          <HiOutlineUpload className="w-5 h-5 inline mr-1" />
-                          Upload
-                          <input
-                            type="file"
-                            className="hidden"
-                            onChange={(e) => handleDocumentUpload(doc.key, e.target.files[0])}
-                          />
-                        </label>
-                      )}
+                        {documents[doc.key] ? (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600 truncate max-w-[150px]">
+                              {documents[doc.key].fileName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDocument(doc.key)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center space-x-1">
+                            <HiOutlineUpload className="w-4 h-4" />
+                            <span>Upload</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={(e) => handleDocumentUpload(doc.key, e.target.files[0])}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1463,42 +1371,7 @@ const AddEmployee = () => {
                 </div>
               </div>
 
-              {/* Application Settings */}
-              <div className="bg-gray-50 p-5 rounded-lg">
-                <h4 className="text-base font-medium text-gray-700 mb-4">Application Settings</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox" 
-                      name="enableNotifications" 
-                      checked={settings.enableNotifications} 
-                      onChange={handleSettingsChange} 
-                      className="w-4 h-4 rounded text-indigo-600" 
-                    />
-                    <span className="text-sm text-gray-700">Enable notifications</span>
-                  </label>
-                  <label className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox" 
-                      name="allowRemoteAccess" 
-                      checked={settings.allowRemoteAccess} 
-                      onChange={handleSettingsChange} 
-                      className="w-4 h-4 rounded text-indigo-600" 
-                    />
-                    <span className="text-sm text-gray-700">Allow remote access</span>
-                  </label>
-                  <label className="flex items-center space-x-3">
-                    <input 
-                      type="checkbox" 
-                      name="overtimeEligible" 
-                      checked={settings.overtimeEligible} 
-                      onChange={handleSettingsChange} 
-                      className="w-4 h-4 rounded text-indigo-600" 
-                    />
-                    <span className="text-sm text-gray-700">Overtime eligible</span>
-                  </label>
-                </div>
-              </div>
+              
             </div>
           )}
         </div>

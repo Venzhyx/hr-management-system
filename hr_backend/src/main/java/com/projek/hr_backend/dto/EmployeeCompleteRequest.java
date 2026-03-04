@@ -1,6 +1,7 @@
 package com.projek.hr_backend.dto;
 
 import com.projek.hr_backend.model.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -15,31 +16,30 @@ import java.time.LocalDate;
 public class EmployeeCompleteRequest {
     
     // Employee Basic Info
-    @NotBlank(message = "Employee code is required")
-    private String employeeCode;
-    
     @NotBlank(message = "Name is required")
     private String name;
     
+    @NotBlank(message = "Job title is required")
     private String jobTitle;
-    private String jobPosition;
-    private String workEmail;
-    private String workPhone;
+    
     private String workMobile;
     
-    @NotNull(message = "Employee type is required")
-    private EmployeeType employeeType;
+    @NotBlank(message = "Work phone is required")
+    private String workPhone;
     
-    @NotNull(message = "Status is required")
-    private EmployeeStatus status;
+    @NotBlank(message = "Work email is required")
+    @Email(message = "Invalid email format")
+    private String workEmail;
     
     @NotNull(message = "Join date is required")
     private LocalDate joinDate;
     
     private String photo;
-    private String contractDocument;
-    private Double monthlyCost;
-    private String relatedUser;
+    
+    @NotNull(message = "Company is required")
+    private Long companyId;
+    
+    @NotNull(message = "Department is required")
     private Long departmentId;
     private Long managerId;
     private Long coachId;
@@ -50,10 +50,11 @@ public class EmployeeCompleteRequest {
     private String privatePhone;
     private String bankName;
     private String accountNumber;
+    private Integer bankId;
+    private String assurance;
+    private String assuranceId;
+    private String npwpId;
     private Double homeToWorkDistance;
-    private String bpjsId;
-    private String bankBookDocument;
-    private String bpjsCardDocument;
     
     // Citizenship
     private String nationality;
@@ -83,4 +84,18 @@ public class EmployeeCompleteRequest {
     private Integer numberOfDependentChildren;
     private String marriageCertificateDocument;
     private String childCertificateDocument;
+    
+    // Documents
+    private String idCardCopy;
+    private String familyCardCopy;
+    private String drivingLicenseCopy;
+    private String assuranceCardCopy;
+    private String npwpCardCopy;
+    
+    // Settings
+    private EmployeeStatus status;
+    private EmployeeType employeeType;
+    private String relatedUser;
+    private Double monthlyCost;
+    private String attendanceBadgeId;
 }

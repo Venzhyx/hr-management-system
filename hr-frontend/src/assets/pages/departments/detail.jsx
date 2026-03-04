@@ -24,7 +24,7 @@ const DepartmentDetailModal = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   
-  const { getDepartmentById, deleteDepartment } = useDepartment();
+  const { deleteDepartment, departments } = useDepartment();
   const { employees, fetchEmployees } = useEmployee();
   const { companies, fetchCompanies } = useCompany();
   
@@ -34,24 +34,14 @@ const DepartmentDetailModal = () => {
   const [employeesInDepartment, setEmployeesInDepartment] = useState([]);
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch department data
-  useEffect(() => {
-    const fetchDepartmentData = async () => {
-      if (!id) return;
-      
-      try {
-        setLoading(true);
-        const data = await getDepartmentById(id);
-        setDepartment(data);
-      } catch (error) {
-        console.error('Error fetching department:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchDepartmentData();
-  }, [id, getDepartmentById]);
+  useEffect(() => {
+  if (!id || departments.length === 0) return;
+
+  const dept = departments.find(d => d.id === Number(id));
+  setDepartment(dept);
+  setLoading(false);
+}, [id, departments]);
 
   // Fetch employees dan companies
   useEffect(() => {
@@ -115,9 +105,11 @@ const DepartmentDetailModal = () => {
 
   // Helper untuk dapat parent department
   const getParentDepartment = () => {
-    if (!department?.parentDepartmentId) return null;
-    return employees.find(emp => emp.id === department.parentDepartmentId);
-  };
+  if (!department?.parentDepartmentId) return null;
+  return departments.find(
+    dept => dept.id === department.parentDepartmentId
+  );
+};
 
   // Prevent scroll on background
   useEffect(() => {
@@ -166,9 +158,8 @@ const DepartmentDetailModal = () => {
   // Dapatkan data company
   const company = getCompany();
   
-  // Dapatkan parent department
-  const parentDepartment = department.parentDepartmentId 
-    ? employees.find(dept => dept.id === department.parentDepartmentId)
+  const parentDepartment = department.parentDepartmentId
+    ? departments.find(dept => dept.id === department.parentDepartmentId)
     : null;
 
   return (

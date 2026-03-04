@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   HiOutlineX, 
   HiOutlinePencil, 
@@ -14,56 +14,81 @@ import {
   HiOutlineHeart,
   HiOutlineDocument,
   HiOutlineDocumentText,
-  HiOutlineDocumentDownload,
   HiOutlineEye,
   HiOutlinePhotograph,
   HiOutlineDownload,
   HiOutlineCurrencyDollar,
-  HiOutlineUserGroup
+  HiOutlineUserGroup,
+  HiOutlineOfficeBuilding,
+  HiOutlineGlobe,
+  HiOutlineAcademicCap,
+  HiOutlineUsers,
+  HiOutlineShieldCheck,
+  HiOutlineCreditCard
 } from 'react-icons/hi';
-import API from "../../../api/api";
+import { useEmployee } from '../../../redux/hooks/useEmployee';
+import { useDepartment } from '../../../redux/hooks/useDepartment';
+import { useCompany } from '../../../redux/hooks/useCompany';
 
 const EmployeeDetailModal = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const employee = location.state?.employee;
-
-  // GUARD: Kalau tidak ada employee, redirect
-  useEffect(() => {
-    if (!employee) {
-      navigate('/employees');
-    }
-  }, [employee, navigate]);
-
-  const [showModal, setShowModal] = useState(true);
+  const { id } = useParams();
+  
+  const { 
+    fetchEmployeeById, 
+    selectedEmployee, 
+    loading,
+    deleteEmployee,
+    employees
+  } = useEmployee();
+  
+  const { departments, fetchDepartments } = useDepartment();
+  const { companies, fetchCompanies } = useCompany();
+  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [selectedFile, setSelectedFile] = useState({ url: '', label: '', type: '' });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
-  if (!employee) return null;
+  // Fetch employee by ID saat komponen mount
+  useEffect(() => {
+    if (id) {
+      fetchEmployeeById(parseInt(id));
+    }
+  }, [id, fetchEmployeeById]);
+
+  // Fetch reference data
+  useEffect(() => {
+    fetchDepartments();
+    fetchCompanies();
+  }, []);
 
   const handleClose = () => {
-    setShowModal(false);
     navigate('/employees');
   };
 
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      await API.delete(`/employees-complete/${employee.id}`);
+      setDeleteError('');
+      
+      await deleteEmployee(selectedEmployee.id);
       
       setShowDeleteModal(false);
-      setShowModal(false);
+      navigate('/employees');
       
-      setTimeout(() => {
-        navigate('/employees');
-      }, 100);
     } catch (error) {
       console.error("Delete failed:", error);
+      setDeleteError(error.message || 'Failed to delete employee');
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleCloseFileViewer = () => {
+    setShowFileViewer(false);
+    setSelectedFile({ url: '', label: '', type: '' });
   };
 
   const getFileType = (url) => {
@@ -100,11 +125,6 @@ const EmployeeDetailModal = () => {
     setShowFileViewer(true);
   };
 
-  const handleCloseFileViewer = () => {
-    setShowFileViewer(false);
-    setSelectedFile({ url: '', label: '', type: '' });
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -124,14 +144,64 @@ const EmployeeDetailModal = () => {
     }).format(value);
   };
 
-  // ✅ Data dengan Monthly Cost dan Related User (sesuai DTO)
+  // Get company name
+  const getCompanyName = (companyId) => {
+    if (!companyId) return 'N/A';
+    const company = companies.find(c => c.id === companyId);
+    return company?.companyName || 'N/A';
+  };
+
+  // Get department name
+  const getDepartmentName = (deptId) => {
+    if (!deptId) return 'N/A';
+    const dept = departments.find(d => d.id === deptId);
+    return dept?.departmentName || 'N/A';
+  };
+
+  // 🔥 FIXED: Get manager/coach name - tidak fallback ke selectedEmployee
+  const getEmployeeName = (empId) => {
+    if (!empId) return 'N/A';
+    const emp = employees?.find(e => e.id === empId);
+    return emp?.name || 'N/A';
+  };
+
+  // Loading state
+  if (loading && !selectedEmployee) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl p-8 shadow-2xl text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading employee details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Employee not found
+  if (!selectedEmployee) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl max-w-md w-full mx-4 p-8 shadow-2xl text-center">
+          <HiOutlineUser className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Employee Not Found</h3>
+          <p className="text-gray-600 mb-6">The employee you're looking for doesn't exist.</p>
+          <button
+            onClick={handleClose}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Back to Employees
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const employee = selectedEmployee;
   const employeeData = {
     // Basic Info
     id: employee.id,
-    employeeCode: employee.employeeCode || 'N/A',
     name: employee.name || 'N/A',
     jobTitle: employee.jobTitle || 'N/A',
-    jobPosition: employee.jobPosition || 'N/A',
     workEmail: employee.workEmail || 'N/A',
     workPhone: employee.workPhone || 'N/A',
     workMobile: employee.workMobile || 'N/A',
@@ -139,15 +209,22 @@ const EmployeeDetailModal = () => {
     status: employee.status || 'ACTIVE',
     joinDate: formatDate(employee.joinDate),
     photo: employee.photo || null,
-    departmentId: employee.departmentId,
-    departmentName: employee.departmentName || 'N/A',
-    managerId: employee.managerId,
-    managerName: employee.managerName || 'N/A',
-    coachId: employee.coachId,
-    coachName: employee.coachName || 'N/A',
     
-    // ✅ Related User (String)
+    // Relations
+    companyId: employee.companyId,
+    companyName: getCompanyName(employee.companyId),
+    departmentId: employee.departmentId,
+    departmentName: getDepartmentName(employee.departmentId),
+    managerId: employee.managerId,
+    managerName: getEmployeeName(employee.managerId),
+    coachId: employee.coachId,
+    coachName: getEmployeeName(employee.coachId),
+    
+    // Related User & Settings
     relatedUser: employee.relatedUser || 'N/A',
+    attendanceBadgeId: employee.attendanceBadgeId || 'N/A',
+    monthlyCost: employee.monthlyCost,
+    monthlyCostFormatted: formatCurrency(employee.monthlyCost),
     
     // Private Contact
     privateAddress: employee.privateAddress || 'N/A',
@@ -155,12 +232,13 @@ const EmployeeDetailModal = () => {
     privatePhone: employee.privatePhone || 'N/A',
     bankName: employee.bankName || 'N/A',
     accountNumber: employee.accountNumber || 'N/A',
-    homeToWorkDistance: employee.homeToWorkDistance || 0,
-    bpjsId: employee.bpjsId || 'N/A',
     
-    // ✅ Monthly Cost (Double)
-    monthlyCost: employee.monthlyCost,
-    monthlyCostFormatted: formatCurrency(employee.monthlyCost),
+    // 🔥 NEW: Assurance
+    assurance: employee.assurance || 'N/A',
+    assuranceId: employee.assuranceId || 'N/A',
+    
+    npwpId: employee.npwpId || 'N/A',
+    homeToWorkDistance: employee.homeToWorkDistance || 0,
     
     // Citizenship
     nationality: employee.nationality || 'N/A',
@@ -184,17 +262,12 @@ const EmployeeDetailModal = () => {
     maritalStatus: employee.maritalStatus || 'N/A',
     numberOfDependentChildren: employee.numberOfDependentChildren || 0,
     
-    // Documents
-    contractDocument: employee.contractDocument,
-    bankBookDocument: employee.bankBookDocument,
-    bpjsCardDocument: employee.bpjsCardDocument,
-    ktpDocument: employee.ktpDocument,
-    passportDocument: employee.passportDocument,
-    familyCardDocument: employee.familyCardDocument,
-    certificateDocument: employee.certificateDocument,
-    transcriptDocument: employee.transcriptDocument,
-    marriageCertificateDocument: employee.marriageCertificateDocument,
-    childCertificateDocument: employee.childCertificateDocument,
+    // 🔥 NEW: Documents
+    idCardCopy: employee.idCardCopy,
+    familyCardCopy: employee.familyCardCopy,
+    drivingLicenseCopy: employee.drivingLicenseCopy,
+    assuranceCardCopy: employee.assuranceCardCopy,
+    npwpCardCopy: employee.npwpCardCopy,
     
     createdAt: employee.createdAt,
     updatedAt: employee.updatedAt,
@@ -236,7 +309,7 @@ const EmployeeDetailModal = () => {
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             title="Download Document"
           >
-            <HiOutlineDocumentDownload className="w-4 h-4" />
+            <HiOutlineDownload className="w-4 h-4" />
           </a>
         </div>
       </div>
@@ -268,7 +341,7 @@ const EmployeeDetailModal = () => {
             <h2 className="text-xl font-semibold text-gray-800">Employee Details</h2>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => navigate('/employees/edit', { state: { employee: employee } })}
+                onClick={() => navigate(`/employees/edit/${employee.id}`)}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <HiOutlinePencil className="w-5 h-5" />
@@ -321,7 +394,6 @@ const EmployeeDetailModal = () => {
                   <div className="text-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">{employeeData.name}</h2>
                     <p className="text-indigo-600 font-medium">{employeeData.jobTitle}</p>
-                    <p className="text-sm text-gray-500 mt-1">ID: {employeeData.employeeCode}</p>
                   </div>
 
                   {/* Status Badges */}
@@ -335,8 +407,7 @@ const EmployeeDetailModal = () => {
                     </span>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                       employeeData.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                      employeeData.status === 'INACTIVE' ? 'bg-gray-100 text-gray-800' :
-                      'bg-yellow-100 text-yellow-800'
+                      'bg-gray-100 text-gray-800'
                     }`}>
                       {employeeData.status}
                     </span>
@@ -361,6 +432,10 @@ const EmployeeDetailModal = () => {
                       <span className="text-sm">Join: {employeeData.joinDate}</span>
                     </div>
                     <div className="flex items-center text-gray-600">
+                      <HiOutlineOfficeBuilding className="w-5 h-5 mr-3 text-gray-400" />
+                      <span className="text-sm">{employeeData.companyName}</span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
                       <HiOutlineBriefcase className="w-5 h-5 mr-3 text-gray-400" />
                       <span className="text-sm">{employeeData.departmentName}</span>
                     </div>
@@ -378,10 +453,6 @@ const EmployeeDetailModal = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p className="text-xs text-gray-500">Employee Code</p>
-                      <p className="text-sm font-medium">{employeeData.employeeCode}</p>
-                    </div>
-                    <div>
                       <p className="text-xs text-gray-500">Full Name</p>
                       <p className="text-sm font-medium">{employeeData.name}</p>
                     </div>
@@ -390,8 +461,8 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.jobTitle}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Job Position</p>
-                      <p className="text-sm font-medium">{employeeData.jobPosition}</p>
+                      <p className="text-xs text-gray-500">Company</p>
+                      <p className="text-sm font-medium">{employeeData.companyName}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Department</p>
@@ -410,38 +481,26 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.coachName}</p>
                     </div>
                   </div>
-
-                  {/* Basic Documents */}
-                  {(employeeData.contractDocument) && (
-                    <div className="mt-6 border-t border-gray-100 pt-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                        <HiOutlineDocumentText className="w-4 h-4 mr-2 text-indigo-500" />
-                        Documents
-                      </h4>
-                      <DocumentItem 
-                        label="Employment Contract" 
-                        url={employeeData.contractDocument} 
-                        icon={HiOutlineDocumentText}
-                      />
-                    </div>
-                  )}
                 </div>
 
-                {/* ✅ Related User Section */}
+                {/* Related User & Settings */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <HiOutlineUserGroup className="w-5 h-5 mr-2 text-indigo-600" />
-                    Related User
+                    Related User & Settings
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Related User</p>
-                      <p className="text-sm font-medium">
-                        {employeeData.relatedUser !== 'N/A' 
-                          ? employeeData.relatedUser
-                          : 'N/A'
-                        }
-                      </p>
+                      <p className="text-sm font-medium">{employeeData.relatedUser}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Attendance Badge ID</p>
+                      <p className="text-sm font-medium">{employeeData.attendanceBadgeId}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Monthly Cost</p>
+                      <p className="text-sm font-medium text-indigo-600">{employeeData.monthlyCostFormatted}</p>
                     </div>
                   </div>
                 </div>
@@ -468,26 +527,13 @@ const EmployeeDetailModal = () => {
                   </div>
                 </div>
 
-                {/* ✅ Private Information dengan Monthly Cost */}
+                {/* Private Information */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <HiOutlineHome className="w-5 h-5 mr-2 text-indigo-600" />
                     Private Information
                   </h3>
                   
-                  {/* Monthly Cost Card */}
-                  <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <HiOutlineCurrencyDollar className="w-5 h-5 text-indigo-600 mr-2" />
-                        <span className="text-sm font-medium text-gray-700">Monthly Cost</span>
-                      </div>
-                      <span className="text-lg font-bold text-indigo-700">
-                        {employeeData.monthlyCostFormatted}
-                      </span>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <p className="text-xs text-gray-500">Private Address</p>
@@ -510,6 +556,19 @@ const EmployeeDetailModal = () => {
                         }
                       </p>
                     </div>
+                    {/* 🔥 NEW: Assurance */}
+                    <div>
+                      <p className="text-xs text-gray-500">Insurance</p>
+                      <p className="text-sm font-medium">{employeeData.assurance}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Insurance ID</p>
+                      <p className="text-sm font-medium">{employeeData.assuranceId}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">NPWP ID</p>
+                      <p className="text-sm font-medium">{employeeData.npwpId}</p>
+                    </div>
                     <div>
                       <p className="text-xs text-gray-500">Home to Work Distance</p>
                       <p className="text-sm font-medium">
@@ -519,39 +578,13 @@ const EmployeeDetailModal = () => {
                         }
                       </p>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">BPJS ID</p>
-                      <p className="text-sm font-medium">{employeeData.bpjsId}</p>
-                    </div>
                   </div>
-
-                  {/* Private Documents */}
-                  {(employeeData.bankBookDocument || employeeData.bpjsCardDocument) && (
-                    <div className="mt-6 border-t border-gray-100 pt-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                        <HiOutlineDocumentText className="w-4 h-4 mr-2 text-indigo-500" />
-                        Documents
-                      </h4>
-                      <div className="space-y-2">
-                        <DocumentItem 
-                          label="Bank Book" 
-                          url={employeeData.bankBookDocument} 
-                          icon={HiOutlineDocument}
-                        />
-                        <DocumentItem 
-                          label="BPJS Card" 
-                          url={employeeData.bpjsCardDocument} 
-                          icon={HiOutlineDocument}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Citizenship */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <HiOutlineIdentification className="w-5 h-5 mr-2 text-indigo-600" />
+                    <HiOutlineGlobe className="w-5 h-5 mr-2 text-indigo-600" />
                     Citizenship
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -560,7 +593,7 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.nationality}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Identification Number</p>
+                      <p className="text-xs text-gray-500">ID Number</p>
                       <p className="text-sm font-medium">{employeeData.identificationNumber}</p>
                     </div>
                     <div>
@@ -584,33 +617,6 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.countryOfBirth}</p>
                     </div>
                   </div>
-
-                  {/* Citizenship Documents */}
-                  {(employeeData.ktpDocument || employeeData.passportDocument || employeeData.familyCardDocument) && (
-                    <div className="mt-6 border-t border-gray-100 pt-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                        <HiOutlineDocumentText className="w-4 h-4 mr-2 text-indigo-500" />
-                        Documents
-                      </h4>
-                      <div className="space-y-2">
-                        <DocumentItem 
-                          label="KTP" 
-                          url={employeeData.ktpDocument} 
-                          icon={HiOutlineIdentification}
-                        />
-                        <DocumentItem 
-                          label="Passport" 
-                          url={employeeData.passportDocument} 
-                          icon={HiOutlineDocument}
-                        />
-                        <DocumentItem 
-                          label="Family Card" 
-                          url={employeeData.familyCardDocument} 
-                          icon={HiOutlineDocument}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Emergency Contact */}
@@ -634,7 +640,7 @@ const EmployeeDetailModal = () => {
                 {/* Education */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <HiOutlineBriefcase className="w-5 h-5 mr-2 text-indigo-600" />
+                    <HiOutlineAcademicCap className="w-5 h-5 mr-2 text-indigo-600" />
                     Education
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -651,34 +657,12 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.school}</p>
                     </div>
                   </div>
-
-                  {/* Education Documents */}
-                  {(employeeData.certificateDocument || employeeData.transcriptDocument) && (
-                    <div className="mt-6 border-t border-gray-100 pt-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                        <HiOutlineDocumentText className="w-4 h-4 mr-2 text-indigo-500" />
-                        Documents
-                      </h4>
-                      <div className="space-y-2">
-                        <DocumentItem 
-                          label="Certificate" 
-                          url={employeeData.certificateDocument} 
-                          icon={HiOutlineDocumentText}
-                        />
-                        <DocumentItem 
-                          label="Transcript" 
-                          url={employeeData.transcriptDocument} 
-                          icon={HiOutlineDocumentText}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Family Status */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <HiOutlineHeart className="w-5 h-5 mr-2 text-red-500" />
+                    <HiOutlineUsers className="w-5 h-5 mr-2 text-indigo-600" />
                     Family Status
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -691,28 +675,41 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.numberOfDependentChildren}</p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Family Documents */}
-                  {(employeeData.marriageCertificateDocument || employeeData.childCertificateDocument) && (
-                    <div className="mt-6 border-t border-gray-100 pt-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                        <HiOutlineDocumentText className="w-4 h-4 mr-2 text-indigo-500" />
-                        Documents
-                      </h4>
-                      <div className="space-y-2">
-                        <DocumentItem 
-                          label="Marriage Certificate" 
-                          url={employeeData.marriageCertificateDocument} 
-                          icon={HiOutlineDocument}
-                        />
-                        <DocumentItem 
-                          label="Child Certificate" 
-                          url={employeeData.childCertificateDocument} 
-                          icon={HiOutlineDocument}
-                        />
-                      </div>
-                    </div>
-                  )}
+                {/* 🔥 NEW: Documents Section */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <HiOutlineDocument className="w-5 h-5 mr-2 text-indigo-600" />
+                    Documents
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <DocumentItem
+                      label="ID Card / KTP"
+                      url={employeeData.idCardCopy}
+                      icon={HiOutlineIdentification}
+                    />
+                    <DocumentItem
+                      label="Family Card"
+                      url={employeeData.familyCardCopy}
+                      icon={HiOutlineUsers}
+                    />
+                    <DocumentItem
+                      label="Driving License"
+                      url={employeeData.drivingLicenseCopy}
+                      icon={HiOutlineDocument}
+                    />
+                    <DocumentItem
+                      label="Insurance Card"
+                      url={employeeData.assuranceCardCopy}
+                      icon={HiOutlineShieldCheck}
+                    />
+                    <DocumentItem
+                      label="NPWP Card"
+                      url={employeeData.npwpCardCopy}
+                      icon={HiOutlineDocument}
+                    />
+                  </div>
                 </div>
 
                 {/* Metadata */}
@@ -739,6 +736,13 @@ const EmployeeDetailModal = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Delete Employee</h3>
+            
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{deleteError}</p>
+              </div>
+            )}
+            
             <p className="text-gray-600 mb-6">
               Are you sure you want to delete <span className="font-semibold">{employeeData.name}</span>? 
               This action cannot be undone.
@@ -753,10 +757,20 @@ const EmployeeDetailModal = () => {
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400 flex items-center"
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </button>
             </div>
           </div>

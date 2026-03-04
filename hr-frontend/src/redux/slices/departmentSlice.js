@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   getDepartmentsAPI,
+  getDepartmentByIdAPI, 
   createDepartmentAPI,
   updateDepartmentAPI,
   deleteDepartmentAPI,
@@ -27,6 +28,18 @@ export const createDepartment = createAsyncThunk(
   async (data, { rejectWithValue }) => {
     try {
       const response = await createDepartmentAPI(data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const fetchDepartmentById = createAsyncThunk(
+  "departments/fetchDepartmentById",
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await getDepartmentByIdAPI(id);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -101,6 +114,18 @@ const departmentSlice = createSlice({
         if (index !== -1) {
           state.list[index] = updated;
         }
+      })
+
+      // FETCH BY ID
+      .addCase(fetchDepartmentById.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchDepartmentById.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(fetchDepartmentById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
 
       // DELETE

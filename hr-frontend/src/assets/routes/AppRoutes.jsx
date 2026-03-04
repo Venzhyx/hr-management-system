@@ -32,14 +32,14 @@ const AppRoutes = () => {
         {/* Employees Routes */}
         <Route path="employees" element={<EmployeesList />} />
         <Route path="employees/add" element={<AddEmployee />} />
-        <Route path="employees/edit" element={<EditEmployee />} />
-        <Route path="employees/detail" element={<EmployeeDetail />} />
+        <Route path="employees/edit/:id" element={<EditEmployee />} />
+        <Route path="employees/detail/:id" element={<EmployeeDetail />} />
         
         {/* Departments Routes */}
         <Route path="departments" element={<DepartmentsList />} />
         <Route path="departments/add" element={<AddDepartment />} />
         <Route path="departments/edit" element={<EditDepartment />} />
-        <Route path="departments/detail" element={<DepartmentDetailModal />} />
+        <Route path="departments/detail/:id" element={<DepartmentDetailModal />} />
 
         {/* COMPANIES CRUD ROUTES - folder: companies */}
         <Route path="companies" element={<CompanyList />} />

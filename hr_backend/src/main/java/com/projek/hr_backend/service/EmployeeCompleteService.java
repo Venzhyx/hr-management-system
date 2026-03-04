@@ -1,7 +1,7 @@
     package com.projek.hr_backend.service;
 
-    import com.projek.hr_backend.dto.EmployeeRequest;
-    import com.projek.hr_backend.dto.EmployeeResponse;
+    import com.projek.hr_backend.dto.EmployeeCompleteRequest;
+    import com.projek.hr_backend.dto.EmployeeCompleteResponse;
     import com.projek.hr_backend.exception.ResourceNotFoundException;
     import com.projek.hr_backend.model.*;
     import com.projek.hr_backend.repository.*;
@@ -29,7 +29,7 @@
         private final AttendanceRepository attendanceRepository;
         
         @Transactional
-        public EmployeeResponse createEmployee(EmployeeRequest request) {
+        public EmployeeCompleteResponse createEmployee(EmployeeCompleteRequest request) {
             // Create Employee
             Employee employee = new Employee();
             mapBasicInfo(request, employee);
@@ -122,21 +122,21 @@
             return getEmployee(savedEmployee.getId());
         }
         
-        public EmployeeResponse getEmployee(Long id) {
+        public EmployeeCompleteResponse getEmployee(Long id) {
             Employee employee = employeeRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
             
             return mapToCompleteResponse(employee);
         }
         
-        public List<EmployeeResponse> getAllEmployees() {
+        public List<EmployeeCompleteResponse> getAllEmployees() {
             return employeeRepository.findAll().stream()
                     .map(this::mapToCompleteResponse)
                     .collect(Collectors.toList());
         }
         
         @Transactional
-        public EmployeeResponse updateEmployee(Long id, EmployeeRequest request) {
+        public EmployeeCompleteResponse updateEmployee(Long id, EmployeeCompleteRequest request) {
             Employee employee = employeeRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 
@@ -191,7 +191,7 @@
             employeeRepository.deleteById(id);
         }
         
-        private void mapBasicInfo(EmployeeRequest request, Employee employee) {
+        private void mapBasicInfo(EmployeeCompleteRequest request, Employee employee) {
             employee.setName(request.getName());
             employee.setJobTitle(request.getJobTitle());
             employee.setWorkEmail(request.getWorkEmail());
@@ -228,8 +228,8 @@
         }
     }
         
-        private EmployeeResponse mapToCompleteResponse(Employee employee) {
-            EmployeeResponse response = new EmployeeResponse();
+        private EmployeeCompleteResponse mapToCompleteResponse(Employee employee) {
+            EmployeeCompleteResponse response = new EmployeeCompleteResponse();
             
             // Basic Info
             response.setId(employee.getId());
@@ -329,7 +329,7 @@
             return response;
         }
         
-    private void updatePrivateInfo(Employee employee, EmployeeRequest request) {
+    private void updatePrivateInfo(Employee employee, EmployeeCompleteRequest request) {
         EmployeePrivateInfo info = privateInfoRepository.findByEmployeeId(employee.getId())
                 .orElse(new EmployeePrivateInfo());
 
@@ -348,7 +348,7 @@
         privateInfoRepository.save(info);
     }
         
-        private void updateCitizenship(Employee employee, EmployeeRequest request) {
+        private void updateCitizenship(Employee employee, EmployeeCompleteRequest request) {
         EmployeeCitizenship citizenship = citizenshipRepository.findByEmployeeId(employee.getId())
                 .orElse(new EmployeeCitizenship());
 
@@ -365,7 +365,7 @@
         citizenshipRepository.save(citizenship);
     }
         
-        private void updateEmergency(Employee employee, EmployeeRequest request) {
+        private void updateEmergency(Employee employee, EmployeeCompleteRequest request) {
             if (hasEmergency(request)) {
                 EmployeeEmergency emergency = emergencyRepository.findByEmployeeId(employee.getId())
                         .orElse(new EmployeeEmergency());
@@ -376,7 +376,7 @@
             }
         }
         
-        private void updateEducation(Employee employee, EmployeeRequest request) {
+        private void updateEducation(Employee employee, EmployeeCompleteRequest request) {
             EmployeeEducation education = educationRepository.findByEmployeeId(employee.getId())
                     .orElse(new EmployeeEducation());
 
@@ -388,7 +388,7 @@
             educationRepository.save(education);
         }
         
-        private void updateFamilyStatus(Employee employee, EmployeeRequest request) {
+        private void updateFamilyStatus(Employee employee, EmployeeCompleteRequest request) {
             EmployeeFamilyStatus familyStatus = familyStatusRepository.findByEmployeeId(employee.getId())
                     .orElse(new EmployeeFamilyStatus());
 
@@ -399,30 +399,30 @@
             familyStatusRepository.save(familyStatus);
         }
         
-        private boolean hasPrivateInfo(EmployeeRequest request) {
+        private boolean hasPrivateInfo(EmployeeCompleteRequest request) {
             return request.getPrivateAddress() != null || request.getPrivateEmail() != null ||
                 request.getPrivatePhone() != null || request.getBankName() != null;
         }
         
-        private boolean hasCitizenship(EmployeeRequest request) {
+        private boolean hasCitizenship(EmployeeCompleteRequest request) {
             return request.getNationality() != null || request.getGender() != null ||
                 request.getDateOfBirth() != null;
         }
         
-        private boolean hasEmergency(EmployeeRequest request) {
+        private boolean hasEmergency(EmployeeCompleteRequest request) {
             return request.getEmergencyContactName() != null || request.getEmergencyContactPhone() != null;
         }
         
-        private boolean hasEducation(EmployeeRequest request) {
+        private boolean hasEducation(EmployeeCompleteRequest request) {
             return request.getCertificateLevel() != null || request.getFieldOfStudy() != null ||
                 request.getSchool() != null;
         }
         
-        private boolean hasFamilyStatus(EmployeeRequest request) {
+        private boolean hasFamilyStatus(EmployeeCompleteRequest request) {
             return request.getMaritalStatus() != null || request.getNumberOfDependentChildren() != null;
         }
         
-        private void updateDocuments(Employee employee, EmployeeRequest request) {
+        private void updateDocuments(Employee employee, EmployeeCompleteRequest request) {
             EmployeeDocument document = documentRepository.findByEmployeeId(employee.getId())
                     .orElse(new EmployeeDocument());
             
@@ -436,7 +436,7 @@
             documentRepository.save(document);
         }
         
-        private void updateSettings(Employee employee, EmployeeRequest request) {
+        private void updateSettings(Employee employee, EmployeeCompleteRequest request) {
             EmployeeSettings settings = settingsRepository.findByEmployeeId(employee.getId())
                     .orElse(new EmployeeSettings());
             
@@ -450,13 +450,13 @@
             settingsRepository.save(settings);
         }
         
-        private boolean hasDocuments(EmployeeRequest request) {
+        private boolean hasDocuments(EmployeeCompleteRequest request) {
             return request.getIdCardCopy() != null || request.getFamilyCardCopy() != null ||
                 request.getDrivingLicenseCopy() != null || request.getAssuranceCardCopy() != null ||
                 request.getNpwpCardCopy() != null;
         }
         
-        private boolean hasSettings(EmployeeRequest request) {
+        private boolean hasSettings(EmployeeCompleteRequest request) {
             return request.getStatus() != null || request.getEmployeeType() != null ||
                 request.getRelatedUser() != null || request.getMonthlyCost() != null ||
                 request.getAttendanceBadgeId() != null;

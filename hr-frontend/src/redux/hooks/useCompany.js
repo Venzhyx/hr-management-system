@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchCompanies,
@@ -10,13 +9,8 @@ import {
 export const useCompany = () => {
   const dispatch = useDispatch();
 
-  const { list, loading, error } = useSelector(
-    (state) => state.companies
-  );
-
-  useEffect(() => {
-    dispatch(fetchCompanies());
-  }, [dispatch]);
+  const { list = [], loading = false, error = null } =
+    useSelector((state) => state.companies || {});
 
   return {
     companies: list,
@@ -25,11 +19,9 @@ export const useCompany = () => {
 
     fetchCompanies: () => dispatch(fetchCompanies()),
 
-    // CREATE (multipart)
     createCompany: (formData) =>
       dispatch(createCompany(formData)),
 
-    // UPDATE (multipart)
     updateCompany: (id, formData) =>
       dispatch(updateCompany({ id, formData })),
 
