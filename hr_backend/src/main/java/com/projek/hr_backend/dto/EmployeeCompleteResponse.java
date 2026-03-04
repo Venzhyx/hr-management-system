@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -35,13 +36,11 @@ public class EmployeeCompleteResponse {
     private String privateAddress;
     private String privateEmail;
     private String privatePhone;
-    private String bankName;
-    private String accountNumber;
-    private Integer bankId;
-    private String assurance;
-    private String assuranceId;
     private String npwpId;
     private Double homeToWorkDistance;
+    
+    private List<EmployeeBankResponse> banks;
+    private List<EmployeeInsuranceResponse> insurances;
     
     // Citizenship
     private String nationality;

@@ -9,6 +9,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "employees")
@@ -58,6 +60,12 @@ public class Employee {
     
     @OneToOne(mappedBy = "employee", cascade = CascadeType.ALL)
     private EmployeePrivateInfo privateInfo;
+    
+    @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EmployeeBank> banks = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<EmployeeInsurance> insurances = new ArrayList<>();
     
     @CreationTimestamp
     @Column(updatable = false)

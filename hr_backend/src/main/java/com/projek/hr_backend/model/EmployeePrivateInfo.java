@@ -30,16 +30,6 @@ public class EmployeePrivateInfo {
     
     private String privatePhone;
     
-    private String bankAccount;
-    
-    private String bank;
-    
-    private Integer bankId;
-    
-    private String assurance;
-    
-    private String assuranceId;
-    
     private String npwpId;
     
     private Double homeWorkDistance;

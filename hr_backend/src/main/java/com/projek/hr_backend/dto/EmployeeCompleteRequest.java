@@ -4,11 +4,13 @@ import com.projek.hr_backend.model.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -48,13 +50,14 @@ public class EmployeeCompleteRequest {
     private String privateAddress;
     private String privateEmail;
     private String privatePhone;
-    private String bankName;
-    private String accountNumber;
-    private Integer bankId;
-    private String assurance;
-    private String assuranceId;
     private String npwpId;
     private Double homeToWorkDistance;
+    
+    @Valid
+    private List<EmployeeBankRequest> banks;
+    
+    @Valid
+    private List<EmployeeInsuranceRequest> insurances;
     
     // Citizenship
     private String nationality;

@@ -2,6 +2,8 @@
 
     import com.projek.hr_backend.dto.EmployeeCompleteRequest;
     import com.projek.hr_backend.dto.EmployeeCompleteResponse;
+    import com.projek.hr_backend.dto.EmployeeBankResponse;
+    import com.projek.hr_backend.dto.EmployeeInsuranceResponse;
     import com.projek.hr_backend.exception.ResourceNotFoundException;
     import com.projek.hr_backend.model.*;
     import com.projek.hr_backend.repository.*;
@@ -27,6 +29,8 @@
         private final EmployeeDocumentRepository documentRepository;
         private final EmployeeSettingsRepository settingsRepository;
         private final AttendanceRepository attendanceRepository;
+        private final EmployeeBankRepository bankRepository;
+        private final EmployeeInsuranceRepository insuranceRepository;
         
         @Transactional
         public EmployeeCompleteResponse createEmployee(EmployeeCompleteRequest request) {
@@ -42,14 +46,34 @@
                 privateInfo.setPrivateAddress(request.getPrivateAddress());
                 privateInfo.setPrivateEmail(request.getPrivateEmail());
                 privateInfo.setPrivatePhone(request.getPrivatePhone());
-                privateInfo.setBank(request.getBankName());
-                privateInfo.setBankAccount(request.getAccountNumber());
-                privateInfo.setBankId(request.getBankId());
-                privateInfo.setAssurance(request.getAssurance());
-                privateInfo.setAssuranceId(request.getAssuranceId());
                 privateInfo.setNpwpId(request.getNpwpId());
                 privateInfo.setHomeWorkDistance(request.getHomeToWorkDistance());
                 privateInfoRepository.save(privateInfo);
+            }
+            
+            // Create Banks
+            if (request.getBanks() != null && !request.getBanks().isEmpty()) {
+                request.getBanks().forEach(bankReq -> {
+                    EmployeeBank bank = new EmployeeBank();
+                    bank.setEmployee(savedEmployee);
+                    bank.setBankName(bankReq.getBankName());
+                    bank.setAccountNumber(bankReq.getAccountNumber());
+                    bank.setAccountHolder(bankReq.getAccountHolder());
+                    bankRepository.save(bank);
+                });
+            }
+            
+            // Create Insurances
+            if (request.getInsurances() != null && !request.getInsurances().isEmpty()) {
+                request.getInsurances().forEach(insReq -> {
+                    EmployeeInsurance insurance = new EmployeeInsurance();
+                    insurance.setEmployee(savedEmployee);
+                    insurance.setType(insReq.getType());
+                    insurance.setProvider(insReq.getProvider());
+                    insurance.setPolicyNumber(insReq.getPolicyNumber());
+                    insurance.setExpiryDate(insReq.getExpiryDate());
+                    insuranceRepository.save(insurance);
+                });
             }
             
             // Create Citizenship
@@ -181,6 +205,8 @@
             // Set attendance employee_id to null instead of deleting
             attendanceRepository.setEmployeeIdToNull(id);
             
+            bankRepository.deleteByEmployeeId(id);
+            insuranceRepository.deleteByEmployeeId(id);
             documentRepository.deleteByEmployeeId(id);
             settingsRepository.deleteByEmployeeId(id);
             citizenshipRepository.deleteByEmployeeId(id);
@@ -268,14 +294,32 @@
                 response.setPrivateAddress(info.getPrivateAddress());
                 response.setPrivateEmail(info.getPrivateEmail());
                 response.setPrivatePhone(info.getPrivatePhone());
-                response.setBankName(info.getBank());
-                response.setAccountNumber(info.getBankAccount());
-                response.setBankId(info.getBankId());
-                response.setAssurance(info.getAssurance());
-                response.setAssuranceId(info.getAssuranceId());
                 response.setNpwpId(info.getNpwpId());
                 response.setHomeToWorkDistance(info.getHomeWorkDistance());
             });
+            
+            // Banks
+            List<EmployeeBank> banks = bankRepository.findByEmployeeId(employee.getId());
+            response.setBanks(banks.stream()
+                .map(bank -> new EmployeeBankResponse(
+                    bank.getId(),
+                    bank.getBankName(),
+                    bank.getAccountNumber(),
+                    bank.getAccountHolder()
+                ))
+                .collect(Collectors.toList()));
+            
+            // Insurances
+            List<EmployeeInsurance> insurances = insuranceRepository.findByEmployeeId(employee.getId());
+            response.setInsurances(insurances.stream()
+                .map(ins -> new EmployeeInsuranceResponse(
+                    ins.getId(),
+                    ins.getType(),
+                    ins.getProvider(),
+                    ins.getPolicyNumber(),
+                    ins.getExpiryDate()
+                ))
+                .collect(Collectors.toList()));
             
             // Citizenship
             citizenshipRepository.findByEmployeeId(employee.getId()).ifPresent(citizenship -> {
@@ -337,15 +381,37 @@
         info.setPrivateAddress(request.getPrivateAddress());
         info.setPrivateEmail(request.getPrivateEmail());
         info.setPrivatePhone(request.getPrivatePhone());
-        info.setBank(request.getBankName());
-        info.setBankAccount(request.getAccountNumber());
-        info.setBankId(request.getBankId());
-        info.setAssurance(request.getAssurance());
-        info.setAssuranceId(request.getAssuranceId());
         info.setNpwpId(request.getNpwpId());
         info.setHomeWorkDistance(request.getHomeToWorkDistance());
 
         privateInfoRepository.save(info);
+        
+        // Update Banks
+        bankRepository.deleteByEmployeeId(employee.getId());
+        if (request.getBanks() != null && !request.getBanks().isEmpty()) {
+            request.getBanks().forEach(bankReq -> {
+                EmployeeBank bank = new EmployeeBank();
+                bank.setEmployee(employee);
+                bank.setBankName(bankReq.getBankName());
+                bank.setAccountNumber(bankReq.getAccountNumber());
+                bank.setAccountHolder(bankReq.getAccountHolder());
+                bankRepository.save(bank);
+            });
+        }
+        
+        // Update Insurances
+        insuranceRepository.deleteByEmployeeId(employee.getId());
+        if (request.getInsurances() != null && !request.getInsurances().isEmpty()) {
+            request.getInsurances().forEach(insReq -> {
+                EmployeeInsurance insurance = new EmployeeInsurance();
+                insurance.setEmployee(employee);
+                insurance.setType(insReq.getType());
+                insurance.setProvider(insReq.getProvider());
+                insurance.setPolicyNumber(insReq.getPolicyNumber());
+                insurance.setExpiryDate(insReq.getExpiryDate());
+                insuranceRepository.save(insurance);
+            });
+        }
     }
         
         private void updateCitizenship(Employee employee, EmployeeCompleteRequest request) {
@@ -401,7 +467,7 @@
         
         private boolean hasPrivateInfo(EmployeeCompleteRequest request) {
             return request.getPrivateAddress() != null || request.getPrivateEmail() != null ||
-                request.getPrivatePhone() != null || request.getBankName() != null;
+                request.getPrivatePhone() != null || request.getNpwpId() != null;
         }
         
         private boolean hasCitizenship(EmployeeCompleteRequest request) {
