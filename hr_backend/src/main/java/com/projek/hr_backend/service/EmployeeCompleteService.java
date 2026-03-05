@@ -54,6 +54,9 @@
             
             // Create Banks
             if (request.getBanks() != null && !request.getBanks().isEmpty()) {
+                if (request.getBanks().size() > 3) {
+                    throw new IllegalArgumentException("Maximum 3 bank accounts allowed");
+                }
                 request.getBanks().forEach(bankReq -> {
                     EmployeeBank bank = new EmployeeBank();
                     bank.setEmployee(savedEmployee);
@@ -66,13 +69,15 @@
             
             // Create Insurances
             if (request.getInsurances() != null && !request.getInsurances().isEmpty()) {
+                if (request.getInsurances().size() > 3) {
+                    throw new IllegalArgumentException("Maximum 3 insurances allowed");
+                }
                 request.getInsurances().forEach(insReq -> {
                     EmployeeInsurance insurance = new EmployeeInsurance();
                     insurance.setEmployee(savedEmployee);
                     insurance.setType(insReq.getType());
                     insurance.setProvider(insReq.getProvider());
                     insurance.setPolicyNumber(insReq.getPolicyNumber());
-                    insurance.setExpiryDate(insReq.getExpiryDate());
                     insuranceRepository.save(insurance);
                 });
             }
@@ -140,7 +145,7 @@
                 settings.setEmployeeType(request.getEmployeeType());
                 settings.setRelatedUser(request.getRelatedUser());
                 settings.setMonthlyCost(request.getMonthlyCost());
-                settings.setAttendanceBadgeId(request.getAttendanceBadgeId());
+                settings.setEmployeeIdentificationNumber(request.getEmployeeIdentificationNumber());
                 settingsRepository.save(settings);
             }
             
@@ -317,8 +322,7 @@
                     ins.getId(),
                     ins.getType(),
                     ins.getProvider(),
-                    ins.getPolicyNumber(),
-                    ins.getExpiryDate()
+                    ins.getPolicyNumber()
                 ))
                 .collect(Collectors.toList()));
             
@@ -368,7 +372,7 @@
             response.setEmployeeType(settings.getEmployeeType());
             response.setRelatedUser(settings.getRelatedUser());
             response.setMonthlyCost(settings.getMonthlyCost());
-            response.setAttendanceBadgeId(settings.getAttendanceBadgeId());
+            response.setEmployeeIdentificationNumber(settings.getEmployeeIdentificationNumber());
 
             if (settings.getRelatedUser() != null) {
                 try {
@@ -401,6 +405,9 @@
         // Update Banks
         bankRepository.deleteByEmployeeId(employee.getId());
         if (request.getBanks() != null && !request.getBanks().isEmpty()) {
+            if (request.getBanks().size() > 3) {
+                throw new IllegalArgumentException("Maximum 3 bank accounts allowed");
+            }
             request.getBanks().forEach(bankReq -> {
                 EmployeeBank bank = new EmployeeBank();
                 bank.setEmployee(employee);
@@ -414,13 +421,15 @@
         // Update Insurances
         insuranceRepository.deleteByEmployeeId(employee.getId());
         if (request.getInsurances() != null && !request.getInsurances().isEmpty()) {
+            if (request.getInsurances().size() > 3) {
+                throw new IllegalArgumentException("Maximum 3 insurances allowed");
+            }
             request.getInsurances().forEach(insReq -> {
                 EmployeeInsurance insurance = new EmployeeInsurance();
                 insurance.setEmployee(employee);
                 insurance.setType(insReq.getType());
                 insurance.setProvider(insReq.getProvider());
                 insurance.setPolicyNumber(insReq.getPolicyNumber());
-                insurance.setExpiryDate(insReq.getExpiryDate());
                 insuranceRepository.save(insurance);
             });
         }
@@ -528,7 +537,7 @@
             settings.setEmployeeType(request.getEmployeeType());
             settings.setRelatedUser(request.getRelatedUser());
             settings.setMonthlyCost(request.getMonthlyCost());
-            settings.setAttendanceBadgeId(request.getAttendanceBadgeId());
+            settings.setEmployeeIdentificationNumber(request.getEmployeeIdentificationNumber());
             
             settingsRepository.save(settings);
         }
@@ -542,6 +551,6 @@
         private boolean hasSettings(EmployeeCompleteRequest request) {
             return request.getStatus() != null || request.getEmployeeType() != null ||
                 request.getRelatedUser() != null || request.getMonthlyCost() != null ||
-                request.getAttendanceBadgeId() != null;
+                request.getEmployeeIdentificationNumber() != null;
         }
     }

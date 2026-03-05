@@ -14,5 +14,4 @@ public class EmployeeInsuranceResponse {
     private String type;
     private String provider;
     private String policyNumber;
-    private LocalDate expiryDate;
 }

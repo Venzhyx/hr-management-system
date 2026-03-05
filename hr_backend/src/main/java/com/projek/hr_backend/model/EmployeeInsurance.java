@@ -27,8 +27,6 @@ public class EmployeeInsurance {
     @Column(nullable = false)
     private String policyNumber;
     
-    private LocalDate expiryDate;
-    
     @ManyToOne
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;

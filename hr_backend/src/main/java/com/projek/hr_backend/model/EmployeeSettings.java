@@ -34,7 +34,7 @@ public class EmployeeSettings {
     
     private Double monthlyCost;
     
-    private String attendanceBadgeId;
+    private String employeeIdentificationNumber;
     
     @CreationTimestamp
     @Column(updatable = false)
