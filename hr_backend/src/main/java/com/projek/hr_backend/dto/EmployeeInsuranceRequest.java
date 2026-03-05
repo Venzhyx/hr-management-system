@@ -20,6 +20,4 @@ public class EmployeeInsuranceRequest {
     
     @NotBlank(message = "Policy number is required")
     private String policyNumber;
-    
-    private LocalDate expiryDate;
 }

@@ -100,5 +100,5 @@ public class EmployeeCompleteRequest {
     private EmployeeType employeeType;
     private String relatedUser;
     private Double monthlyCost;
-    private String attendanceBadgeId;
+    private String employeeIdentificationNumber;
 }

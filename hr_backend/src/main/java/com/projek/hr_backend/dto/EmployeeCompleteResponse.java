@@ -84,7 +84,7 @@ public class EmployeeCompleteResponse {
     private String relatedUser;
     private String relatedUserName;
     private Double monthlyCost;
-    private String attendanceBadgeId;
+    private String employeeIdentificationNumber;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
