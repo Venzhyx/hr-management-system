@@ -155,7 +155,7 @@ const EmployeesList = () => {
   const handleConfirmDelete = async () => {
   if (selectedEmployee) {
     try {
-      await deleteEmployee(selectedEmployee.id); // ⬅ WAJIB await
+      await deleteEmployee(selectedEmployee.id); // WAJIB await
 
       setToast({
         show: true,

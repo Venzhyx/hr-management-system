@@ -94,7 +94,7 @@ const INITIAL_NOTIFICATIONS = [
     iconColor: 'text-purple-600', iconBg: 'bg-purple-100', dot: 'bg-purple-500',
   },
   {
-    id: 8, type: 'birthday', title: 'Ulang Tahun Hari Ini 🎂',
+    id: 8, type: 'birthday', title: 'Ulang Tahun Hari Ini ',
     message: 'Hari ini Hendra Gunawan (Manajer Operasional) merayakan ulang tahun ke-38.',
     time: '9 jam lalu', read: true,
     icon: <HiOutlineCalendar className="w-4 h-4" />,

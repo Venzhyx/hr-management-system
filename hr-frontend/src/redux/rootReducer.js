@@ -6,7 +6,7 @@ import companyReducer from './slices/companySlice';
 const rootReducer = combineReducers({
   employees: employeeReducer,
   departments: departmentReducer,
-  companies: companyReducer, // ⬅ TAMBAHKAN INI
+  companies: companyReducer, // TAMBAHKAN INI
 });
 
 export default rootReducer;

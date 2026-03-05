@@ -143,7 +143,7 @@ const EmployeeDetailModal = () => {
   return dept?.departmentName || 'N/A';
 };
 
-  // 🔥 FIXED: Get manager/coach name - tidak fallback ke selectedEmployee
+  // FIXED: Get manager/coach name - tidak fallback ke selectedEmployee
   const getEmployeeName = (empId) => {
     if (!empId) return 'N/A';
     const emp = employees?.find(e => e.id === empId);
@@ -244,7 +244,7 @@ const EmployeeDetailModal = () => {
     maritalStatus: employee.maritalStatus || 'N/A',
     numberOfDependentChildren: employee.numberOfDependentChildren || 0,
     
-    // 🔥 NEW: Documents
+    // NEW: Documents
     idCardCopy: employee.idCardCopy,
     familyCardCopy: employee.familyCardCopy,
     drivingLicenseCopy: employee.drivingLicenseCopy,
@@ -536,7 +536,7 @@ console.log("insurances:", selectedEmployee?.insurances);
                     )}
                   </div>
                   </div>
-                    {/* 🔥 Insurance */}
+                    {/* Insurance */}
                     <div>
                       <p className="text-xs text-gray-500">Insurance</p>
 
@@ -667,7 +667,7 @@ console.log("insurances:", selectedEmployee?.insurances);
                   </div>
                 </div>
 
-                {/* 🔥 NEW: Documents Section */}
+                {/* NEW: Documents Section */}
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <HiOutlineDocument className="w-5 h-5 mr-2 text-indigo-600" />

@@ -22,7 +22,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useDepartment } from '../../../redux/hooks/useDepartment';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
-import { useCompany } from '../../../redux/hooks/useCompany'; // ✅ Import useCompany
+import { useCompany } from '../../../redux/hooks/useCompany'; // Import useCompany
 import DepartmentTreeModal from '../../components/DepartmentTreeModal';
 
 const DepartmentsList = () => {
@@ -50,7 +50,7 @@ const DepartmentsList = () => {
     loading: empLoading
   } = useEmployee();
 
-  // ✅ AMBIL COMPANIES DARI REDUX
+  // AMBIL COMPANIES DARI REDUX
   const {
     companies,
     loading: companyLoading
@@ -68,12 +68,12 @@ const DepartmentsList = () => {
     return employees.find(emp => emp.id === managerId);
   };
 
-  // ✅ Helper untuk dapat company berdasarkan ID
+  // Helper untuk dapat company berdasarkan ID
   const getCompany = (companyId) => {
     return companies.find(comp => comp.id === companyId);
   };
 
-  // ✅ Build department hierarchy for tree view
+  // Build department hierarchy for tree view
   const buildDepartmentHierarchy = () => {
     const deptMap = new Map();
     const rootDepts = [];

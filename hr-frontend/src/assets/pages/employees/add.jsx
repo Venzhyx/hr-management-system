@@ -350,7 +350,7 @@ const AddEmployee = () => {
   });
   const [privateContact,   setPrivateContact]   = useState({ address: '', email: '', phone: '' });
   const [banks,            setBanks]            = useState([{ bankName: '', accountNumber: '', accountHolder: '' }]);
-  const [insurances,       setInsurances]       = useState([{ type: '', provider: '', policyNumber: '', expiryDate: '' }]);
+  const [insurances,       setInsurances]       = useState([{ type: '', provider: '', policyNumber: '' }]);
   const [taxInfo,          setTaxInfo]          = useState({ npwp: '', workDistance: 0 });
   const [emergencyContact, setEmergencyContact] = useState({ name: '', phone: '' });
   const [familyInfo,       setFamilyInfo]       = useState({ maritalStatus: '', numberOfChildren: 0 });
@@ -411,7 +411,7 @@ const AddEmployee = () => {
     setBanks(p => { const n = [...p]; n[i][field] = v; return n; });
   };
 
-  const addInsurance    = () => setInsurances(p => [...p, { type: '', provider: '', policyNumber: '', expiryDate: '' }]);
+  const addInsurance    = () => setInsurances(p => [...p, { type: '', provider: '', policyNumber: ''}]);
   const removeInsurance = (i) => { if (insurances.length > 1) setInsurances(p => p.filter((_, idx) => idx !== i)); };
   const handleInsuranceChange = (i, field, value) => {
     setInsurances(p => { const n = [...p]; n[i][field] = value; return n; });
@@ -543,7 +543,7 @@ const AddEmployee = () => {
 
         insurances: insurances
           .filter(i => i.type && i.provider && i.policyNumber)
-          .map(({ type, provider, policyNumber, expiryDate }) => ({ type, provider, policyNumber, expiryDate: expiryDate || null })),
+          .map(({ type, provider, policyNumber }) => ({ type, provider, policyNumber })),
 
         npwpId:             taxInfo.npwp        || null,
         homeToWorkDistance: taxInfo.workDistance ? Number(taxInfo.workDistance) : null,
@@ -763,12 +763,6 @@ const AddEmployee = () => {
                             <input type="text" value={ins.policyNumber}
                               onChange={e => handleInsuranceChange(i, 'policyNumber', e.target.value)}
                               placeholder="Policy Number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Expiry Date</label>
-                            <input type="date" value={ins.expiryDate}
-                              onChange={e => handleInsuranceChange(i, 'expiryDate', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
                           </div>
                         </div>
                       </div>

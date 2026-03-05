@@ -136,7 +136,7 @@ const EditCompany = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ FIX: Gunakan camelCase sesuai backend
+  // FIX: Gunakan camelCase sesuai backend
   const [formData, setFormData] = useState({
     companyName: '',
     companyId: '',
@@ -166,7 +166,7 @@ const EditCompany = () => {
       
       if (response.data.success) {
         const data = response.data.data;
-        // ✅ FIX: Mapping dari camelCase backend ke camelCase frontend
+        // FIX: Mapping dari camelCase backend ke camelCase frontend
         setFormData({
           companyName: data.companyName || '',
           companyId: data.companyId || '',
@@ -250,7 +250,7 @@ const EditCompany = () => {
     uploadFormData.append("file", file);
     
     try {
-      // ✅ FIX: Jangan set header manual
+      // FIX: Jangan set header manual
       const response = await API.post("/files/upload", uploadFormData);
       return response.data.data?.fileUrl || response.data.data;
     } catch (error) {
@@ -282,7 +282,7 @@ const EditCompany = () => {
         logoUrl = await uploadFile(logo);
       }
 
-      // ✅ FIX: Payload dengan camelCase sesuai backend
+      // FIX: Payload dengan camelCase sesuai backend
       const payload = {
         companyName: formData.companyName,
         companyId: formData.companyId,
