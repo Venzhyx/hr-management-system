@@ -163,8 +163,9 @@ export const useEmployee = () => {
     ACTIONS
   ========================== */
   const fetchEmployeeByIdAction = useCallback((id) => {
-    return dispatch(fetchEmployeeById(id)).unwrap();
-  }, [dispatch]);
+  dispatch(clearSelectedEmployee()); // reset dulu
+  return dispatch(fetchEmployeeById(id)).unwrap();
+}, [dispatch]);
 
   const createEmployeeAction = useCallback(async (employeeData) => {
     try {

@@ -38,7 +38,7 @@ const AppRoutes = () => {
         {/* Departments Routes */}
         <Route path="departments" element={<DepartmentsList />} />
         <Route path="departments/add" element={<AddDepartment />} />
-        <Route path="departments/edit" element={<EditDepartment />} />
+        <Route path="departments/edit/:id" element={<EditDepartment />} />
         <Route path="departments/detail/:id" element={<DepartmentDetailModal />} />
 
         {/* COMPANIES CRUD ROUTES - folder: companies */}

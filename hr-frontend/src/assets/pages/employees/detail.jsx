@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   HiOutlineX, 
   HiOutlinePencil, 
-  HiOutlineTrash, 
   HiOutlineMail, 
   HiOutlinePhone, 
   HiOutlineCalendar, 
@@ -38,18 +37,14 @@ const EmployeeDetailModal = () => {
     fetchEmployeeById, 
     selectedEmployee, 
     loading,
-    deleteEmployee,
-    employees
+    employees 
   } = useEmployee();
   
   const { departments, fetchDepartments } = useDepartment();
   const { companies, fetchCompanies } = useCompany();
   
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [selectedFile, setSelectedFile] = useState({ url: '', label: '', type: '' });
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
 
   // Fetch employee by ID saat komponen mount
   useEffect(() => {
@@ -64,27 +59,17 @@ const EmployeeDetailModal = () => {
     fetchCompanies();
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const handleClose = () => {
     navigate('/employees');
   };
 
-  const handleDelete = async () => {
-    try {
-      setIsDeleting(true);
-      setDeleteError('');
-      
-      await deleteEmployee(selectedEmployee.id);
-      
-      setShowDeleteModal(false);
-      navigate('/employees');
-      
-    } catch (error) {
-      console.error("Delete failed:", error);
-      setDeleteError(error.message || 'Failed to delete employee');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handleCloseFileViewer = () => {
     setShowFileViewer(false);
@@ -146,17 +131,17 @@ const EmployeeDetailModal = () => {
 
   // Get company name
   const getCompanyName = (companyId) => {
-    if (!companyId) return 'N/A';
-    const company = companies.find(c => c.id === companyId);
-    return company?.companyName || 'N/A';
-  };
+  if (!companyId) return 'N/A';
+  const company = companies?.find(c => c.id === companyId);
+  return company?.companyName || 'N/A';
+};
 
   // Get department name
-  const getDepartmentName = (deptId) => {
-    if (!deptId) return 'N/A';
-    const dept = departments.find(d => d.id === deptId);
-    return dept?.departmentName || 'N/A';
-  };
+ const getDepartmentName = (deptId) => {
+  if (!deptId) return 'N/A';
+  const dept = departments?.find(d => d.id === deptId);
+  return dept?.departmentName || 'N/A';
+};
 
   // 🔥 FIXED: Get manager/coach name - tidak fallback ke selectedEmployee
   const getEmployeeName = (empId) => {
@@ -166,7 +151,7 @@ const EmployeeDetailModal = () => {
   };
 
   // Loading state
-  if (loading && !selectedEmployee) {
+  if (loading || !selectedEmployee || selectedEmployee.id !== parseInt(id)) { 
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
         <div className="bg-white rounded-xl p-8 shadow-2xl text-center">
@@ -196,7 +181,7 @@ const EmployeeDetailModal = () => {
     );
   }
 
-  const employee = selectedEmployee;
+  const employee = selectedEmployee ?? {};
   const employeeData = {
     // Basic Info
     id: employee.id,
@@ -221,7 +206,7 @@ const EmployeeDetailModal = () => {
     coachName: getEmployeeName(employee.coachId),
     
     // Related User & Settings
-    relatedUser: employee.relatedUser || 'N/A',
+    relatedUser: employee.relatedUserName || employee.relatedUser || 'N/A',
     attendanceBadgeId: employee.attendanceBadgeId || 'N/A',
     monthlyCost: employee.monthlyCost,
     monthlyCostFormatted: formatCurrency(employee.monthlyCost),
@@ -230,12 +215,9 @@ const EmployeeDetailModal = () => {
     privateAddress: employee.privateAddress || 'N/A',
     privateEmail: employee.privateEmail || 'N/A',
     privatePhone: employee.privatePhone || 'N/A',
-    bankName: employee.bankName || 'N/A',
-    accountNumber: employee.accountNumber || 'N/A',
-    
-    // 🔥 NEW: Assurance
-    assurance: employee.assurance || 'N/A',
-    assuranceId: employee.assuranceId || 'N/A',
+
+    banks: Array.isArray(employee.banks) ? employee.banks : [],
+    insurances: Array.isArray(employee.insurances) ? employee.insurances : [],
     
     npwpId: employee.npwpId || 'N/A',
     homeToWorkDistance: employee.homeToWorkDistance || 0,
@@ -269,8 +251,6 @@ const EmployeeDetailModal = () => {
     assuranceCardCopy: employee.assuranceCardCopy,
     npwpCardCopy: employee.npwpCardCopy,
     
-    createdAt: employee.createdAt,
-    updatedAt: employee.updatedAt,
     
     // Initials untuk avatar
     initials: employee.name?.split(' ').map(n => n[0]).join('') || 'NA'
@@ -292,7 +272,7 @@ const EmployeeDetailModal = () => {
           )}
           <span className="text-sm text-gray-700 font-medium">{label}</span>
           <span className="text-xs text-gray-400 uppercase">
-            {url.split('.').pop()}
+            {url?.split('.').pop() || 'file'}
           </span>
         </div>
         <div className="flex items-center space-x-2">
@@ -316,12 +296,12 @@ const EmployeeDetailModal = () => {
     );
   };
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+  
+
+  console.log(selectedEmployee)
+  console.log("selectedEmployee:", selectedEmployee);
+console.log("banks:", selectedEmployee?.banks);
+console.log("insurances:", selectedEmployee?.insurances);
 
   return (
     <>
@@ -346,14 +326,6 @@ const EmployeeDetailModal = () => {
               >
                 <HiOutlinePencil className="w-5 h-5" />
                 <span>Edit</span>
-              </button>
-              <button 
-                onClick={() => setShowDeleteModal(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                disabled={isDeleting}
-              >
-                <HiOutlineTrash className="w-5 h-5" />
-                <span>Delete</span>
               </button>
               <button onClick={handleClose} className="ml-2 text-gray-400 hover:text-gray-600">
                 <HiOutlineX className="w-6 h-6" />
@@ -548,22 +520,40 @@ const EmployeeDetailModal = () => {
                       <p className="text-sm font-medium">{employeeData.privatePhone}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Bank Account</p>
-                      <p className="text-sm font-medium">
-                        {employeeData.bankName !== 'N/A' || employeeData.accountNumber !== 'N/A'
-                          ? `${employeeData.bankName} - ${employeeData.accountNumber}`
-                          : 'N/A'
-                        }
-                      </p>
-                    </div>
-                    {/* 🔥 NEW: Assurance */}
+                    <p className="text-xs text-gray-500">Bank Accounts</p>
+                   <div className="space-y-1">
+                    {employeeData.banks && employeeData.banks.length > 0 ? (
+                      employeeData.banks.map((bank) => (
+                        <div key={bank.id || bank.accountNumber} className="text-sm font-medium">
+                          <p>{bank.bankName}</p>
+                          <p className="text-gray-500 text-xs">
+                            {bank.accountNumber} • {bank.accountHolder}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm font-medium">N/A</p>
+                    )}
+                  </div>
+                  </div>
+                    {/* 🔥 Insurance */}
                     <div>
                       <p className="text-xs text-gray-500">Insurance</p>
-                      <p className="text-sm font-medium">{employeeData.assurance}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Insurance ID</p>
-                      <p className="text-sm font-medium">{employeeData.assuranceId}</p>
+
+                      <div className="space-y-1">
+                        {(employeeData.insurances || []).length > 0 ? (
+                          (employeeData.insurances || []).map((insurance) => (
+                            <div key={insurance.id || insurance.policyNumber} className="text-sm font-medium">
+                              <p>{insurance.provider} ({insurance.type})</p>
+                              <p className="text-gray-500 text-xs">
+                                Policy: {insurance.policyNumber}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm font-medium">N/A</p>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">NPWP ID</p>
@@ -712,70 +702,12 @@ const EmployeeDetailModal = () => {
                   </div>
                 </div>
 
-                {/* Metadata */}
-                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-xs text-gray-400">
-                  <div className="flex justify-between">
-                    <span>Created: {employeeData.createdAt ? new Date(employeeData.createdAt).toLocaleString() : 'N/A'}</span>
-                    <span>Updated: {employeeData.updatedAt ? new Date(employeeData.updatedAt).toLocaleString() : 'N/A'}</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center"
-          onClick={() => setShowDeleteModal(false)}
-        >
-          <div 
-            className="bg-white rounded-xl max-w-md w-full mx-4 p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Delete Employee</h3>
-            
-            {deleteError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{deleteError}</p>
-              </div>
-            )}
-            
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <span className="font-semibold">{employeeData.name}</span>? 
-              This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400 flex items-center"
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* File Viewer Modal */}
       {showFileViewer && selectedFile.url && (
@@ -792,7 +724,7 @@ const EmployeeDetailModal = () => {
               <div className="flex items-center space-x-3">
                 <h3 className="text-lg font-semibold text-gray-800">{selectedFile.label}</h3>
                 <span className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded-full uppercase">
-                  {selectedFile.url.split('.').pop()}
+                  {selectedFile.url?.split('.').pop() || 'file'}
                 </span>
               </div>
               <div className="flex items-center space-x-2">

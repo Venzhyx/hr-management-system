@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   HiOutlinePlus, 
   HiOutlinePencil, 
@@ -36,6 +36,9 @@ const EmployeesList = () => {
     setPage
   } = useEmployee();
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const API_BASE = API.defaults.baseURL.replace("/api", "");
 
   console.log("Pagination:", pagination);
@@ -71,6 +74,17 @@ const EmployeesList = () => {
       return () => clearTimeout(timer);
     }
   }, [toast.show]);
+
+  useEffect(() => {
+  if (location.state?.toast) {
+    setToast(location.state.toast);
+
+    // hapus state supaya tidak muncul lagi saat refresh
+    window.history.replaceState({}, document.title);
+  }
+}, [location.state]);
+
+
 
   // Effect untuk nutup panel filter kalau klik di luar
   useEffect(() => {
@@ -141,7 +155,7 @@ const EmployeesList = () => {
   const handleConfirmDelete = async () => {
   if (selectedEmployee) {
     try {
-      await deleteEmployee(selectedEmployee.id); // ⬅️ WAJIB await
+      await deleteEmployee(selectedEmployee.id); // ⬅ WAJIB await
 
       setToast({
         show: true,

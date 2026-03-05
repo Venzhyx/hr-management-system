@@ -32,6 +32,7 @@
         private final EmployeeBankRepository bankRepository;
         private final EmployeeInsuranceRepository insuranceRepository;
         
+        
         @Transactional
         public EmployeeCompleteResponse createEmployee(EmployeeCompleteRequest request) {
             // Create Employee
@@ -362,13 +363,24 @@
             });
             
             // Settings
-            settingsRepository.findByEmployeeId(employee.getId()).ifPresent(settings -> {
-                response.setStatus(settings.getStatus());
-                response.setEmployeeType(settings.getEmployeeType());
-                response.setRelatedUser(settings.getRelatedUser());
-                response.setMonthlyCost(settings.getMonthlyCost());
-                response.setAttendanceBadgeId(settings.getAttendanceBadgeId());
-            });
+           settingsRepository.findByEmployeeId(employee.getId()).ifPresent(settings -> {
+            response.setStatus(settings.getStatus());
+            response.setEmployeeType(settings.getEmployeeType());
+            response.setRelatedUser(settings.getRelatedUser());
+            response.setMonthlyCost(settings.getMonthlyCost());
+            response.setAttendanceBadgeId(settings.getAttendanceBadgeId());
+
+            if (settings.getRelatedUser() != null) {
+                try {
+                    Long empId = Long.parseLong(settings.getRelatedUser());
+
+                    employeeRepository.findById(empId).ifPresent(emp -> {
+                        response.setRelatedUserName(emp.getName());
+                    });
+
+                } catch (NumberFormatException ignored) {}
+            }
+        });
             
             return response;
         }
@@ -471,8 +483,13 @@
         }
         
         private boolean hasCitizenship(EmployeeCompleteRequest request) {
-            return request.getNationality() != null || request.getGender() != null ||
-                request.getDateOfBirth() != null;
+            return request.getNationality() != null ||
+            request.getGender() != null ||
+            request.getDateOfBirth() != null ||
+            request.getPlaceOfBirth() != null ||
+            request.getCountryOfBirth() != null ||
+            request.getIdentificationNumber() != null ||
+            request.getPassportNumber() != null;
         }
         
         private boolean hasEmergency(EmployeeCompleteRequest request) {

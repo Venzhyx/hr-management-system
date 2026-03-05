@@ -333,30 +333,6 @@ const CompanyDetailModal = ({ isOpen, onClose, companyId }) => {
                       />
                     </div>
                   </DetailSection>
-
-                  {/* Additional Information */}
-                  <DetailSection title="Additional Information" icon={HiOutlineTag}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1 flex items-center">
-                          <HiOutlineCalendar className="w-4 h-4 mr-1" />
-                          Created At
-                        </p>
-                        <p className="text-sm text-gray-900">
-                          {formatDateTime(company.createdAt)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1 flex items-center">
-                          <HiOutlineClock className="w-4 h-4 mr-1" />
-                          Last Updated
-                        </p>
-                        <p className="text-sm text-gray-900">
-                          {formatDateTime(company.updatedAt)}
-                        </p>
-                      </div>
-                    </div>
-                  </DetailSection>
                 </div>
               </div>
             </div>

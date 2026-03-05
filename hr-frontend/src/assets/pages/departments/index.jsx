@@ -143,7 +143,7 @@ const handleViewDetails = (department) => {
   navigate(`/departments/detail/${department.id}`);
 }
 const handleEdit = (department) => {
-  navigate('/departments/edit', { state: { department } });
+  navigate(`/departments/edit/${department.id}`);
 };
 
   // DELETE FUNCTION DENGAN MODAL
@@ -154,26 +154,29 @@ const handleEdit = (department) => {
   };
 
   const handleConfirmDelete = async () => {
-    if (selectedDepartment) {
-      try {
-        await deleteDepartment(selectedDepartment.id).unwrap();
-        setShowDeleteModal(false);
-        setSelectedDepartment(null);
-        document.body.style.overflow = 'unset';
-        setToast({
-          show: true,
-          message: `Department "${selectedDepartment.departmentName}" deleted successfully`,
-          type: 'success'
-        });
-      } catch (error) {
-        setToast({
-          show: true,
-          message: error?.message || 'Failed to delete department',
-          type: 'error'
-        });
-      }
-    }
-  };
+  if (!selectedDepartment) return;
+
+  try {
+    await deleteDepartment(selectedDepartment.id);
+
+    setShowDeleteModal(false);
+    setSelectedDepartment(null);
+    document.body.style.overflow = 'unset';
+
+    setToast({
+      show: true,
+      message: `Department "${selectedDepartment.departmentName}" deleted successfully`,
+      type: 'success'
+    });
+
+  } catch (error) {
+    setToast({
+      show: true,
+      message: error?.response?.data?.message || error.message || 'Cannot delete department',
+      type: 'error'
+    });
+  }
+};
 
   const handleCancelDelete = () => {
     setShowDeleteModal(false);

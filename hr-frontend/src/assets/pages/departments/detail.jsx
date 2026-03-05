@@ -399,31 +399,6 @@ const DepartmentDetailModal = () => {
                 </table>
               </div>
             </div>
-
-            {/* Created & Updated Info */}
-            <div className="mt-6 text-xs text-gray-400 bg-gray-50 p-3 rounded-lg">
-              <div className="flex flex-wrap justify-between">
-                <span>Department ID: {department.id}</span>
-                {department.createdAt && (
-                  <span>Created: {new Date(department.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}</span>
-                )}
-                {department.updatedAt && department.updatedAt !== department.createdAt && (
-                  <span>Updated: {new Date(department.updatedAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}</span>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>
