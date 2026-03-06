@@ -12,8 +12,9 @@ import {
   HiOutlineQuestionMarkCircle,
   HiOutlineLogout,
   HiOutlineChevronUp,
-  HiOutlineChevronDown
-  
+  HiOutlineChevronDown,
+  HiOutlineClipboardCheck,
+  HiOutlineLibrary,
 } from 'react-icons/hi';
 import { NavLink, useNavigate } from 'react-router-dom';
 import companyLogo from '../images/ABE.png';
@@ -23,28 +24,29 @@ const Sidebar = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const mainMenuItems = [
-    { name: 'Dashboard', icon: <HiOutlineHome className="w-5 h-5" />, path: '/dashboard' },
-    { name: 'Employees', icon: <HiOutlineUsers className="w-5 h-5" />, path: '/employees' },
-    { name: 'Departments', icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, path: '/departments' },
-    { name: 'Company', icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, path: '/companies' }, // <-- TAMBAHKAN INI
-    { name: 'Attendance', icon: <HiOutlineClock className="w-5 h-5" />, path: '/attendance' },
-    { name: 'Time Off', icon: <HiOutlineBriefcase className="w-5 h-5" />, path: '/timeoff' },
-    { name: 'Payroll', icon: <HiOutlineCurrencyDollar className="w-5 h-5" />, path: '/payroll' },
-    { name: 'Reimbursement', icon: <HiOutlineReceiptRefund className="w-5 h-5" />, path: '/reimbursement' },
+    { name: 'Dashboard',     icon: <HiOutlineHome className="w-5 h-5" />,             path: '/dashboard' },
+    { name: 'Employees',     icon: <HiOutlineUsers className="w-5 h-5" />,            path: '/employees' },
+    { name: 'Departments',   icon: <HiOutlineOfficeBuilding className="w-5 h-5" />,   path: '/departments' },
+    { name: 'Company',       icon: <HiOutlineOfficeBuilding className="w-5 h-5" />,   path: '/companies' },
+    { name: 'Attendance',    icon: <HiOutlineClock className="w-5 h-5" />,            path: '/attendance' },
+    { name: 'Time Off',      icon: <HiOutlineBriefcase className="w-5 h-5" />,        path: '/timeoff' },
+    { name: 'Payroll',       icon: <HiOutlineCurrencyDollar className="w-5 h-5" />,   path: '/payroll' },
+    { name: 'Reimbursement', icon: <HiOutlineReceiptRefund className="w-5 h-5" />,    path: '/reimbursement' },
+    { name: 'Approvals',     icon: <HiOutlineClipboardCheck className="w-5 h-5" />,   path: '/approvals' },
+    { name: 'Account',       icon: <HiOutlineLibrary className="w-5 h-5" />,          path: '/account' },
   ];
 
   const bottomMenuItems = [
-    { name: 'Settings', icon: <HiOutlineCog className="w-5 h-5" />, path: '/settings' },
+    { name: 'Settings',     icon: <HiOutlineCog className="w-5 h-5" />,                path: '/settings' },
     { name: 'Help & Support', icon: <HiOutlineQuestionMarkCircle className="w-5 h-5" />, path: '/help' },
   ];
 
   const profileMenuItems = [
-    { name: 'Profile', icon: <HiOutlineUser className="w-5 h-5" />, path: '/profile' },
-    { name: 'Logout', icon: <HiOutlineLogout className="w-5 h-5" />, action: 'logout' },
+    { name: 'Profile', icon: <HiOutlineUser className="w-5 h-5" />,    path: '/profile' },
+    { name: 'Logout',  icon: <HiOutlineLogout className="w-5 h-5" />,  action: 'logout' },
   ];
 
   const handleLogout = () => {
-    // Logika logout di sini (hapus token, dll)
     console.log('Logout');
     navigate('/login');
   };

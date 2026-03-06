@@ -6,1094 +6,757 @@ import {
   HiOutlinePhone, HiOutlineCalendar, HiOutlineUser, HiOutlineOfficeBuilding,
   HiOutlinePlus, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineAcademicCap,
   HiOutlineHome, HiOutlineUsers, HiOutlineDocument, HiOutlineIdentification,
-  HiOutlineShieldCheck
+  HiOutlineShieldCheck,
 } from 'react-icons/hi';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
 import { useDepartment } from '../../../redux/hooks/useDepartment';
 import { useCompany } from '../../../redux/hooks/useCompany';
-import API from "../../../api/api";
+import API from '../../../api/api';
+import { SingleFileUpload, MultiFileUpload } from '../../components/FileComponents';
 
-// ==================== CONSTANTS ====================
+// ── Constants (same as Add) ───────────────────────────────────────────────────
 const EMPLOYEE_TYPE_OPTIONS = [
-  { label: "Full Time", value: "FULL_TIME" },
-  { label: "Part Time", value: "PART_TIME" },
-  { label: "Contract",  value: "CONTRACT"  }
+  { label:'Full Time', value:'FULL_TIME' },
+  { label:'Part Time', value:'PART_TIME' },
+  { label:'Contract',  value:'CONTRACT'  },
 ];
 const STATUS_OPTIONS = [
-  { label: "Active",     value: "ACTIVE"     },
-  { label: "Resigned",   value: "RESIGNED"   },
-  { label: "Terminated", value: "TERMINATED" }
+  { label:'Active',     value:'ACTIVE'     },
+  { label:'Resigned',   value:'RESIGNED'   },
+  { label:'Terminated', value:'TERMINATED' },
 ];
-const GENDER_OPTIONS   = [{ label: "Male", value: "MALE" }, { label: "Female", value: "FEMALE" }];
-const MARITAL_OPTIONS  = [
-  { label: "Single", value: "SINGLE" }, { label: "Married",  value: "MARRIED"  },
-  { label: "Divorced", value: "DIVORCED" }, { label: "Widowed", value: "WIDOWED" }
+const GENDER_OPTIONS = [
+  { label:'Male', value:'MALE' }, { label:'Female', value:'FEMALE' },
+];
+const MARITAL_OPTIONS = [
+  { label:'Single',   value:'SINGLE'   }, { label:'Married',  value:'MARRIED'  },
+  { label:'Divorced', value:'DIVORCED' }, { label:'Widowed',  value:'WIDOWED'  },
 ];
 const CERTIFICATE_OPTIONS = [
-  { label: "High School", value: "HIGH_SCHOOL" }, { label: "Diploma",    value: "DIPLOMA"    },
-  { label: "Bachelor",    value: "BACHELOR"    }, { label: "Master",     value: "MASTER"     },
-  { label: "Doctorate",   value: "DOCTORATE"   }
+  { label:'High School', value:'HIGH_SCHOOL' }, { label:'Diploma',   value:'DIPLOMA'   },
+  { label:'Bachelor',    value:'BACHELOR'    }, { label:'Master',    value:'MASTER'    },
+  { label:'Doctorate',   value:'DOCTORATE'   },
 ];
 const BANK_OPTIONS = [
-  { id: 1, name: "BCA" }, { id: 2, name: "Mandiri" }, { id: 3, name: "BNI" },
-  { id: 4, name: "BRI" }, { id: 5, name: "CIMB Niaga" }, { id: 6, name: "Danamon" },
-  { id: 7, name: "Permata" }
+  {id:1,name:'BCA'},{id:2,name:'Mandiri'},{id:3,name:'BNI'},
+  {id:4,name:'BRI'},{id:5,name:'CIMB Niaga'},{id:6,name:'Danamon'},{id:7,name:'Permata'},
 ];
 const NATIONALITY_OPTIONS = [
   'Indonesia','Malaysia','Singapore','Thailand','Vietnam','Philippines',
-  'India','China','Japan','Korea','USA','UK','Australia'
+  'India','China','Japan','Korea','USA','UK','Australia',
 ];
 const INSURANCE_TYPE_OPTIONS = [
-  { label: "Health Insurance",   value: "HEALTH"   }, { label: "Life Insurance",     value: "LIFE"     },
-  { label: "Vehicle Insurance",  value: "VEHICLE"  }, { label: "Property Insurance", value: "PROPERTY" },
-  { label: "Travel Insurance",   value: "TRAVEL"   }, { label: "Other",              value: "OTHER"    }
+  { label:'Health Insurance',   value:'HEALTH'   },
+  { label:'Life Insurance',     value:'LIFE'     },
+  { label:'Vehicle Insurance',  value:'VEHICLE'  },
+  { label:'Property Insurance', value:'PROPERTY' },
+  { label:'Travel Insurance',   value:'TRAVEL'   },
+  { label:'Other',              value:'OTHER'    },
 ];
-
-// ==================== HELPERS ====================
-const onlyNumber = (v) => v.replace(/[^0-9]/g, "");
-const onlyText   = (v) => v.replace(/[^a-zA-Z\s]/g, "");
-
-const pasteNumberOnly = (e) => { if (!/^\d+$/.test(e.clipboardData.getData("text"))) e.preventDefault(); };
-const pasteTextOnly   = (e) => { if (!/^[a-zA-Z\s]+$/.test(e.clipboardData.getData("text"))) e.preventDefault(); };
-
 const FIELD_LABELS = {
-  name: "Name", jobTitle: "Job Title", workEmail: "Work Email",
-  workPhone: "Work Phone", companyId: "Company", departmentId: "Department",
-  joinDate: "Join Date", status: "Status", employeeType: "Employee Type"
+  name:'Name', jobTitle:'Job Title', workEmail:'Work Email',
+  workPhone:'Work Phone', companyId:'Company', departmentId:'Department',
+  joinDate:'Join Date', status:'Status', employeeType:'Employee Type',
 };
 const REQUIRED_FIELDS = Object.keys(FIELD_LABELS);
 
-// ==================== UI HELPERS ====================
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const onlyNumber      = v => v.replace(/[^0-9]/g,'');
+const onlyText        = v => v.replace(/[^a-zA-Z\s]/g,'');
+const pasteNumberOnly = e => { if (!/^\d+$/.test(e.clipboardData.getData('text'))) e.preventDefault(); };
+const pasteTextOnly   = e => { if (!/^[a-zA-Z\s]+$/.test(e.clipboardData.getData('text'))) e.preventDefault(); };
+
+const parseMultiUrl = urlStr => {
+  if (!urlStr) return [];
+  return urlStr.split(',').filter(Boolean).map(u => {
+    const url = u.trim();
+    const name = decodeURIComponent(url.split('?')[0].split('/').pop()) || 'File';
+    return { file:null, name, url, isLocal:false };
+  });
+};
+
+// ── Tiny UI helpers ───────────────────────────────────────────────────────────
 const Toast = ({ toast, onClose }) => {
   if (!toast.show) return null;
   const ok = toast.type === 'success';
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-lg shadow-lg border-l-4 ${
-      ok ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'
-    }`} style={{ minWidth: 320 }}>
-      <div className={`mr-3 flex-shrink-0 ${ok ? 'text-green-500' : 'text-red-500'}`}>
-        {ok ? <HiOutlineCheckCircle className="w-6 h-6" /> : <HiOutlineXCircle className="w-6 h-6" />}
+    <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-lg shadow-lg border-l-4 ${ok?'bg-green-50 border-green-500':'bg-red-50 border-red-500'}`} style={{minWidth:320}}>
+      <div className={`mr-3 flex-shrink-0 ${ok?'text-green-500':'text-red-500'}`}>
+        {ok ? <HiOutlineCheckCircle className="w-6 h-6"/> : <HiOutlineXCircle className="w-6 h-6"/>}
       </div>
-      <p className={`flex-1 mr-2 text-sm font-medium ${ok ? 'text-green-800' : 'text-red-800'}`}>{toast.message}</p>
-      <button onClick={onClose} className={ok ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'}>
-        <HiOutlineX className="w-5 h-5" />
-      </button>
+      <p className={`flex-1 mr-2 text-sm font-medium ${ok?'text-green-800':'text-red-800'}`}>{toast.message}</p>
+      <button onClick={onClose}><HiOutlineX className="w-5 h-5"/></button>
     </div>
   );
 };
+const Lbl = ({children}) => <label className="block text-sm font-medium text-gray-700 mb-2">{children} <span className="text-red-500">*</span></label>;
+const Err = ({e}) => e ? <p className="text-red-500 text-xs mt-1">{e}</p> : null;
+const wrap  = err => `flex items-center border rounded-lg focus-within:ring-2 overflow-hidden ${err?'border-red-500 focus-within:ring-red-400':'border-gray-300 focus-within:ring-indigo-500'}`;
+const inner = (err,x='') => `flex-1 px-3 py-3 focus:outline-none text-base ${x} ${err?'bg-red-50':''}`;
+const selStd = err => `w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${err?'border-red-500 focus:ring-red-400 bg-red-50':'border-gray-300 focus:ring-indigo-500'}`;
+const base  = 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
-const RequiredLabel = ({ children }) => (
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    {children} <span className="text-red-500">*</span>
-  </label>
-);
-
-const ErrorMsg = ({ error }) => error ? <p className="text-red-500 text-xs mt-1">{error}</p> : null;
-
-// Dynamic class helpers
-const wrapperCls = (err) =>
-  `flex items-center border rounded-lg focus-within:ring-2 overflow-hidden ${
-    err ? 'border-red-500 focus-within:ring-red-400'
-        : 'border-gray-300 focus-within:ring-indigo-500 focus-within:border-transparent'
-  }`;
-const innerCls = (err, extra = "") =>
-  `flex-1 px-3 py-3 focus:outline-none text-base ${extra} ${err ? 'bg-red-50' : ''}`;
-const standaloneCls = (err) =>
-  `w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-    err ? 'border-red-500 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'
-  }`;
-const baseCls = "w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500";
-
-// ==================== PROFILE CARD ====================
-const ProfileCard = ({ formData, handleChange, photoPreview, handlePhotoChange, employeeCode, errors }) => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 overflow-hidden">
-    <div className="p-8">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          {/* Name */}
-          <div className={`border-b-2 pb-2 mb-4 ${errors.name ? 'border-red-400' : 'border-indigo-200'}`}>
-            <input
-              type="text" name="name" value={formData.name} onChange={handleChange}
-              onPaste={pasteTextOnly} placeholder="Employee's Name *" autoComplete="name"
-              className={`text-3xl font-bold text-gray-800 w-full px-2 py-1 bg-transparent focus:outline-none transition-colors ${errors.name ? 'placeholder-red-300' : ''}`}
-            />
-            <ErrorMsg error={errors.name} />
-          </div>
-          {/* Job Title */}
-          <div className={`border-b pb-1 mb-2 ${errors.jobTitle ? 'border-red-400' : 'border-gray-200'}`}>
-            <input
-              type="text" name="jobTitle" value={formData.jobTitle} onChange={handleChange}
-              onPaste={pasteTextOnly} placeholder="Job Title *"
-              className={`text-base text-gray-600 w-full px-2 py-1 bg-transparent focus:outline-none transition-colors ${errors.jobTitle ? 'placeholder-red-300' : ''}`}
-            />
-            <ErrorMsg error={errors.jobTitle} />
-          </div>
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-            Employee Code: {employeeCode || '-'}
-          </span>
-        </div>
-
-        {/* Photo */}
-        <div className="flex-shrink-0 ml-6">
-          <div className="relative">
-            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-indigo-100 shadow-md">
-              {photoPreview
-                ? <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                : <div className="w-full h-full bg-indigo-50 flex items-center justify-center">
-                    <HiOutlinePhotograph className="w-10 h-10 text-indigo-300" />
-                  </div>
-              }
-            </div>
-            <label htmlFor="photo-upload" className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700 shadow-lg transition-all">
-              <HiOutlineUpload className="w-4 h-4" />
-            </label>
-            <input type="file" id="photo-upload" className="hidden" accept="image/*" onChange={handlePhotoChange} />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// ==================== WORK INFORMATION CARD ====================
-const WorkInformationCard = ({
-  formData, handleChange, companies, departments,
-  activeEmployees, companyLoading, departmentLoading,
-  onManagerAutoFill, errors
-}) => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 overflow-hidden">
-    <div className="p-8">
-      <h2 className="text-xl font-semibold text-gray-800 mb-6">Work Information</h2>
-      {companyLoading || departmentLoading ? (
-        <div className="text-center py-12 text-gray-400">Loading reference data…</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-          {/* Work Email */}
-          <div>
-            <RequiredLabel>Work Email</RequiredLabel>
-            <div className={wrapperCls(!!errors.workEmail)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineMail className="w-5 h-5 text-gray-400" /></div>
-              <input type="email" name="workEmail" value={formData.workEmail} onChange={handleChange}
-                placeholder="e.g., john@company.com" autoComplete="email" className={innerCls(!!errors.workEmail)} />
-            </div>
-            <ErrorMsg error={errors.workEmail} />
-          </div>
-
-          {/* Work Phone */}
-          <div>
-            <RequiredLabel>Work Phone</RequiredLabel>
-            <div className={wrapperCls(!!errors.workPhone)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlinePhone className="w-5 h-5 text-gray-400" /></div>
-              <input type="tel" inputMode="numeric" pattern="[0-9]*" name="workPhone"
-                value={formData.workPhone} onChange={handleChange} onPaste={pasteNumberOnly}
-                placeholder="e.g., 0211234567" autoComplete="tel" className={innerCls(!!errors.workPhone)} />
-            </div>
-            <ErrorMsg error={errors.workPhone} />
-          </div>
-
-          {/* Work Mobile */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Work Mobile</label>
-            <div className={wrapperCls(false)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlinePhone className="w-5 h-5 text-gray-400" /></div>
-              <input type="tel" inputMode="numeric" pattern="[0-9]*" name="workMobile"
-                value={formData.workMobile} onChange={handleChange} onPaste={pasteNumberOnly}
-                placeholder="e.g., 08123456789" autoComplete="tel" className={innerCls(false)} />
-            </div>
-          </div>
-
-          {/* Company */}
-          <div>
-            <RequiredLabel>Company</RequiredLabel>
-            <div className={wrapperCls(!!errors.companyId)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineOfficeBuilding className="w-5 h-5 text-gray-400" /></div>
-              <select name="companyId" value={formData.companyId} onChange={handleChange}
-                className={innerCls(!!errors.companyId, "bg-transparent")}>
-                <option value="">Select Company</option>
-                {companies?.map(c => <option key={c.id} value={c.id}>{c.companyName}</option>)}
-              </select>
-            </div>
-            <ErrorMsg error={errors.companyId} />
-          </div>
-
-          {/* Department */}
-          <div>
-            <RequiredLabel>Department</RequiredLabel>
-            <div className={wrapperCls(!!errors.departmentId)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineOfficeBuilding className="w-5 h-5 text-gray-400" /></div>
-              <select name="departmentId" value={formData.departmentId}
-                onChange={(e) => { handleChange(e); onManagerAutoFill(e.target.value); }}
-                className={innerCls(!!errors.departmentId, "bg-transparent")}>
-                <option value="">Select Department</option>
-                {departments?.map(d => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
-              </select>
-            </div>
-            <ErrorMsg error={errors.departmentId} />
-          </div>
-
-          {/* Manager */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
-            <div className={wrapperCls(false)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineUser className="w-5 h-5 text-gray-400" /></div>
-              <select name="managerId" value={formData.managerId} onChange={handleChange} className={innerCls(false, "bg-transparent")}>
-                <option value="">Select Manager</option>
-                {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Coach */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Coach</label>
-            <div className={wrapperCls(false)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineUserGroup className="w-5 h-5 text-gray-400" /></div>
-              <select name="coachId" value={formData.coachId} onChange={handleChange} className={innerCls(false, "bg-transparent")}>
-                <option value="">Select Coach</option>
-                {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Join Date */}
-          <div>
-            <RequiredLabel>Join Date</RequiredLabel>
-            <div className={wrapperCls(!!errors.joinDate)}>
-              <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineCalendar className="w-5 h-5 text-gray-400" /></div>
-              <input type="date" name="joinDate" value={formData.joinDate} onChange={handleChange}
-                className={innerCls(!!errors.joinDate)} />
-            </div>
-            <ErrorMsg error={errors.joinDate} />
-          </div>
-
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-// ==================== MAIN COMPONENT ====================
+// ── EditEmployee ──────────────────────────────────────────────────────────────
 const EditEmployee = () => {
-  const navigate  = useNavigate();
-  const { id }    = useParams();
+  const navigate = useNavigate();
+  const { id }   = useParams();
 
-  const { updateEmployee, employees, fetchEmployeeById, loading: employeeLoading } = useEmployee();
-  const { departments, fetchDepartments, loading: departmentLoading } = useDepartment();
-  const { companies,   fetchCompanies,   loading: companyLoading   } = useCompany();
+  const { updateEmployee, employees, fetchEmployeeById, loading: empLoading } = useEmployee();
+  const { departments, fetchDepartments, loading: deptLoading } = useDepartment();
+  const { companies,   fetchCompanies,   loading: compLoading  } = useCompany();
 
-  const [photo,         setPhoto]         = useState(null);
-  const [photoPreview,  setPhotoPreview]  = useState(null);
-  const [activeMainTab, setActiveMainTab] = useState('private');
-  const [isSubmitting,  setIsSubmitting]  = useState(false);
-  const [loading,       setLoading]       = useState(true);
-  const [employeeData,  setEmployeeData]  = useState(null);
-  const [errors,        setErrors]        = useState({});
-  const [toast,         setToast]         = useState({ show: false, message: '', type: 'success' });
+  const [photo,        setPhoto]        = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [tab,          setTab]          = useState('private');
+  const [submitting,   setSubmitting]   = useState(false);
+  const [pageLoading,  setPageLoading]  = useState(true);
+  const [empData,      setEmpData]      = useState(null);
+  const [errors,       setErrors]       = useState({});
+  const [toast,        setToast]        = useState({ show:false, message:'', type:'success' });
 
-  // Single useEffect — runs once on mount, no infinite loop
-    useEffect(() => {
-      fetchCompanies();
-      fetchDepartments();
-  
-      if (!id) { setLoading(false); return; }
-      const load = async () => {
-        try {
-          const res = await fetchEmployeeById(parseInt(id));
-          setEmployeeData(res.data);
-          setPhotoPreview(res.data.photo || null);
-        } catch (err) {
-          console.error("Failed to fetch employee:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      load();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-  
-    // Fix #6: memory leak cleanup
-    useEffect(() => {
-      return () => { if (photoPreview) URL.revokeObjectURL(photoPreview); };
-    }, [photoPreview]);
-
-  // ── Form state ──────────────────────────────────────────────────────────────
-  const [formData, setFormData] = useState({
-    name: '', jobTitle: '', workEmail: '', workPhone: '', workMobile: '',
-    companyId: '', departmentId: '', joinDate: '', managerId: '', coachId: '',
-    employeeCode: '', status: 'ACTIVE'
-  });
-  const [privateContact,   setPrivateContact]   = useState({ address: '', email: '', phone: '' });
-  const [banks,            setBanks]            = useState([{ bankName: '', accountNumber: '', accountHolder: '' }]);
-  const [insurances,       setInsurances]       = useState([{ type: '', provider: '', policyNumber: '', expiryDate: '' }]);
-  const [taxInfo,          setTaxInfo]          = useState({ npwp: '', workDistance: 0 });
-  const [emergencyContact, setEmergencyContact] = useState({ name: '', phone: '' });
-  const [familyInfo,       setFamilyInfo]       = useState({ maritalStatus: '', numberOfChildren: 0 });
-  const [citizenship,      setCitizenship]      = useState({
-    nationality: '', countryOfBirth: '', idNumber: '', passportNumber: '',
-    familyCardNumber: '', gender: '', dateOfBirth: '', placeOfBirth: ''
-  });
-  const [education,  setEducation]  = useState({ certificateLevel: '', fieldOfStudy: '', school: '' });
-  const [documents,  setDocuments]  = useState({
-    idCard: null, familyCard: null, drivingLicense: null, insurance: null, npwpCard: null
-  });
-  const [settings, setSettings] = useState({
-    employeeType: '', relatedUserId: '', monthlyCost: '', attendanceBadgeId: '',
-    enableNotifications: true, allowRemoteAccess: false, overtimeEligible: true
-  });
-
-  const activeEmployees = employees?.filter(e => e.status === 'ACTIVE' && e.id !== parseInt(id)) || [];
-
-  // Populate form from fetched data
   useEffect(() => {
-    if (!employeeData) return;
-    setFormData({
-      name:         employeeData.name         || '',
-      jobTitle:     employeeData.jobTitle     || '',
-      workEmail:    employeeData.workEmail    || '',
-      workPhone:    employeeData.workPhone    || '',
-      workMobile:   employeeData.workMobile   || '',
-      companyId:    employeeData.companyId?.toString()    || '',
-      departmentId: employeeData.departmentId?.toString() || '',
-      joinDate:     employeeData.joinDate     || '',
-      managerId:    employeeData.managerId?.toString()    || '',
-      coachId:      employeeData.coachId?.toString()      || '',
-      employeeCode: employeeData.employeeCode || '',
-      status:       employeeData.status       || 'ACTIVE'
-    });
-    setPrivateContact({
-      address: employeeData.privateAddress || '',
-      email:   employeeData.privateEmail   || '',
-      phone:   employeeData.privatePhone   || ''
-    });
-    if (employeeData.banks?.length)      setBanks(employeeData.banks);
-    if (employeeData.insurances?.length) setInsurances(employeeData.insurances);
-    setTaxInfo({
-      npwp:         employeeData.npwpId             || '',
-      workDistance: employeeData.homeToWorkDistance || 0
-    });
-    setEmergencyContact({
-      name:  employeeData.emergencyContactName  || '',
-      phone: employeeData.emergencyContactPhone || ''
-    });
-    setFamilyInfo({
-      maritalStatus:    employeeData.maritalStatus             || '',
-      numberOfChildren: employeeData.numberOfDependentChildren || 0
-    });
-    setCitizenship({
-      nationality:      employeeData.nationality         || '',
-      countryOfBirth:   employeeData.countryOfBirth      || '',
-      idNumber:         employeeData.identificationNumber || '',
-      passportNumber:   employeeData.passportNumber       || '',
-      familyCardNumber: employeeData.familyCardDocument   || '',
-      gender:           employeeData.gender               || '',
-      dateOfBirth:      employeeData.dateOfBirth          || '',
-      placeOfBirth:     employeeData.placeOfBirth         || ''
-    });
-    setEducation({
-      certificateLevel: employeeData.certificateLevel || '',
-      fieldOfStudy:     employeeData.fieldOfStudy     || '',
-      school:           employeeData.school           || ''
-    });
-    setSettings({
-      employeeType:      employeeData.employeeType      || '',
-      relatedUserId:     employeeData.relatedUser       || '',
-      monthlyCost:       employeeData.monthlyCost       || '',
-      attendanceBadgeId: employeeData.attendanceBadgeId || '',
-      enableNotifications: true, allowRemoteAccess: false, overtimeEligible: true
-    });
-  }, [employeeData]);
-
-  // Fix #5: string-safe department comparison
-  const handleManagerAutoFill = useCallback((departmentId) => {
-    if (!departmentId) { setFormData(p => ({ ...p, managerId: '' })); return; }
-    const dept = departments?.find(d => String(d.id) === String(departmentId));
-    setFormData(p => ({ ...p, managerId: dept?.managerId ? String(dept.managerId) : '' }));
-  }, [departments]);
-
-  // handleChange with real-time validation
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    let val = value;
-    if (["workPhone", "workMobile"].includes(name)) val = onlyNumber(value);
-    if (["name", "jobTitle"].includes(name))         val = onlyText(value);
-    setFormData(p => ({ ...p, [name]: val }));
-
-    if (REQUIRED_FIELDS.includes(name)) {
-      if (!val.trim()) {
-        setErrors(p => ({ ...p, [name]: `${FIELD_LABELS[name]} is required` }));
-      } else if (name === 'workEmail' && !/\S+@\S+\.\S+/.test(val)) {
-        setErrors(p => ({ ...p, [name]: 'Email is invalid' }));
-      } else {
-        setErrors(p => { const n = { ...p }; delete n[name]; return n; });
-      }
-    }
+    fetchCompanies(); fetchDepartments();
+    if (!id) { setPageLoading(false); return; }
+    fetchEmployeeById(parseInt(id))
+      .then(res => { setEmpData(res.data); setPhotoPreview(res.data.photo||null); })
+      .catch(err => console.error(err))
+      .finally(() => setPageLoading(false));
   }, []);
 
-  const handlePrivateContactChange = (e) => {
-    const { name, value } = e.target;
-    setPrivateContact(p => ({ ...p, [name]: name === 'phone' ? onlyNumber(value) : value }));
-  };
+  // ── form state ──────────────────────────────────────────────────────────────
+  const [fd, setFd] = useState({
+    name:'', jobTitle:'', workEmail:'', workPhone:'', workMobile:'',
+    companyId:'', departmentId:'', joinDate:'', managerId:'', coachId:'',
+    employeeCode:'', status:'ACTIVE',
+  });
+  const [priv, setPriv]   = useState({ address:'', email:'', phone:'' });
+  const [banks, setBanks] = useState([{ bankName:'', accountNumber:'', accountHolder:'' }]);
+  const [ins,   setIns]   = useState([{ type:'', provider:'', policyNumber:'' }]);
+  const [tax,   setTax]   = useState({ npwp:'', workDistance:0 });
+  const [emg,   setEmg]   = useState({ name:'', phone:'' });
+  const [fam,   setFam]   = useState({ maritalStatus:'', numberOfChildren:0 });
+  const [cit,   setCit]   = useState({ nationality:'', countryOfBirth:'', idNumber:'', passportNumber:'', gender:'', dateOfBirth:'', placeOfBirth:'', familyCardNumber:'' });
+  const [edu,   setEdu]   = useState({ certificateLevel:'', fieldOfStudy:'', school:'' });
+  const [docs,  setDocs]  = useState({
+    idCard:null, familyCard:null,
+    drivingLicense:[], insuranceCopies:[],
+    npwpCard:null,
+  });
+  const [sett, setSett] = useState({ employeeType:'', relatedUserId:'', monthlyCost:'', employeeIdentificationNumber:'' });
 
-  const addBank    = () => setBanks(p => [...p, { bankName: '', accountNumber: '', accountHolder: '' }]);
-  const removeBank = (i) => { if (banks.length > 1) setBanks(p => p.filter((_, idx) => idx !== i)); };
-  const handleBankChange = (i, field, value) => {
+  const active = employees?.filter(e => e.status==='ACTIVE' && e.id!==parseInt(id)) || [];
+
+  // ── populate from API ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!empData) return;
+    setFd({
+      name:         empData.name           || '',
+      jobTitle:     empData.jobTitle        || '',
+      workEmail:    empData.workEmail       || '',
+      workPhone:    empData.workPhone       || '',
+      workMobile:   empData.workMobile      || '',
+      companyId:    empData.companyId?.toString()    || '',
+      departmentId: empData.departmentId?.toString() || '',
+      joinDate:     empData.joinDate        || '',
+      managerId:    empData.managerId?.toString()    || '',
+      coachId:      empData.coachId?.toString()      || '',
+      employeeCode: empData.employeeCode    || '',
+      status:       empData.status          || 'ACTIVE',
+    });
+    setPriv({ address: empData.privateAddress||'', email: empData.privateEmail||'', phone: empData.privatePhone||'' });
+    if (empData.banks?.length) setBanks(empData.banks);
+    if (empData.insurances?.length)
+      setIns(empData.insurances.map(({type='',provider='',policyNumber=''})=>({type,provider,policyNumber})));
+    setTax({ npwp: empData.npwpId||'', workDistance: empData.homeToWorkDistance||0 });
+    setEmg({ name: empData.emergencyContactName||'', phone: empData.emergencyContactPhone||'' });
+    setFam({ maritalStatus: empData.maritalStatus||'', numberOfChildren: empData.numberOfDependentChildren||0 });
+    setCit({
+      nationality:      empData.nationality         || '',
+      countryOfBirth:   empData.countryOfBirth       || '',
+      idNumber:         empData.identificationNumber || '',
+      passportNumber:   empData.passportNumber        || '',
+      familyCardNumber: empData.familyCardDocument    || '',
+      gender:           empData.gender               || '',
+      dateOfBirth:      empData.dateOfBirth           || '',
+      placeOfBirth:     empData.placeOfBirth          || '',
+    });
+    setEdu({ certificateLevel: empData.certificateLevel||'', fieldOfStudy: empData.fieldOfStudy||'', school: empData.school||'' });
+    setSett({
+      employeeType:                 empData.employeeType              || '',
+      relatedUserId:                empData.relatedUser               || '',
+      monthlyCost:                  empData.monthlyCost               || '',
+      employeeIdentificationNumber: empData.employeeIdentificationNumber || '',
+    });
+    // Load existing multi-docs from comma-separated URL string
+    setDocs({
+      idCard: null, familyCard: null, npwpCard: null,
+      drivingLicense:  parseMultiUrl(empData.drivingLicenseCopy),
+      insuranceCopies: parseMultiUrl(empData.assuranceCardCopy),
+    });
+  }, [empData]);
+
+  const autoManager = useCallback(deptId => {
+    if (!deptId) { setFd(p=>({...p,managerId:''})); return; }
+    const d = departments?.find(d=>String(d.id)===String(deptId));
+    setFd(p=>({...p,managerId:d?.managerId?String(d.managerId):''}));
+  },[departments]);
+
+  const chgFd = useCallback(e => {
+    const {name,value} = e.target;
     let v = value;
-    if (field === 'accountNumber') v = onlyNumber(value);
-    if (field === 'accountHolder') v = onlyText(value);
-    setBanks(p => { const n = [...p]; n[i][field] = v; return n; });
-  };
-
-  const addInsurance    = () => setInsurances(p => [...p, { type: '', provider: '', policyNumber: '', expiryDate: '' }]);
-  const removeInsurance = (i) => { if (insurances.length > 1) setInsurances(p => p.filter((_, idx) => idx !== i)); };
-  const handleInsuranceChange = (i, field, value) => {
-    setInsurances(p => { const n = [...p]; n[i][field] = value; return n; });
-  };
-
-  const handleCitizenshipChange = (e) => {
-    const { name, value } = e.target;
-    setCitizenship(p => ({ ...p, [name]: name === 'placeOfBirth' ? onlyText(value) : value }));
-  };
-  const handleEducationChange = (e) => {
-    const { name, value } = e.target;
-    setEducation(p => ({ ...p, [name]: ['school','fieldOfStudy'].includes(name) ? onlyText(value) : value }));
-  };
-  const handleFamilyChange = (e) => {
-    const { name, value } = e.target;
-    setFamilyInfo(p => ({ ...p, [name]: name === 'numberOfChildren' ? onlyNumber(value) : value }));
-  };
-  const handleEmergencyChange = (e) => {
-    const { name, value } = e.target;
-    setEmergencyContact(p => ({
-      ...p, [name]: name === 'name' ? onlyText(value) : name === 'phone' ? onlyNumber(value) : value
-    }));
-  };
-  const handleTaxChange = (e) => {
-    const { name, value } = e.target;
-    setTaxInfo(p => ({ ...p, [name]: ['npwp','workDistance'].includes(name) ? onlyNumber(value) : value }));
-  };
-
-  const handleDocumentUpload = (type, file) => {
-    if (file) setDocuments(p => ({ ...p, [type]: { file, fileName: file.name, fileUrl: URL.createObjectURL(file) } }));
-  };
-  const handleRemoveDocument = (type) => setDocuments(p => ({ ...p, [type]: null }));
-
-  const handleSettingsChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    let v = type === 'checkbox' ? checked : value;
-    if (name === 'attendanceBadgeId') v = onlyNumber(value);
-    setSettings(p => ({ ...p, [name]: v }));
-    // real-time validation for employeeType
-    if (name === 'employeeType') {
-      if (!v) setErrors(p => ({ ...p, employeeType: 'Employee Type is required' }));
-      else    setErrors(p => { const n = { ...p }; delete n.employeeType; return n; });
+    if (['workPhone','workMobile'].includes(name)) v=onlyNumber(v);
+    if (['name','jobTitle'].includes(name))         v=onlyText(v);
+    setFd(p=>({...p,[name]:v}));
+    if (REQUIRED_FIELDS.includes(name)) {
+      if (!v.trim()) setErrors(p=>({...p,[name]:`${FIELD_LABELS[name]} is required`}));
+      else if (name==='workEmail'&&!/\S+@\S+\.\S+/.test(v)) setErrors(p=>({...p,[name]:'Email is invalid'}));
+      else setErrors(p=>{const n={...p};delete n[name];return n;});
     }
+  },[]);
+
+  const setDoc  = (key,file) => file && setDocs(p=>({...p,[key]:{file,name:file.name,url:URL.createObjectURL(file),isLocal:true}}));
+  const clearDoc = key => setDocs(p=>({...p,[key]:null}));
+
+  const uploadOne = async file => {
+    const f2 = new FormData(); f2.append('file',file);
+    const r = await API.post('/files/upload',f2,{headers:{'Content-Type':'multipart/form-data'}});
+    return r.data.data?.fileUrl||r.data.data;
+  };
+  const uploadMany = async arr => {
+    if (!arr.length) return null;
+    const urls = await Promise.all(arr.map(f=>f.isLocal?uploadOne(f.file):Promise.resolve(f.url)));
+    return urls.filter(Boolean).join(',');
   };
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) { setPhoto(file); setPhotoPreview(URL.createObjectURL(file)); }
-  };
-
-  // ── Validation ──────────────────────────────────────────────────────────────
-  const validateForm = () => {
+  const validate = () => {
     const e = {};
-    if (!formData.name.trim())      e.name      = 'Name is required';
-    if (!formData.jobTitle.trim())  e.jobTitle  = 'Job Title is required';
-    if (!formData.workEmail.trim()) e.workEmail = 'Work Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.workEmail)) e.workEmail = 'Email is invalid';
-    if (!formData.workPhone.trim()) e.workPhone    = 'Work Phone is required';
-    if (!formData.companyId)        e.companyId    = 'Company is required';
-    if (!formData.departmentId)     e.departmentId = 'Department is required';
-    if (!formData.joinDate)         e.joinDate     = 'Join Date is required';
-    if (!formData.status)           e.status       = 'Status is required';
-    if (!settings.employeeType)     e.employeeType = 'Employee Type is required';
+    if (!fd.name.trim())      e.name      = 'Name is required';
+    if (!fd.jobTitle.trim())  e.jobTitle  = 'Job Title is required';
+    if (!fd.workEmail.trim()) e.workEmail = 'Work Email is required';
+    else if (!/\S+@\S+\.\S+/.test(fd.workEmail)) e.workEmail = 'Email is invalid';
+    if (!fd.workPhone.trim()) e.workPhone    = 'Work Phone is required';
+    if (!fd.companyId)        e.companyId    = 'Company is required';
+    if (!fd.departmentId)     e.departmentId = 'Department is required';
+    if (!fd.joinDate)         e.joinDate     = 'Join Date is required';
+    if (!fd.status)           e.status       = 'Status is required';
+    if (!sett.employeeType)   e.employeeType = 'Employee Type is required';
     return e;
   };
 
-  // Fix #8: guard incomplete bank rows
-  const hasBankIncomplete = () => banks.some(b => b.bankName && (!b.accountNumber || !b.accountHolder));
-
-  const uploadFile = async (file) => {
-    if (!file) return null;
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await API.post("/files/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
-    return res.data.data?.fileUrl || res.data.data;
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      setToast({ show: true, message: 'Please fill in all required fields', type: 'error' });
-      const first = Object.keys(validationErrors)[0];
-      if (['employeeType','status'].includes(first)) {
-        setActiveMainTab('settings');
-        setTimeout(() => document.querySelector(`[name="${first}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-      } else {
-        document.querySelector(`[name="${first}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+    const ve = validate();
+    if (Object.keys(ve).length) {
+      setErrors(ve);
+      setToast({show:true,message:'Please fill in all required fields',type:'error'});
+      const first = Object.keys(ve)[0];
+      if (['employeeType','status'].includes(first)) { setTab('settings'); setTimeout(()=>document.querySelector(`[name="${first}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),100); }
+      else document.querySelector(`[name="${first}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});
       return;
     }
-
-    // Fix #8: incomplete bank check
-    if (hasBankIncomplete()) {
-      setToast({ show: true, message: 'Please complete all bank account information', type: 'error' });
-      setActiveMainTab('private');
-      return;
+    if (banks.some(b=>b.bankName&&(!b.accountNumber||!b.accountHolder))) {
+      setToast({show:true,message:'Please complete all bank account information',type:'error'});
+      setTab('private'); return;
     }
-
-    setIsSubmitting(true);
+    setSubmitting(true);
     try {
-      // Keep existing file URLs if no new file uploaded
-      const photoUrl      = photo                    ? await uploadFile(photo)                           : employeeData?.photo             || null;
-      const idCardUrl     = documents.idCard         ? await uploadFile(documents.idCard.file)           : employeeData?.idCardCopy        || null;
-      const familyCardUrl = documents.familyCard     ? await uploadFile(documents.familyCard.file)       : employeeData?.familyCardCopy    || null;
-      const drivingLicUrl = documents.drivingLicense ? await uploadFile(documents.drivingLicense.file)   : employeeData?.drivingLicenseCopy|| null;
-      const insuranceUrl  = documents.insurance      ? await uploadFile(documents.insurance.file)        : employeeData?.assuranceCardCopy || null;
-      const npwpCardUrl   = documents.npwpCard       ? await uploadFile(documents.npwpCard.file)         : employeeData?.npwpCardCopy      || null;
+      const photoUrl = photo            ? await uploadOne(photo)               : empData?.photo||null;
+      const idUrl    = docs.idCard      ? await uploadOne(docs.idCard.file)    : empData?.idCardCopy||null;
+      const famUrl   = docs.familyCard  ? await uploadOne(docs.familyCard.file): empData?.familyCardCopy||null;
+      const npwpUrl  = docs.npwpCard    ? await uploadOne(docs.npwpCard.file)  : empData?.npwpCardCopy||null;
+      const driveUrl = await uploadMany(docs.drivingLicense);
+      const insUrl   = await uploadMany(docs.insuranceCopies);
 
-      const payload = {
-        name: formData.name, jobTitle: formData.jobTitle,
-        workMobile: formData.workMobile || null,
-        workPhone: formData.workPhone,   workEmail: formData.workEmail,
-        joinDate: formData.joinDate || null, photo: photoUrl,
-
-        companyId:    parseInt(formData.companyId,    10),
-        departmentId: parseInt(formData.departmentId, 10),
-        managerId:    formData.managerId ? parseInt(formData.managerId, 10) : null,
-        coachId:      formData.coachId   ? parseInt(formData.coachId,   10) : null,
-
-        privateAddress: privateContact.address || null,
-        privateEmail:   privateContact.email   || null,
-        privatePhone:   privateContact.phone   || null,
-
-        banks: banks
-          .filter(b => b.bankName && b.accountNumber && b.accountHolder)
-          .map(({ bankName, accountNumber, accountHolder }) => ({ bankName, accountNumber, accountHolder })),
-
-        insurances: insurances
-          .filter(i => i.type && i.provider && i.policyNumber)
-          .map(({ type, provider, policyNumber, expiryDate }) => ({ type, provider, policyNumber, expiryDate: expiryDate || null })),
-
-        npwpId:             taxInfo.npwp        || null,
-        homeToWorkDistance: taxInfo.workDistance ? Number(taxInfo.workDistance) : null,
-
-        nationality:          citizenship.nationality    || null,
-        identificationNumber: citizenship.idNumber       || null,
-        passportNumber:       citizenship.passportNumber || null,
-        gender:               citizenship.gender         || null,
-        dateOfBirth:          citizenship.dateOfBirth    || null,
-        placeOfBirth:         citizenship.placeOfBirth   || null,
-        countryOfBirth:       citizenship.countryOfBirth || null,
-        familyCardDocument:   citizenship.familyCardNumber || null,
-
-        emergencyContactName:  emergencyContact.name  || null,
-        emergencyContactPhone: emergencyContact.phone || null,
-
-        certificateLevel: education.certificateLevel || null,
-        fieldOfStudy:     education.fieldOfStudy     || null,
-        school:           education.school           || null,
-
-        maritalStatus: familyInfo.maritalStatus || null,
-        numberOfDependentChildren: familyInfo.numberOfChildren
-          ? parseInt(familyInfo.numberOfChildren, 10) : null,
-
-        status:       formData.status || "ACTIVE",
-        employeeType: settings.employeeType,
-        relatedUser:  settings.relatedUserId  ? String(settings.relatedUserId) : null,
-        monthlyCost:  settings.monthlyCost !== '' ? parseFloat(settings.monthlyCost) : null,
-        attendanceBadgeId: settings.attendanceBadgeId || null,
-
-        idCardCopy:         idCardUrl,
-        familyCardCopy:     familyCardUrl,
-        drivingLicenseCopy: drivingLicUrl,
-        assuranceCardCopy:  insuranceUrl,
-        npwpCardCopy:       npwpCardUrl,
-      };
-
-      await updateEmployee(parseInt(id), payload);
-      navigate('/employees', {
-        state: { toast: { show: true, message: `Employee ${formData.name} has been successfully updated`, type: 'success' } }
+      await updateEmployee(parseInt(id), {
+        name:fd.name, jobTitle:fd.jobTitle,
+        workEmail:fd.workEmail, workPhone:fd.workPhone, workMobile:fd.workMobile||null,
+        joinDate:fd.joinDate||null, photo:photoUrl,
+        companyId:    parseInt(fd.companyId,    10),
+        departmentId: parseInt(fd.departmentId, 10),
+        managerId: fd.managerId  ? parseInt(fd.managerId,  10) : null,
+        coachId:   fd.coachId    ? parseInt(fd.coachId,    10) : null,
+        privateAddress:priv.address||null, privateEmail:priv.email||null, privatePhone:priv.phone||null,
+        banks: banks.filter(b=>b.bankName&&b.accountNumber&&b.accountHolder),
+        insurances: ins.filter(i=>i.type&&i.provider&&i.policyNumber).map(({type,provider,policyNumber})=>({type,provider,policyNumber})),
+        npwpId:tax.npwp||null,
+        homeToWorkDistance:tax.workDistance?Number(tax.workDistance):null,
+        nationality:cit.nationality||null, identificationNumber:cit.idNumber||null,
+        passportNumber:cit.passportNumber||null, gender:cit.gender||null,
+        dateOfBirth:cit.dateOfBirth||null, placeOfBirth:cit.placeOfBirth||null,
+        countryOfBirth:cit.countryOfBirth||null, familyCardDocument:cit.familyCardNumber||null,
+        emergencyContactName:emg.name||null, emergencyContactPhone:emg.phone||null,
+        certificateLevel:edu.certificateLevel||null, fieldOfStudy:edu.fieldOfStudy||null, school:edu.school||null,
+        maritalStatus:fam.maritalStatus||null,
+        numberOfDependentChildren:fam.numberOfChildren?parseInt(fam.numberOfChildren,10):null,
+        status:fd.status||'ACTIVE', employeeType:sett.employeeType,
+        relatedUser:sett.relatedUserId?String(sett.relatedUserId):null,
+        monthlyCost:sett.monthlyCost!==''?parseFloat(sett.monthlyCost):null,
+        employeeIdentificationNumber:sett.employeeIdentificationNumber||null,
+        idCardCopy:idUrl, familyCardCopy:famUrl,
+        drivingLicenseCopy:driveUrl, assuranceCardCopy:insUrl, npwpCardCopy:npwpUrl,
       });
-
-    } catch (err) {
-      console.error('Update employee failed:', err);
-      setToast({ show: true, message: err.response?.data?.message || err.message || 'Failed to update employee', type: 'error' });
-    } finally {
-      setIsSubmitting(false);
-    }
+      navigate('/employees',{state:{toast:{show:true,message:`Employee ${fd.name} successfully updated`,type:'success'}}});
+    } catch(err) {
+      setToast({show:true,message:err.response?.data?.message||err.message||'Failed to update employee',type:'error'});
+    } finally { setSubmitting(false); }
   };
 
-  // Loading state
-  if (loading || employeeLoading) {
-    return (
-      <div className="w-full px-4 md:px-6 py-6 flex justify-center items-center h-64">
-        <div className="text-gray-400">Loading employee data…</div>
-      </div>
-    );
-  }
+  if (pageLoading||empLoading) return (
+    <div className="w-full px-4 py-6 flex justify-center items-center h-64">
+      <div className="text-gray-400">Loading employee data…</div>
+    </div>
+  );
 
-  // ==================== RENDER ====================
   return (
-    <form onSubmit={handleSubmit} className="w-full px-4 md:px-6 py-6 bg-gray-50 min-h-screen">
-      <Toast toast={toast} onClose={() => setToast(p => ({ ...p, show: false }))} />
+    <form onSubmit={handleSubmit} noValidate className="w-full px-4 md:px-6 py-6 bg-gray-50 min-h-screen">
+      <Toast toast={toast} onClose={()=>setToast(p=>({...p,show:false}))}/>
 
-      {/* Header */}
       <div className="flex items-center space-x-4 mb-8">
-        <button type="button" onClick={() => navigate('/employees')} disabled={isSubmitting}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors bg-white shadow-sm">
-          <HiOutlineArrowLeft className="w-5 h-5 text-gray-600" />
+        <button type="button" onClick={()=>navigate('/employees')} disabled={submitting}
+          className="p-2 hover:bg-gray-100 rounded-lg bg-white shadow-sm">
+          <HiOutlineArrowLeft className="w-5 h-5 text-gray-600"/>
         </button>
         <h1 className="text-2xl font-bold text-gray-800">Edit Employee</h1>
       </div>
 
-      <ProfileCard
-        formData={formData} handleChange={handleChange}
-        photoPreview={photoPreview} handlePhotoChange={handlePhotoChange}
-        employeeCode={employeeData?.employeeCode} errors={errors}
-      />
-
-      <WorkInformationCard
-        formData={formData} handleChange={handleChange}
-        companies={companies} departments={departments}
-        activeEmployees={activeEmployees}
-        companyLoading={companyLoading} departmentLoading={departmentLoading}
-        onManagerAutoFill={handleManagerAutoFill} errors={errors}
-      />
-
-      {/* ── Tab Panel ── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        {/* Tab bar */}
-        <div className="border-b border-gray-200 bg-gray-50 px-6">
-          <div className="flex space-x-6">
-            {[
-              { key: 'private',   label: 'Private Information' },
-              { key: 'documents', label: 'Documents'           },
-              { key: 'settings',  label: 'Settings'            }
-            ].map(({ key, label }) => (
-              <button key={key} type="button" onClick={() => setActiveMainTab(key)}
-                className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                  activeMainTab === key
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}>
-                {label}
-              </button>
-            ))}
+      {/* ── Profile card ── */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 p-8">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className={`border-b-2 pb-2 mb-4 ${errors.name?'border-red-400':'border-indigo-200'}`}>
+              <input name="name" value={fd.name} onChange={chgFd} onPaste={pasteTextOnly}
+                placeholder="Employee's Name *"
+                className={`text-3xl font-bold text-gray-800 w-full px-2 py-1 bg-transparent focus:outline-none ${errors.name?'placeholder-red-300':''}`}/>
+              <Err e={errors.name}/>
+            </div>
+            <div className={`border-b pb-1 mb-2 ${errors.jobTitle?'border-red-400':'border-gray-200'}`}>
+              <input name="jobTitle" value={fd.jobTitle} onChange={chgFd} onPaste={pasteTextOnly}
+                placeholder="Job Title *"
+                className={`text-base text-gray-600 w-full px-2 py-1 bg-transparent focus:outline-none ${errors.jobTitle?'placeholder-red-300':''}`}/>
+              <Err e={errors.jobTitle}/>
+            </div>
+            {fd.employeeCode && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Code: {fd.employeeCode}</span>}
           </div>
+          <div className="flex-shrink-0 ml-6 relative">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-indigo-100 shadow-md">
+              {photoPreview
+                ? <img src={photoPreview} alt="photo" className="w-full h-full object-cover"/>
+                : <div className="w-full h-full bg-indigo-50 flex items-center justify-center"><HiOutlinePhotograph className="w-10 h-10 text-indigo-300"/></div>}
+            </div>
+            <label className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700 shadow-lg">
+              <HiOutlineUpload className="w-4 h-4"/>
+              <input type="file" className="hidden" accept="image/*"
+                onChange={e=>{const f=e.target.files[0];if(f){setPhoto(f);setPhotoPreview(URL.createObjectURL(f));}}}/>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Work info ── */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-8 p-8">
+        <h2 className="text-xl font-semibold text-gray-800 mb-6">Work Information</h2>
+        {compLoading||deptLoading ? <div className="text-center py-12 text-gray-400">Loading…</div> : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div>
+              <Lbl>Work Email</Lbl>
+              <div className={wrap(!!errors.workEmail)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineMail className="w-5 h-5 text-gray-400"/></div>
+                <input type="email" name="workEmail" value={fd.workEmail} onChange={chgFd} placeholder="john@company.com" className={inner(!!errors.workEmail)}/>
+              </div><Err e={errors.workEmail}/>
+            </div>
+            <div>
+              <Lbl>Work Phone</Lbl>
+              <div className={wrap(!!errors.workPhone)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlinePhone className="w-5 h-5 text-gray-400"/></div>
+                <input type="tel" inputMode="numeric" name="workPhone" value={fd.workPhone} onChange={chgFd} onPaste={pasteNumberOnly} placeholder="0211234567" className={inner(!!errors.workPhone)}/>
+              </div><Err e={errors.workPhone}/>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Work Mobile</label>
+              <div className={wrap(false)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlinePhone className="w-5 h-5 text-gray-400"/></div>
+                <input type="tel" inputMode="numeric" name="workMobile" value={fd.workMobile} onChange={chgFd} onPaste={pasteNumberOnly} className={inner(false)}/>
+              </div>
+            </div>
+            <div>
+              <Lbl>Company</Lbl>
+              <div className={wrap(!!errors.companyId)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineOfficeBuilding className="w-5 h-5 text-gray-400"/></div>
+                <select name="companyId" value={fd.companyId} onChange={chgFd} className={inner(!!errors.companyId,'bg-transparent')}>
+                  <option value="">Select Company</option>
+                  {companies?.map(c=><option key={c.id} value={c.id}>{c.companyName}</option>)}
+                </select>
+              </div><Err e={errors.companyId}/>
+            </div>
+            <div>
+              <Lbl>Department</Lbl>
+              <div className={wrap(!!errors.departmentId)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineOfficeBuilding className="w-5 h-5 text-gray-400"/></div>
+                <select name="departmentId" value={fd.departmentId}
+                  onChange={e=>{chgFd(e);autoManager(e.target.value);}}
+                  className={inner(!!errors.departmentId,'bg-transparent')}>
+                  <option value="">Select Department</option>
+                  {departments?.map(d=><option key={d.id} value={d.id}>{d.departmentName}</option>)}
+                </select>
+              </div><Err e={errors.departmentId}/>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
+              <div className={wrap(false)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineUser className="w-5 h-5 text-gray-400"/></div>
+                <select name="managerId" value={fd.managerId} onChange={chgFd} className={inner(false,'bg-transparent')}>
+                  <option value="">Select Manager</option>
+                  {active.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Coach</label>
+              <div className={wrap(false)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineUserGroup className="w-5 h-5 text-gray-400"/></div>
+                <select name="coachId" value={fd.coachId} onChange={chgFd} className={inner(false,'bg-transparent')}>
+                  <option value="">Select Coach</option>
+                  {active.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <Lbl>Join Date</Lbl>
+              <div className={wrap(!!errors.joinDate)}>
+                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineCalendar className="w-5 h-5 text-gray-400"/></div>
+                <input type="date" name="joinDate" value={fd.joinDate} onChange={chgFd} className={inner(!!errors.joinDate)}/>
+              </div><Err e={errors.joinDate}/>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Tabs ── */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="border-b border-gray-200 bg-gray-50 px-6 flex space-x-6">
+          {[{k:'private',l:'Private Information'},{k:'documents',l:'Documents'},{k:'settings',l:'Settings'}].map(({k,l})=>(
+            <button key={k} type="button" onClick={()=>setTab(k)}
+              className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${tab===k?'border-indigo-600 text-indigo-600':'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              {l}
+            </button>
+          ))}
         </div>
 
         <div className="p-8">
-          {/* =================== PRIVATE TAB =================== */}
-          {activeMainTab === 'private' && (
-            <div className="space-y-8">
 
-              {/* 2.1 Private Contact */}
+          {/* ──── PRIVATE ──── */}
+          {tab==='private' && (
+            <div className="space-y-8">
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineHome className="w-5 h-5 mr-2 text-indigo-500" /> 2.1 Private Contact
+                  <HiOutlineHome className="w-5 h-5 mr-2 text-indigo-500"/> 2.1 Private Contact
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Private Address</label>
-                    <textarea name="address" value={privateContact.address} onChange={handlePrivateContactChange}
-                      rows="3" placeholder="Street, City, Province, Postal Code" className={baseCls} />
+                    <textarea value={priv.address} onChange={e=>setPriv(p=>({...p,address:e.target.value}))}
+                      rows={3} placeholder="Street, City, Province" className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Private Email</label>
-                    <input type="email" name="email" value={privateContact.email}
-                      onChange={handlePrivateContactChange} placeholder="personal@email.com"
-                      autoComplete="email" className={baseCls} />
+                    <input type="email" value={priv.email} onChange={e=>setPriv(p=>({...p,email:e.target.value}))} placeholder="personal@email.com" className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Private Phone</label>
-                    <input type="tel" inputMode="numeric" pattern="[0-9]*" name="phone"
-                      value={privateContact.phone} onChange={handlePrivateContactChange}
-                      onPaste={pasteNumberOnly} placeholder="+62 XXX XXXX" className={baseCls} />
+                    <input type="tel" inputMode="numeric" value={priv.phone}
+                      onChange={e=>setPriv(p=>({...p,phone:onlyNumber(e.target.value)}))}
+                      onPaste={pasteNumberOnly} className={base}/>
                   </div>
                 </div>
+              </section>
 
-                {/* Bank Accounts */}
-                <div className="mb-6">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-md font-medium text-gray-700">Bank Accounts</span>
-                    <button type="button" onClick={addBank}
-                      className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-700 text-sm">
-                      <HiOutlinePlus className="w-4 h-4" /><span>Add Bank</span>
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    {banks.map((bank, i) => (
-                      <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
-                        {banks.length > 1 && (
-                          <button type="button" onClick={() => removeBank(i)}
-                            className="absolute top-2 right-2 text-red-500 hover:text-red-700">
-                            <HiOutlineTrash className="w-4 h-4" />
-                          </button>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Bank Name</label>
-                            <select value={bank.bankName} onChange={e => handleBankChange(i, 'bankName', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                              <option value="">Select Bank</option>
-                              {BANK_OPTIONS.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Account Number</label>
-                            <input type="text" inputMode="numeric" value={bank.accountNumber}
-                              onChange={e => handleBankChange(i, 'accountNumber', e.target.value)}
-                              onPaste={pasteNumberOnly} placeholder="Numbers only"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Account Holder</label>
-                            <input type="text" value={bank.accountHolder}
-                              onChange={e => handleBankChange(i, 'accountHolder', e.target.value)}
-                              onPaste={pasteTextOnly} placeholder="Full Name"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                          </div>
-                        </div>
+              {/* banks */}
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-md font-medium text-gray-700">Bank Accounts</span>
+                  {banks.length<3&&<button type="button" onClick={()=>setBanks(p=>[...p,{bankName:'',accountNumber:'',accountHolder:''}])} className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Bank</span></button>}
+                </div>
+                {banks.map((b,i)=>(
+                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative mb-3">
+                    {banks.length>1&&<button type="button" onClick={()=>setBanks(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Bank Name</label>
+                        <select value={b.bankName} onChange={e=>setBanks(p=>{const n=[...p];n[i].bankName=e.target.value;return n;})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                          <option value="">Select Bank</option>
+                          {BANK_OPTIONS.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}
+                        </select>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Insurance */}
-                <div className="mb-6">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-md font-medium text-gray-700">Insurance</span>
-                    <button type="button" onClick={addInsurance}
-                      className="flex items-center space-x-1 text-indigo-600 hover:text-indigo-700 text-sm">
-                      <HiOutlinePlus className="w-4 h-4" /><span>Add Insurance</span>
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    {insurances.map((ins, i) => (
-                      <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
-                        {insurances.length > 1 && (
-                          <button type="button" onClick={() => removeInsurance(i)}
-                            className="absolute top-2 right-2 text-red-500 hover:text-red-700">
-                            <HiOutlineTrash className="w-4 h-4" />
-                          </button>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Type</label>
-                            <select value={ins.type} onChange={e => handleInsuranceChange(i, 'type', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                              <option value="">Select Type</option>
-                              {INSURANCE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Provider</label>
-                            <input type="text" value={ins.provider}
-                              onChange={e => handleInsuranceChange(i, 'provider', e.target.value)}
-                              placeholder="e.g., BPJS"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Policy Number</label>
-                            <input type="text" value={ins.policyNumber}
-                              onChange={e => handleInsuranceChange(i, 'policyNumber', e.target.value)}
-                              placeholder="Policy Number"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Expiry Date</label>
-                            <input type="date" value={ins.expiryDate}
-                              onChange={e => handleInsuranceChange(i, 'expiryDate', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                          </div>
-                        </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Account Number</label>
+                        <input type="text" inputMode="numeric" value={b.accountNumber}
+                          onChange={e=>setBanks(p=>{const n=[...p];n[i].accountNumber=onlyNumber(e.target.value);return n;})}
+                          onPaste={pasteNumberOnly} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
                       </div>
-                    ))}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Account Holder</label>
+                        <input type="text" value={b.accountHolder}
+                          onChange={e=>setBanks(p=>{const n=[...p];n[i].accountHolder=onlyText(e.target.value);return n;})}
+                          onPaste={pasteTextOnly} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+              </section>
 
-                {/* Tax */}
+              {/* insurance */}
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-md font-medium text-gray-700">Insurance</span>
+                  {ins.length<3&&<button type="button" onClick={()=>setIns(p=>[...p,{type:'',provider:'',policyNumber:''}])} className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Insurance</span></button>}
+                </div>
+                {ins.map((v,i)=>(
+                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative mb-3">
+                    {ins.length>1&&<button type="button" onClick={()=>setIns(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Type</label>
+                        <select value={v.type} onChange={e=>setIns(p=>{const n=[...p];n[i].type=e.target.value;return n;})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                          <option value="">Select Type</option>
+                          {INSURANCE_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Provider</label>
+                        <input type="text" value={v.provider} onChange={e=>setIns(p=>{const n=[...p];n[i].provider=e.target.value;return n;})} placeholder="e.g., BPJS" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Policy Number</label>
+                        <input type="text" value={v.policyNumber} onChange={e=>setIns(p=>{const n=[...p];n[i].policyNumber=e.target.value;return n;})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </section>
+
+              {/* tax */}
+              <section>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">NPWP ID</label>
-                    <input type="text" inputMode="numeric" name="npwp" value={taxInfo.npwp}
-                      onChange={handleTaxChange} onPaste={pasteNumberOnly}
-                      placeholder="Numbers only" className={baseCls} />
+                    <input type="text" inputMode="numeric" value={tax.npwp}
+                      onChange={e=>setTax(p=>({...p,npwp:onlyNumber(e.target.value)}))}
+                      onPaste={pasteNumberOnly} placeholder="Numbers only" className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Home-Work Distance (KM)</label>
                     <div className="relative">
-                      <input type="text" inputMode="numeric" name="workDistance" value={taxInfo.workDistance}
-                        onChange={handleTaxChange} onPaste={pasteNumberOnly} placeholder="0"
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" inputMode="numeric" value={tax.workDistance}
+                        onChange={e=>setTax(p=>({...p,workDistance:onlyNumber(e.target.value)}))}
+                        onPaste={pasteNumberOnly} placeholder="0"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">KM</span>
                     </div>
                   </div>
                 </div>
               </section>
 
-              {/* 2.2 Emergency */}
+              {/* emergency */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlinePhone className="w-5 h-5 mr-2 text-red-500" /> 2.2 Emergency
+                  <HiOutlinePhone className="w-5 h-5 mr-2 text-red-500"/> 2.2 Emergency
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Contact Name</label>
-                    <input type="text" name="name" value={emergencyContact.name}
-                      onChange={handleEmergencyChange} onPaste={pasteTextOnly}
-                      placeholder="Letters only" className={baseCls} />
+                    <input type="text" value={emg.name} onChange={e=>setEmg(p=>({...p,name:onlyText(e.target.value)}))} onPaste={pasteTextOnly} className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
-                    <input type="tel" inputMode="numeric" pattern="[0-9]*" name="phone"
-                      value={emergencyContact.phone} onChange={handleEmergencyChange}
-                      onPaste={pasteNumberOnly} placeholder="Numbers only" className={baseCls} />
+                    <input type="tel" inputMode="numeric" value={emg.phone} onChange={e=>setEmg(p=>({...p,phone:onlyNumber(e.target.value)}))} onPaste={pasteNumberOnly} className={base}/>
                   </div>
                 </div>
               </section>
 
-              {/* 2.3 Family */}
+              {/* family */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineUsers className="w-5 h-5 mr-2 text-green-500" /> 2.3 Family Status
+                  <HiOutlineUsers className="w-5 h-5 mr-2 text-green-500"/> 2.3 Family Status
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
-                    <select name="maritalStatus" value={familyInfo.maritalStatus} onChange={handleFamilyChange}
-                      className={baseCls}>
+                    <select value={fam.maritalStatus} onChange={e=>setFam(p=>({...p,maritalStatus:e.target.value}))} className={base}>
                       <option value="">Select Status</option>
-                      {MARITAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {MARITAL_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of Dependent Children</label>
-                    <input type="number" min="0" name="numberOfChildren" value={familyInfo.numberOfChildren}
-                      onChange={handleFamilyChange} placeholder="0" className={baseCls} />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Dependent Children</label>
+                    <input type="number" min="0" value={fam.numberOfChildren} onChange={e=>setFam(p=>({...p,numberOfChildren:e.target.value}))} className={base}/>
                   </div>
                 </div>
               </section>
 
-              {/* 2.4 Citizenship */}
+              {/* citizenship */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineGlobe className="w-5 h-5 mr-2 text-blue-500" /> 2.4 Citizenship
+                  <HiOutlineGlobe className="w-5 h-5 mr-2 text-blue-500"/> 2.4 Citizenship
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Citizenship</label>
-                    <select name="nationality" value={citizenship.nationality} onChange={handleCitizenshipChange} className={baseCls}>
-                      <option value="">Select Citizenship</option>
-                      {NATIONALITY_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                    <select value={cit.nationality} onChange={e=>setCit(p=>({...p,nationality:e.target.value}))} className={base}>
+                      <option value="">Select</option>
+                      {NATIONALITY_OPTIONS.map(n=><option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Country of Birth</label>
-                    <input type="text" name="countryOfBirth" value={citizenship.countryOfBirth}
-                      onChange={handleCitizenshipChange} placeholder="Country" className={baseCls} />
+                    <input type="text" value={cit.countryOfBirth} onChange={e=>setCit(p=>({...p,countryOfBirth:e.target.value}))} className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Identification No</label>
-                    <input type="text" name="idNumber" value={citizenship.idNumber}
-                      onChange={handleCitizenshipChange} placeholder="KTP / ID Number" className={baseCls} />
+                    <input type="text" value={cit.idNumber} onChange={e=>setCit(p=>({...p,idNumber:e.target.value}))} className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Passport No</label>
-                    <input type="text" name="passportNumber" value={citizenship.passportNumber}
-                      onChange={handleCitizenshipChange} placeholder="Passport Number" className={baseCls} />
+                    <input type="text" value={cit.passportNumber} onChange={e=>setCit(p=>({...p,passportNumber:e.target.value}))} className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                    <select name="gender" value={citizenship.gender} onChange={handleCitizenshipChange} className={baseCls}>
+                    <select value={cit.gender} onChange={e=>setCit(p=>({...p,gender:e.target.value}))} className={base}>
                       <option value="">Select Gender</option>
-                      {GENDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {GENDER_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                    <input type="date" name="dateOfBirth" value={citizenship.dateOfBirth}
-                      onChange={handleCitizenshipChange} className={baseCls} />
+                    <input type="date" value={cit.dateOfBirth} onChange={e=>setCit(p=>({...p,dateOfBirth:e.target.value}))} className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Place of Birth</label>
-                    <input type="text" name="placeOfBirth" value={citizenship.placeOfBirth}
-                      onChange={handleCitizenshipChange} onPaste={pasteTextOnly}
-                      placeholder="City of Birth" className={baseCls} />
+                    <input type="text" value={cit.placeOfBirth} onChange={e=>setCit(p=>({...p,placeOfBirth:onlyText(e.target.value)}))} onPaste={pasteTextOnly} className={base}/>
                   </div>
                 </div>
               </section>
 
-              {/* 2.5 Education */}
+              {/* education */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineAcademicCap className="w-5 h-5 mr-2 text-purple-500" /> 2.5 Education
+                  <HiOutlineAcademicCap className="w-5 h-5 mr-2 text-purple-500"/> 2.5 Education
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Certificate Level</label>
-                    <select name="certificateLevel" value={education.certificateLevel} onChange={handleEducationChange} className={baseCls}>
+                    <select value={edu.certificateLevel} onChange={e=>setEdu(p=>({...p,certificateLevel:e.target.value}))} className={base}>
                       <option value="">Select Level</option>
-                      {CERTIFICATE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {CERTIFICATE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Field of Study</label>
-                    <input type="text" name="fieldOfStudy" value={education.fieldOfStudy}
-                      onChange={handleEducationChange} onPaste={pasteTextOnly}
-                      placeholder="e.g., Computer Science" className={baseCls} />
+                    <input type="text" value={edu.fieldOfStudy} onChange={e=>setEdu(p=>({...p,fieldOfStudy:e.target.value}))} onPaste={pasteTextOnly} className={base}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">School / University</label>
-                    <input type="text" name="school" value={education.school}
-                      onChange={handleEducationChange} onPaste={pasteTextOnly}
-                      placeholder="Institution Name" className={baseCls} />
+                    <input type="text" value={edu.school} onChange={e=>setEdu(p=>({...p,school:e.target.value}))} onPaste={pasteTextOnly} className={base}/>
                   </div>
                 </div>
               </section>
-
             </div>
           )}
 
-          {/* =================== DOCUMENTS TAB =================== */}
-          {activeMainTab === 'documents' && (
+          {/* ──── DOCUMENTS ──── */}
+          {tab==='documents' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-700 mb-4">Required Documents</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-700">Required Documents</h3>
+                <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                  Klik kartu untuk preview • Driving License & Insurance max 3 file
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <SingleFileUpload label="ID Card / KTP" icon={HiOutlineIdentification}
+                  fileObj={docs.idCard} existingUrl={empData?.idCardCopy}
+                  onChange={f=>setDoc('idCard',f)} onRemove={()=>clearDoc('idCard')}/>
+                <SingleFileUpload label="Family Card" icon={HiOutlineUsers}
+                  fileObj={docs.familyCard} existingUrl={empData?.familyCardCopy}
+                  onChange={f=>setDoc('familyCard',f)} onRemove={()=>clearDoc('familyCard')}/>
+                <SingleFileUpload label="NPWP Card" icon={HiOutlineDocument}
+                  fileObj={docs.npwpCard} existingUrl={empData?.npwpCardCopy}
+                  onChange={f=>setDoc('npwpCard',f)} onRemove={()=>clearDoc('npwpCard')}/>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { key: 'idCard',         label: 'ID Card / KTP',  icon: HiOutlineIdentification, existingKey: 'idCardCopy'          },
-                  { key: 'familyCard',     label: 'Family Card',    icon: HiOutlineUsers,           existingKey: 'familyCardCopy'      },
-                  { key: 'drivingLicense', label: 'Driving License',icon: HiOutlineDocument,        existingKey: 'drivingLicenseCopy'  },
-                  { key: 'insurance',      label: 'Insurance',      icon: HiOutlineShieldCheck,     existingKey: 'assuranceCardCopy'   },
-                  { key: 'npwpCard',       label: 'NPWP Card',      icon: HiOutlineDocument,        existingKey: 'npwpCardCopy'        },
-                ].map(({ key, label, icon: Icon, existingKey }) => {
-                  const existingDoc = employeeData?.[existingKey];
-                  return (
-                    <div key={key} className="border border-gray-200 rounded-lg p-5 hover:border-indigo-200 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Icon className="w-5 h-5 text-indigo-500" />
-                          <span className="text-base font-medium text-gray-700">{label}</span>
-                        </div>
-                        {documents[key] ? (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-600 truncate max-w-[150px]">{documents[key].fileName}</span>
-                            <button type="button" onClick={() => handleRemoveDocument(key)}
-                              className="text-red-500 hover:text-red-700 p-1">
-                              <HiOutlineTrash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : existingDoc ? (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-green-600 font-medium">Uploaded</span>
-                            <label className="cursor-pointer text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center space-x-1">
-                              <HiOutlineUpload className="w-4 h-4" /><span>Replace</span>
-                              <input type="file" className="hidden" onChange={e => handleDocumentUpload(key, e.target.files[0])} />
-                            </label>
-                          </div>
-                        ) : (
-                          <label className="cursor-pointer text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center space-x-1">
-                            <HiOutlineUpload className="w-4 h-4" /><span>Upload</span>
-                            <input type="file" className="hidden" onChange={e => handleDocumentUpload(key, e.target.files[0])} />
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                <MultiFileUpload label="Driving License Copy" icon={HiOutlineDocument} maxFiles={3}
+                  files={docs.drivingLicense}
+                  onChange={arr=>setDocs(p=>({...p,drivingLicense:arr}))}/>
+                <MultiFileUpload label="Insurance Copy" icon={HiOutlineShieldCheck} maxFiles={3}
+                  files={docs.insuranceCopies}
+                  onChange={arr=>setDocs(p=>({...p,insuranceCopies:arr}))}/>
               </div>
             </div>
           )}
 
-          {/* =================== SETTINGS TAB =================== */}
-          {activeMainTab === 'settings' && (
+          {/* ──── SETTINGS ──── */}
+          {tab==='settings' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-700 mb-4">Employee Settings</h3>
+              <h3 className="text-lg font-medium text-gray-700">Employee Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Employee Type */}
                 <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Employee Type <span className="text-red-500">*</span>
-                    {errors.employeeType && <span className="text-red-500 text-xs ml-2">{errors.employeeType}</span>}
+                    {errors.employeeType&&<span className="text-red-500 text-xs ml-2">{errors.employeeType}</span>}
                   </label>
-                  <select name="employeeType" value={settings.employeeType} onChange={handleSettingsChange}
-                    className={standaloneCls(!!errors.employeeType)}>
+                  <select name="employeeType" value={sett.employeeType}
+                    onChange={e=>{setSett(p=>({...p,employeeType:e.target.value}));if(!e.target.value)setErrors(p=>({...p,employeeType:'Employee Type is required'}));else setErrors(p=>{const n={...p};delete n.employeeType;return n;});}}
+                    className={selStd(!!errors.employeeType)}>
                     <option value="">Select Type</option>
-                    {EMPLOYEE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {EMPLOYEE_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-
-                {/* Status */}
                 <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status <span className="text-red-500">*</span>
-                    {errors.status && <span className="text-red-500 text-xs ml-2">{errors.status}</span>}
+                    {errors.status&&<span className="text-red-500 text-xs ml-2">{errors.status}</span>}
                   </label>
-                  <select name="status" value={formData.status} onChange={handleChange}
-                    className={standaloneCls(!!errors.status)}>
+                  <select name="status" value={fd.status} onChange={chgFd} className={selStd(!!errors.status)}>
                     <option value="">Select Status</option>
-                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {STATUS_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-
-                {/* Related User */}
                 <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Related User</label>
-                  <select name="relatedUserId" value={settings.relatedUserId} onChange={handleSettingsChange}
+                  <select value={sett.relatedUserId} onChange={e=>setSett(p=>({...p,relatedUserId:e.target.value}))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select Related User</option>
-                    {activeEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    {active.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
-
-                {/* Monthly Cost */}
                 <div className="bg-gray-50 p-5 rounded-lg">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Cost</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
-                    <input type="number" min="0" name="monthlyCost" value={settings.monthlyCost}
-                      onChange={handleSettingsChange}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input type="number" min="0" value={sett.monthlyCost} onChange={e=>setSett(p=>({...p,monthlyCost:e.target.value}))}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                   </div>
                 </div>
-
-                {/* Attendance Badge ID */}
                 <div className="bg-gray-50 p-5 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Attendance Badge ID</label>
-                  <input type="text" inputMode="numeric" name="attendanceBadgeId"
-                    value={settings.attendanceBadgeId} onChange={handleSettingsChange}
-                    onPaste={pasteNumberOnly} placeholder="Numbers only (e.g., 12345)"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Employee Identification Number</label>
+                  <input type="text" inputMode="numeric" value={sett.employeeIdentificationNumber}
+                    onChange={e=>setSett(p=>({...p,employeeIdentificationNumber:onlyNumber(e.target.value)}))}
+                    onPaste={pasteNumberOnly}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                 </div>
-
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-8 py-5 bg-gray-50 border-t border-gray-200 flex justify-end space-x-4">
-          <button type="button" onClick={() => navigate('/employees')} disabled={isSubmitting}
-            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-base">
-            Cancel
-          </button>
-          <button type="submit" disabled={isSubmitting}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Updating…
-              </>
-            ) : 'Update Employee'}
+          <button type="button" onClick={()=>navigate('/employees')} disabled={submitting}
+            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">Cancel</button>
+          <button type="submit" disabled={submitting}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 flex items-center">
+            {submitting
+              ? <><svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Updating…</>
+              : 'Update Employee'}
           </button>
         </div>
       </div>

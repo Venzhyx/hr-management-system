@@ -10,7 +10,7 @@ import {
 import { useEmployee } from '../../../redux/hooks/useEmployee';
 import { useDepartment } from '../../../redux/hooks/useDepartment';
 import { useCompany } from '../../../redux/hooks/useCompany';
-import { DetailDocCard, DetailMultiDocGrid, FilePreviewModal } from '../../components/FileComponents';
+import { DetailDocCard, DetailMultiDocGrid, FilePreviewModal } from '../../../components/FileComponents';
 
 const EmployeeDetailModal = () => {
   const navigate = useNavigate();

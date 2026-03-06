@@ -41,7 +41,7 @@ const AppRoutes = () => {
         <Route path="departments/edit/:id" element={<EditDepartment />} />
         <Route path="departments/detail/:id" element={<DepartmentDetailModal />} />
 
-        {/* COMPANIES CRUD ROUTES - folder: companies */}
+        {/* Companies Routes */}
         <Route path="companies" element={<CompanyList />} />
         <Route path="companies/add" element={<AddCompany />} />
         <Route path="companies/edit/:id" element={<EditCompany />} />
@@ -56,6 +56,10 @@ const AppRoutes = () => {
         <Route path="profile" element={<div className="p-6">Profile Page</div>} />
         <Route path="help" element={<div className="p-6">Help & Support</div>} />
         <Route path="logout" element={<div className="p-6">Logging out...</div>} />
+
+        {/* Approvals & Account Routes */}
+        <Route path="approvals" element={<div className="p-6">Approvals Page</div>} />
+        <Route path="account" element={<div className="p-6">Account Page</div>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
