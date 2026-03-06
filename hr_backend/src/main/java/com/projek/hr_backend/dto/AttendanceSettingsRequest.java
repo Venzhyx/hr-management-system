@@ -1,0 +1,21 @@
+package com.projek.hr_backend.dto;
+
+import com.projek.hr_backend.model.ExtraHoursValidation;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AttendanceSettingsRequest {
+    
+    @NotNull(message = "Tolerance time is required")
+    @Min(value = 0, message = "Tolerance time must be >= 0")
+    private Integer toleranceTimeInFavorOfEmployee;
+    
+    @NotNull(message = "Extra hours validation is required")
+    private ExtraHoursValidation extraHoursValidation;
+}
