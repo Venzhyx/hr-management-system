@@ -28,7 +28,6 @@
         private final EmployeeFamilyStatusRepository familyStatusRepository;
         private final EmployeeDocumentRepository documentRepository;
         private final EmployeeSettingsRepository settingsRepository;
-        private final AttendanceRepository attendanceRepository;
         private final EmployeeBankRepository bankRepository;
         private final EmployeeInsuranceRepository insuranceRepository;
         
@@ -207,9 +206,6 @@
             if (managedDepartments > 0) {
                 throw new IllegalStateException("Cannot delete employee. This employee is a manager for " + managedDepartments + " department(s).");
             }
-            
-            // Set attendance employee_id to null instead of deleting
-            attendanceRepository.setEmployeeIdToNull(id);
             
             bankRepository.deleteByEmployeeId(id);
             insuranceRepository.deleteByEmployeeId(id);
