@@ -4,6 +4,7 @@ import com.projek.hr_backend.dto.AttendanceSettingsRequest;
 import com.projek.hr_backend.dto.AttendanceSettingsResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.AttendanceSettings;
+import com.projek.hr_backend.model.ExtraHoursValidation;
 import com.projek.hr_backend.repository.AttendanceSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,18 @@ public class AttendanceSettingsService {
     
     private final AttendanceSettingsRepository repository;
     
-    public AttendanceSettingsResponse getSettings() {
-        AttendanceSettings settings = repository.findFirstByOrderByIdAsc()
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance settings not found"));
-        return mapToResponse(settings);
-    }
+    // AttendanceSettingsService.java
+public AttendanceSettingsResponse getSettings() {
+    return repository.findFirstByOrderByIdAsc()
+            .map(this::mapToResponse)
+            .orElse(new AttendanceSettingsResponse(
+                null,
+                0,                                        // toleranceTime default
+                ExtraHoursValidation.APPROVED_BY_MANAGER, // validation default
+                null,
+                null
+            ));
+}
     
     @Transactional
     public AttendanceSettingsResponse updateSettings(AttendanceSettingsRequest request) {
