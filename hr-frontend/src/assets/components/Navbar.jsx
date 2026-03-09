@@ -39,7 +39,7 @@ const getRouteInfo = (pathname) => {
   if (/\/employees\/.+\/edit/.test(pathname))   return { title: 'Edit Employee',   sub: 'Ubah data karyawan' };
   if (/\/departments\/.+\/edit/.test(pathname)) return { title: 'Edit Department', sub: 'Ubah data departemen' };
   if (/\/companies\/.+\/edit/.test(pathname))   return { title: 'Edit Company',    sub: 'Ubah data perusahaan' };
-  return { title: 'PeopleFlow', sub: 'PT Alpha Beta Engineering' };
+  return { title: 'PeopleFlow' };
 };
 
 // ── Notifications ──────────────────────────────────────────────────────────
@@ -186,11 +186,6 @@ const Navbar = ({ toggleSidebar }) => {
         {/* RIGHT */}
         <div className="flex items-center space-x-3 relative">
 
-          {/* Company badge */}
-          <div className="hidden md:flex items-center space-x-2 px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
-            <HiOutlineOfficeBuilding className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="text-xs font-medium text-indigo-700">PT Alpha Beta Engineering</span>
-          </div>
 
           {/* Bell */}
           <button
