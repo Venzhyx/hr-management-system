@@ -56,9 +56,7 @@ public class ReimbursementService {
     
     private void createApprovalRecords(Reimbursement reimbursement) {
         ApprovalSetting setting = approvalSettingRepository.findByModule("reimbursement")
-                .orElse(null);
-
-                if (setting == null) return; // ← skip, tidak throw error
+                .orElseThrow(() -> new ResourceNotFoundException("Approval setting not found for reimbursement"));
         
         List<ApprovalApprover> approvers = approvalApproverRepository
                 .findByApprovalSettingIdOrderByApprovalOrderAsc(setting.getId());

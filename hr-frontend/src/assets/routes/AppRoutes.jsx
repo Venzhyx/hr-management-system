@@ -27,6 +27,9 @@ import CreateReimbursement from '../pages/reimbursements/add';
 import EditReimbursement from '../pages/reimbursements/edit';
 import ReimbursementDetail from '../pages/reimbursements/detail';
 
+// Approvals
+import ApprovalPage from '../pages/approvals/index';
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -58,6 +61,9 @@ const AppRoutes = () => {
         <Route path="reimbursements/edit/:id"   element={<EditReimbursement />} />
         <Route path="reimbursements/detail/:id" element={<ReimbursementDetail />} />
 
+        {/* Approvals */}
+        <Route path="approvals" element={<ApprovalPage />} />
+
         {/* Other */}
         <Route path="attendance" element={<Attendance />} />
         <Route path="timeoff"    element={<TimeOff />} />
@@ -66,7 +72,6 @@ const AppRoutes = () => {
         <Route path="profile"    element={<div className="p-6">Profile Page</div>} />
         <Route path="help"       element={<div className="p-6">Help & Support</div>} />
         <Route path="logout"     element={<div className="p-6">Logging out...</div>} />
-        <Route path="approvals"  element={<div className="p-6">Approvals Page</div>} />
         <Route path="account"    element={<div className="p-6">Account Page</div>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

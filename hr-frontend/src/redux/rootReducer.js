@@ -5,7 +5,8 @@ import companyReducer            from './slices/companySlice';
 import attendanceSettingsReducer from './slices/attendanceSettingsSlice';
 import calendarEventReducer      from './slices/calendarEventSlice';
 import timeOffTypeReducer        from './slices/timeOffTypeSlice';
-import reimbursementReducer      from './slices/reimbursementSlice'; 
+import reimbursementReducer      from './slices/reimbursementSlice';
+import approvalReducer           from './slices/approvalSlice';
 
 const rootReducer = combineReducers({
   employees:          employeeReducer,
@@ -14,7 +15,8 @@ const rootReducer = combineReducers({
   attendanceSettings: attendanceSettingsReducer,
   calendarEvents:     calendarEventReducer,
   timeOffTypes:       timeOffTypeReducer,
-  reimbursements:     reimbursementReducer, 
+  reimbursements:     reimbursementReducer,
+  approval:           approvalReducer,
 });
 
 export default rootReducer;
