@@ -11,10 +11,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ApprovalApproverResponse {
     private Long id;
-    private Long approvalSettingId;
     private Long employeeId;
     private String employeeName;
     private Boolean isRequired;
     private Integer approvalOrder;
+    private Integer minimumApproval;
     private LocalDateTime createdAt;
 }

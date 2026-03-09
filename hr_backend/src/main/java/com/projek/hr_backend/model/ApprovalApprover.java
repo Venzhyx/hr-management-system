@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "approval_approvers", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"approval_setting_id", "employee_id"})
+    @UniqueConstraint(columnNames = {"employee_id"})
 })
 @Data
 @NoArgsConstructor
@@ -22,10 +22,6 @@ public class ApprovalApprover {
     private Long id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approval_setting_id", nullable = false)
-    private ApprovalSetting approvalSetting;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
     
@@ -34,6 +30,9 @@ public class ApprovalApprover {
     
     @Column(name = "approval_order", nullable = false)
     private Integer approvalOrder;
+    
+    @Column(name = "minimum_approval", nullable = false)
+    private Integer minimumApproval = 1;
     
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

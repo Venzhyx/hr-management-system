@@ -8,6 +8,5 @@ import java.util.List;
 
 @Repository
 public interface ApprovalApproverRepository extends JpaRepository<ApprovalApprover, Long> {
-    List<ApprovalApprover> findByApprovalSettingId(Long approvalSettingId);
-    List<ApprovalApprover> findByApprovalSettingIdOrderByApprovalOrderAsc(Long approvalSettingId);
+    List<ApprovalApprover> findAllByOrderByApprovalOrderAsc();
 }

@@ -21,7 +21,6 @@ public class ReimbursementService {
     private final ReimbursementRepository reimbursementRepository;
     private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
-    private final ApprovalSettingRepository approvalSettingRepository;
     private final ApprovalApproverRepository approvalApproverRepository;
     private final ReimbursementApprovalRepository reimbursementApprovalRepository;
     
@@ -55,11 +54,8 @@ public class ReimbursementService {
     }
     
     private void createApprovalRecords(Reimbursement reimbursement) {
-        ApprovalSetting setting = approvalSettingRepository.findByModule("reimbursement")
-                .orElseThrow(() -> new ResourceNotFoundException("Approval setting not found for reimbursement"));
-        
         List<ApprovalApprover> approvers = approvalApproverRepository
-                .findByApprovalSettingIdOrderByApprovalOrderAsc(setting.getId());
+                .findAllByOrderByApprovalOrderAsc();
         
         for (ApprovalApprover approver : approvers) {
             ReimbursementApproval approval = new ReimbursementApproval();
@@ -151,13 +147,15 @@ public class ReimbursementService {
     }
     
     private void checkAndUpdateReimbursementStatus(Reimbursement reimbursement) {
-        ApprovalSetting setting = approvalSettingRepository.findByModule("reimbursement")
-                .orElseThrow(() -> new ResourceNotFoundException("Approval setting not found"));
+        List<ApprovalApprover> approvers = approvalApproverRepository.findAllByOrderByApprovalOrderAsc();
+        if (approvers.isEmpty()) return;
+        
+        Integer minimumApproval = approvers.get(0).getMinimumApproval();
         
         long approvedCount = reimbursementApprovalRepository
                 .countByReimbursementIdAndStatus(reimbursement.getId(), ApprovalStatus.APPROVED);
         
-        if (approvedCount >= setting.getMinimumApproval()) {
+        if (approvedCount >= minimumApproval) {
             reimbursement.setStatus(ReimbursementStatus.APPROVED);
             reimbursementRepository.save(reimbursement);
         }

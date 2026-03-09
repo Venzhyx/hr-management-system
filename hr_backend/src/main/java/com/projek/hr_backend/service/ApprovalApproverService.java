@@ -4,10 +4,8 @@ import com.projek.hr_backend.dto.ApprovalApproverRequest;
 import com.projek.hr_backend.dto.ApprovalApproverResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.ApprovalApprover;
-import com.projek.hr_backend.model.ApprovalSetting;
 import com.projek.hr_backend.model.Employee;
 import com.projek.hr_backend.repository.ApprovalApproverRepository;
-import com.projek.hr_backend.repository.ApprovalSettingRepository;
 import com.projek.hr_backend.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,7 +19,6 @@ import java.util.stream.Collectors;
 public class ApprovalApproverService {
     
     private final ApprovalApproverRepository repository;
-    private final ApprovalSettingRepository approvalSettingRepository;
     private final EmployeeRepository employeeRepository;
     
     public List<ApprovalApproverResponse> getAllApprovers() {
@@ -32,17 +29,14 @@ public class ApprovalApproverService {
     
     @Transactional
     public ApprovalApproverResponse createApprover(ApprovalApproverRequest request) {
-        ApprovalSetting setting = approvalSettingRepository.findById(request.getApprovalSettingId())
-                .orElseThrow(() -> new ResourceNotFoundException("Approval setting not found"));
-        
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
         
         ApprovalApprover approver = new ApprovalApprover();
-        approver.setApprovalSetting(setting);
         approver.setEmployee(employee);
         approver.setIsRequired(request.getIsRequired());
         approver.setApprovalOrder(request.getApprovalOrder());
+        approver.setMinimumApproval(request.getMinimumApproval());
         
         ApprovalApprover saved = repository.save(approver);
         return mapToResponse(saved);
@@ -59,11 +53,11 @@ public class ApprovalApproverService {
     private ApprovalApproverResponse mapToResponse(ApprovalApprover approver) {
         return new ApprovalApproverResponse(
             approver.getId(),
-            approver.getApprovalSetting().getId(),
             approver.getEmployee().getId(),
             approver.getEmployee().getName(),
             approver.getIsRequired(),
             approver.getApprovalOrder(),
+            approver.getMinimumApproval(),
             approver.getCreatedAt()
         );
     }
