@@ -16,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reimbursements")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class ReimbursementController {
     
     private final ReimbursementService service;

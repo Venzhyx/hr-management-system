@@ -1,48 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  HiOutlineBell,
-  HiOutlineMenu,
-  HiOutlineBriefcase,
-  HiOutlineCheckCircle,
-  HiOutlineXCircle,
-  HiOutlineClock,
-  HiOutlineCalendar,
-  HiOutlineUserAdd,
-  HiOutlineDocumentText,
-  HiOutlineExclamationCircle,
-  HiOutlineCurrencyDollar,
+  HiOutlineBell, HiOutlineMenu, HiOutlineBriefcase, HiOutlineCheckCircle,
+  HiOutlineXCircle, HiOutlineClock, HiOutlineCalendar, HiOutlineUserAdd,
+  HiOutlineDocumentText, HiOutlineExclamationCircle, HiOutlineCurrencyDollar,
   HiOutlineOfficeBuilding,
 } from 'react-icons/hi';
 import { useLocation } from 'react-router-dom';
 
-// ── Route → title map ──────────────────────────────────────────────────────
 const ROUTE_TITLES = {
-  '/':                   { title: 'Dashboard',        sub: 'Selamat datang kembali' },
-  '/dashboard':          { title: 'Dashboard',        sub: 'Ringkasan aktivitas perusahaan' },
-  '/employees':          { title: 'Employees',        sub: 'Manajemen data karyawan' },
-  '/employees/add':      { title: 'Add Employee',     sub: 'Tambah karyawan baru' },
-  '/departments':        { title: 'Departments',      sub: 'Struktur departemen' },
-  '/departments/add':    { title: 'Add Department',   sub: 'Buat departemen baru' },
-  '/companies':          { title: 'Company',          sub: 'Data & profil perusahaan' },
-  '/companies/add':      { title: 'Add Company',      sub: 'Daftarkan perusahaan baru' },
-  '/attendance':         { title: 'Attendance',       sub: 'Rekap kehadiran karyawan' },
-  '/timeoff':            { title: 'Time Off',         sub: 'Pengajuan & persetujuan cuti' },
-  '/payroll':            { title: 'Payroll',          sub: 'Penggajian & slip gaji' },
-  '/reimbursement':      { title: 'Reimbursement',    sub: 'Klaim & penggantian biaya' },
-  '/settings':           { title: 'Settings',         sub: 'Pengaturan aplikasi' },
-  '/profile':            { title: 'My Profile',       sub: 'Informasi akun Anda' },
-  '/help':               { title: 'Help & Support',   sub: 'Pusat bantuan & dokumentasi' },
+  '/':                          { title: 'Dashboard',             sub: 'Selamat datang kembali' },
+  '/dashboard':                 { title: 'Dashboard',             sub: 'Ringkasan aktivitas perusahaan' },
+  '/employees':                 { title: 'Employees',             sub: 'Manajemen data karyawan' },
+  '/employees/add':             { title: 'Add Employee',          sub: 'Tambah karyawan baru' },
+  '/departments':               { title: 'Departments',           sub: 'Struktur departemen' },
+  '/departments/add':           { title: 'Add Department',        sub: 'Buat departemen baru' },
+  '/companies':                 { title: 'Company',               sub: 'Data & profil perusahaan' },
+  '/companies/add':             { title: 'Add Company',           sub: 'Daftarkan perusahaan baru' },
+  '/attendance':                { title: 'Attendance',            sub: 'Rekap kehadiran karyawan' },
+  '/timeoff':                   { title: 'Time Off',              sub: 'Pengajuan & persetujuan cuti' },
+  '/payroll':                   { title: 'Payroll',               sub: 'Penggajian & slip gaji' },
+  '/reimbursements':            { title: 'Reimbursement',         sub: 'Klaim & penggantian biaya' },
+  '/reimbursements/add':        { title: 'New Reimbursement',     sub: 'Ajukan klaim biaya baru' },
+  '/settings':                  { title: 'Settings',              sub: 'Pengaturan aplikasi' },
+  '/profile':                   { title: 'My Profile',            sub: 'Informasi akun Anda' },
+  '/help':                      { title: 'Help & Support',        sub: 'Pusat bantuan & dokumentasi' },
 };
 
 const getRouteInfo = (pathname) => {
   if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
-  if (/\/employees\/.+\/edit/.test(pathname))   return { title: 'Edit Employee',   sub: 'Ubah data karyawan' };
-  if (/\/departments\/.+\/edit/.test(pathname)) return { title: 'Edit Department', sub: 'Ubah data departemen' };
-  if (/\/companies\/.+\/edit/.test(pathname))   return { title: 'Edit Company',    sub: 'Ubah data perusahaan' };
+  if (/\/employees\/.+\/edit/.test(pathname))       return { title: 'Edit Employee',        sub: 'Ubah data karyawan' };
+  if (/\/employees\/.+/.test(pathname))             return { title: 'Employee Detail',      sub: 'Detail informasi karyawan' };
+  if (/\/departments\/.+\/edit/.test(pathname))     return { title: 'Edit Department',      sub: 'Ubah data departemen' };
+  if (/\/companies\/.+\/edit/.test(pathname))       return { title: 'Edit Company',         sub: 'Ubah data perusahaan' };
+  if (/\/reimbursements\/.+\/edit/.test(pathname))  return { title: 'Edit Reimbursement',   sub: 'Ubah klaim biaya' };
+  if (/\/reimbursements\/.+/.test(pathname))        return { title: 'Reimbursement Detail', sub: 'Detail klaim biaya' };
   return { title: 'PeopleFlow' };
 };
 
-// ── Notifications ──────────────────────────────────────────────────────────
 const INITIAL_NOTIFICATIONS = [
   {
     id: 1, type: 'leave', title: 'Pengajuan Cuti',
@@ -94,7 +88,7 @@ const INITIAL_NOTIFICATIONS = [
     iconColor: 'text-purple-600', iconBg: 'bg-purple-100', dot: 'bg-purple-500',
   },
   {
-    id: 8, type: 'birthday', title: 'Ulang Tahun Hari Ini ',
+    id: 8, type: 'birthday', title: 'Ulang Tahun Hari Ini 🎂',
     message: 'Hari ini Hendra Gunawan (Manajer Operasional) merayakan ulang tahun ke-38.',
     time: '9 jam lalu', read: true,
     icon: <HiOutlineCalendar className="w-4 h-4" />,
@@ -105,7 +99,6 @@ const INITIAL_NOTIFICATIONS = [
 const DAYS   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
-// ── Component ──────────────────────────────────────────────────────────────
 const Navbar = ({ toggleSidebar }) => {
   const location = useLocation();
 
@@ -162,7 +155,6 @@ const Navbar = ({ toggleSidebar }) => {
         ? 'bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20'
         : 'bg-white border-b border-gray-200 shadow-sm'
     }`}>
-
       <div className="h-full px-8 flex items-center justify-between">
 
         {/* LEFT — title */}
@@ -171,7 +163,6 @@ const Navbar = ({ toggleSidebar }) => {
             className="lg:hidden p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
             <HiOutlineMenu className="w-6 h-6" />
           </button>
-
           <div className={`transition-all duration-300 ${animateTitle ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
             <h2 className="text-xl font-bold text-gray-900 leading-tight">{routeInfo.title}</h2>
             <div className="flex items-center space-x-2 mt-0.5">
@@ -183,20 +174,12 @@ const Navbar = ({ toggleSidebar }) => {
           </div>
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT — Bell */}
         <div className="flex items-center space-x-3 relative">
-
-
-          {/* Bell */}
-          <button
-            ref={buttonRef}
-            onClick={() => setShowNotifications(p => !p)}
+          <button ref={buttonRef} onClick={() => setShowNotifications(p => !p)}
             className={`relative p-2.5 rounded-xl transition-all duration-200 ${
-              showNotifications
-                ? 'bg-indigo-100 text-indigo-600'
-                : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
-            }`}
-          >
+              showNotifications ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
+            }`}>
             <HiOutlineBell className="w-5 h-5" />
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-0.5 bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md animate-bounce">
@@ -205,14 +188,10 @@ const Navbar = ({ toggleSidebar }) => {
             )}
           </button>
 
-          {/* Notification panel */}
           {showNotifications && (
-            <div
-              ref={notifRef}
+            <div ref={notifRef}
               className="absolute top-full right-0 mt-3 w-[22rem] rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 bg-white"
-              style={{ animation: 'slideDown 0.2s ease' }}
-            >
-              {/* Header */}
+              style={{ animation: 'slideDown 0.2s ease' }}>
               <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-white">Notifikasi</h3>
@@ -225,34 +204,23 @@ const Navbar = ({ toggleSidebar }) => {
                 )}
               </div>
 
-              {/* Actions */}
               {notifications.length > 0 && (
                 <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100">
-                  <button onClick={markAllRead} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-                    Tandai semua dibaca
-                  </button>
-                  <button onClick={clearAll} className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
-                    Hapus semua
-                  </button>
+                  <button onClick={markAllRead} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Tandai semua dibaca</button>
+                  <button onClick={clearAll}    className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">Hapus semua</button>
                 </div>
               )}
 
-              {/* List */}
               <div className="max-h-[26rem] overflow-y-auto divide-y divide-gray-50">
                 {notifications.length > 0 ? notifications.map(notif => (
-                  <div
-                    key={notif.id}
-                    onClick={() => markAsRead(notif.id)}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors duration-150 ${!notif.read ? 'bg-indigo-50/40' : ''}`}
-                  >
+                  <div key={notif.id} onClick={() => markAsRead(notif.id)}
+                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors duration-150 ${!notif.read ? 'bg-indigo-50/40' : ''}`}>
                     <div className={`flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg ${notif.iconBg} ${notif.iconColor} flex items-center justify-center shadow-sm`}>
                       {notif.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
-                        <p className={`text-xs font-semibold leading-snug ${!notif.read ? 'text-gray-900' : 'text-gray-700'}`}>
-                          {notif.title}
-                        </p>
+                        <p className={`text-xs font-semibold leading-snug ${!notif.read ? 'text-gray-900' : 'text-gray-700'}`}>{notif.title}</p>
                         {!notif.read && <span className={`flex-shrink-0 mt-1 w-2 h-2 rounded-full ${notif.dot}`} />}
                       </div>
                       <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{notif.message}</p>
@@ -268,7 +236,6 @@ const Navbar = ({ toggleSidebar }) => {
                 )}
               </div>
 
-              {/* Footer */}
               {notifications.length > 0 && (
                 <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-center">
                   <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
