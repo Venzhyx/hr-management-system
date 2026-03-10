@@ -9,12 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReimbursementApprovalRequest {
-    
-    @NotNull(message = "Approver ID is required")
-    private Long approverId;
-    
+
     @NotNull(message = "Action is required")
     private String action;
-    
+
     private String notes;
 }

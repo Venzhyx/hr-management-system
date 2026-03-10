@@ -31,10 +31,15 @@ const AddApproverModal = ({ approvers, employees, onAdd, onClose }) => {
     setSaving(true);
     setError(null);
     try {
+      // Hitung minimumApproval: jumlah approver yang isRequired=true setelah approver baru ini ditambah
+      const currentRequired = approvers.filter((a) => a.isRequired === true).length;
+      const newMinimum      = form.isRequired ? currentRequired + 1 : Math.max(currentRequired, 1);
+
       await onAdd({
-        employeeId:    parseInt(form.employeeId),
-        isRequired:    form.isRequired,
-        approvalOrder: nextOrder,
+        employeeId:      parseInt(form.employeeId),
+        isRequired:      form.isRequired,
+        approvalOrder:   nextOrder,
+        minimumApproval: newMinimum,
       });
       onClose();
     } catch (e) {
@@ -280,7 +285,6 @@ const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
           : "border-gray-100 opacity-60 cursor-not-allowed"
       }`}
     >
-      {/* Icon */}
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${
         tab.available ? "bg-indigo-100 group-hover:bg-indigo-600" : "bg-gray-100"
       }`}>
@@ -304,7 +308,6 @@ const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
         </span>
       )}
 
-      {/* Dots menu — only for available tabs */}
       {tab.available && (
         <div
           ref={menuRef}
@@ -331,7 +334,6 @@ const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
         </div>
       )}
 
-      {/* Arrow */}
       {tab.available && (
         <div className="absolute bottom-5 right-5 text-gray-300 group-hover:text-indigo-500 transition-colors">
           <HiOutlineChevronRight className="w-5 h-5" />
