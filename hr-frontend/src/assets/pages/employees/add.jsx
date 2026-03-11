@@ -113,8 +113,8 @@ const AddEmployee = () => {
   const [edu,   setEdu]   = useState({ certificateLevel:'', fieldOfStudy:'', school:'' });
   const [docs,  setDocs]  = useState({
     idCard: null, familyCard: null,
-    drivingLicense: [],   // array, max 3
-    insuranceCopies: [],  // array, max 3
+    drivingLicense: [],
+    insuranceCopies: [],
     npwpCard: null,
   });
   const [sett, setSett] = useState({ employeeType:'', relatedUserId:'', monthlyCost:'', employeeIdentificationNumber:'' });
@@ -140,11 +140,9 @@ const AddEmployee = () => {
     }
   }, []);
 
-  // doc helpers
-  const setDoc  = (key, file) => file && setDocs(p => ({...p, [key]: { file, name:file.name, url:URL.createObjectURL(file), isLocal:true }}));
+  const setDoc   = (key, file) => file && setDocs(p => ({...p, [key]: { file, name:file.name, url:URL.createObjectURL(file), isLocal:true }}));
   const clearDoc = key => setDocs(p => ({...p, [key]: null}));
 
-  // upload helpers
   const uploadOne = async file => {
     const fd2 = new FormData(); fd2.append('file', file);
     const r = await API.post('/files/upload', fd2, { headers:{'Content-Type':'multipart/form-data'} });
@@ -156,7 +154,6 @@ const AddEmployee = () => {
     return urls.filter(Boolean).join(',');
   };
 
-  // validation
   const validate = () => {
     const e = {};
     if (!fd.name.trim())      e.name      = 'Name is required';
@@ -188,8 +185,8 @@ const AddEmployee = () => {
     }
     setSubmitting(true);
     try {
-      const photoUrl  = photo            ? await uploadOne(photo)              : null;
-      const idUrl     = docs.idCard      ? await uploadOne(docs.idCard.file)   : null;
+      const photoUrl  = photo            ? await uploadOne(photo)               : null;
+      const idUrl     = docs.idCard      ? await uploadOne(docs.idCard.file)    : null;
       const famUrl    = docs.familyCard  ? await uploadOne(docs.familyCard.file): null;
       const driveUrl  = await uploadMany(docs.drivingLicense);
       const insUrl    = await uploadMany(docs.insuranceCopies);
@@ -201,19 +198,16 @@ const AddEmployee = () => {
         joinDate: fd.joinDate || null, photo: photoUrl,
         companyId:    parseInt(fd.companyId,    10),
         departmentId: parseInt(fd.departmentId, 10),
-        managerId: fd.managerId   ? parseInt(fd.managerId,   10) : null,
-        coachId:   fd.coachId     ? parseInt(fd.coachId,     10) : null,
-        privateAddress: priv.address || null,
-        privateEmail:   priv.email   || null,
-        privatePhone:   priv.phone   || null,
+        managerId: fd.managerId ? parseInt(fd.managerId,   10) : null,
+        coachId:   fd.coachId   ? parseInt(fd.coachId,     10) : null,
+        privateAddress: priv.address || null, privateEmail: priv.email || null, privatePhone: priv.phone || null,
         banks: banks.filter(b=>b.bankName&&b.accountNumber&&b.accountHolder),
         insurances: ins.filter(i=>i.type&&i.provider&&i.policyNumber).map(({type,provider,policyNumber})=>({type,provider,policyNumber})),
         npwpId: tax.npwp || null,
         homeToWorkDistance: tax.workDistance ? Number(tax.workDistance) : null,
         nationality: cit.nationality||null, identificationNumber: cit.idNumber||null,
         passportNumber: cit.passportNumber||null, gender: cit.gender||null,
-        dateOfBirth: cit.dateOfBirth||null, placeOfBirth: cit.placeOfBirth||null,
-        countryOfBirth: cit.countryOfBirth||null,
+        dateOfBirth: cit.dateOfBirth||null, placeOfBirth: cit.placeOfBirth||null, countryOfBirth: cit.countryOfBirth||null,
         emergencyContactName: emg.name||null, emergencyContactPhone: emg.phone||null,
         certificateLevel: edu.certificateLevel||null, fieldOfStudy: edu.fieldOfStudy||null, school: edu.school||null,
         maritalStatus: fam.maritalStatus||null,
@@ -281,7 +275,6 @@ const AddEmployee = () => {
         <h2 className="text-xl font-semibold text-gray-800 mb-6">Work Information</h2>
         {compLoading||deptLoading ? <div className="text-center py-12 text-gray-400">Loading…</div> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* email */}
             <div>
               <Lbl>Work Email</Lbl>
               <div className={wrap(!!errors.workEmail)}>
@@ -289,7 +282,6 @@ const AddEmployee = () => {
                 <input type="email" name="workEmail" value={fd.workEmail} onChange={chgFd} placeholder="john@company.com" className={inner(!!errors.workEmail)}/>
               </div><Err e={errors.workEmail}/>
             </div>
-            {/* work phone */}
             <div>
               <Lbl>Work Phone</Lbl>
               <div className={wrap(!!errors.workPhone)}>
@@ -297,7 +289,6 @@ const AddEmployee = () => {
                 <input type="tel" inputMode="numeric" name="workPhone" value={fd.workPhone} onChange={chgFd} onPaste={pasteNumberOnly} placeholder="0211234567" className={inner(!!errors.workPhone)}/>
               </div><Err e={errors.workPhone}/>
             </div>
-            {/* mobile */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Work Mobile</label>
               <div className={wrap(false)}>
@@ -305,7 +296,6 @@ const AddEmployee = () => {
                 <input type="tel" inputMode="numeric" name="workMobile" value={fd.workMobile} onChange={chgFd} onPaste={pasteNumberOnly} placeholder="08123456789" className={inner(false)}/>
               </div>
             </div>
-            {/* company */}
             <div>
               <Lbl>Company</Lbl>
               <div className={wrap(!!errors.companyId)}>
@@ -316,7 +306,6 @@ const AddEmployee = () => {
                 </select>
               </div><Err e={errors.companyId}/>
             </div>
-            {/* department */}
             <div>
               <Lbl>Department</Lbl>
               <div className={wrap(!!errors.departmentId)}>
@@ -329,7 +318,6 @@ const AddEmployee = () => {
                 </select>
               </div><Err e={errors.departmentId}/>
             </div>
-            {/* manager */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
               <div className={wrap(false)}>
@@ -340,7 +328,6 @@ const AddEmployee = () => {
                 </select>
               </div>
             </div>
-            {/* coach */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Coach</label>
               <div className={wrap(false)}>
@@ -351,7 +338,6 @@ const AddEmployee = () => {
                 </select>
               </div>
             </div>
-            {/* join date */}
             <div>
               <Lbl>Join Date</Lbl>
               <div className={wrap(!!errors.joinDate)}>
@@ -412,13 +398,14 @@ const AddEmployee = () => {
                     className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Bank</span></button>}
                 </div>
                 {banks.map((b,i)=>(
-                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative mb-3">
+                  // ← bg-white border
+                  <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 relative mb-3">
                     {banks.length>1&&<button type="button" onClick={()=>setBanks(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Bank Name</label>
                         <select value={b.bankName} onChange={e=>setBanks(p=>{const n=[...p];n[i].bankName=e.target.value;return n;})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
                           <option value="">Select Bank</option>
                           {BANK_OPTIONS.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}
                         </select>
@@ -428,14 +415,14 @@ const AddEmployee = () => {
                         <input type="text" inputMode="numeric" value={b.accountNumber}
                           onChange={e=>setBanks(p=>{const n=[...p];n[i].accountNumber=onlyNumber(e.target.value);return n;})}
                           onPaste={pasteNumberOnly} placeholder="Numbers only"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Account Holder</label>
                         <input type="text" value={b.accountHolder}
                           onChange={e=>setBanks(p=>{const n=[...p];n[i].accountHolder=onlyText(e.target.value);return n;})}
                           onPaste={pasteTextOnly} placeholder="Full Name"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                     </div>
                   </div>
@@ -450,13 +437,14 @@ const AddEmployee = () => {
                     className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Insurance</span></button>}
                 </div>
                 {ins.map((v,i)=>(
-                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative mb-3">
+                  // ← bg-white border
+                  <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 relative mb-3">
                     {ins.length>1&&<button type="button" onClick={()=>setIns(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Type</label>
                         <select value={v.type} onChange={e=>setIns(p=>{const n=[...p];n[i].type=e.target.value;return n;})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
                           <option value="">Select Type</option>
                           {INSURANCE_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
@@ -464,12 +452,14 @@ const AddEmployee = () => {
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Provider</label>
                         <input type="text" value={v.provider} onChange={e=>setIns(p=>{const n=[...p];n[i].provider=e.target.value;return n;})}
-                          placeholder="e.g., BPJS" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                          placeholder="e.g., BPJS"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Policy Number</label>
                         <input type="text" value={v.policyNumber} onChange={e=>setIns(p=>{const n=[...p];n[i].policyNumber=e.target.value;return n;})}
-                          placeholder="Policy Number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                          placeholder="Policy Number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                     </div>
                   </div>
@@ -619,29 +609,19 @@ const AddEmployee = () => {
                   Klik kartu untuk preview • Driving License & Insurance max 3 file
                 </span>
               </div>
-              {/* single docs */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <SingleFileUpload label="ID Card / KTP" icon={HiOutlineIdentification}
-                  fileObj={docs.idCard}
-                  onChange={f=>setDoc('idCard',f)}
-                  onRemove={()=>clearDoc('idCard')}/>
+                  fileObj={docs.idCard} onChange={f=>setDoc('idCard',f)} onRemove={()=>clearDoc('idCard')}/>
                 <SingleFileUpload label="Family Card" icon={HiOutlineUsers}
-                  fileObj={docs.familyCard}
-                  onChange={f=>setDoc('familyCard',f)}
-                  onRemove={()=>clearDoc('familyCard')}/>
+                  fileObj={docs.familyCard} onChange={f=>setDoc('familyCard',f)} onRemove={()=>clearDoc('familyCard')}/>
                 <SingleFileUpload label="NPWP Card" icon={HiOutlineDocument}
-                  fileObj={docs.npwpCard}
-                  onChange={f=>setDoc('npwpCard',f)}
-                  onRemove={()=>clearDoc('npwpCard')}/>
+                  fileObj={docs.npwpCard} onChange={f=>setDoc('npwpCard',f)} onRemove={()=>clearDoc('npwpCard')}/>
               </div>
-              {/* multi docs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MultiFileUpload label="Driving License Copy" icon={HiOutlineDocument} maxFiles={3}
-                  files={docs.drivingLicense}
-                  onChange={arr=>setDocs(p=>({...p,drivingLicense:arr}))}/>
+                  files={docs.drivingLicense} onChange={arr=>setDocs(p=>({...p,drivingLicense:arr}))}/>
                 <MultiFileUpload label="Insurance Copy" icon={HiOutlineShieldCheck} maxFiles={3}
-                  files={docs.insuranceCopies}
-                  onChange={arr=>setDocs(p=>({...p,insuranceCopies:arr}))}/>
+                  files={docs.insuranceCopies} onChange={arr=>setDocs(p=>({...p,insuranceCopies:arr}))}/>
               </div>
             </div>
           )}
@@ -651,7 +631,8 @@ const AddEmployee = () => {
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-700">Employee Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-5 rounded-lg">
+                {/* ← bg-white untuk semua card settings */}
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Employee Type <span className="text-red-500">*</span>
                     {errors.employeeType&&<span className="text-red-500 text-xs ml-2">{errors.employeeType}</span>}
@@ -663,28 +644,28 @@ const AddEmployee = () => {
                     {EMPLOYEE_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Related User</label>
                   <select value={sett.relatedUserId} onChange={e=>setSett(p=>({...p,relatedUserId:e.target.value}))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">Select Related User</option>
                     {active.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Cost</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
                     <input type="number" min="0" value={sett.monthlyCost} onChange={e=>setSett(p=>({...p,monthlyCost:e.target.value}))}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"/>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Employee Identification Number</label>
                   <input type="text" inputMode="numeric" value={sett.employeeIdentificationNumber}
                     onChange={e=>setSett(p=>({...p,employeeIdentificationNumber:onlyNumber(e.target.value)}))}
                     onPaste={pasteNumberOnly} placeholder="Numbers only"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"/>
                 </div>
               </div>
             </div>

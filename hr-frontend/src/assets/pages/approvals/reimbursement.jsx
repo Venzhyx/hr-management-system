@@ -1,24 +1,22 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HiOutlineX, HiOutlineUser, HiOutlineCheck,
   HiOutlineEye, HiOutlineArrowLeft, HiOutlineClock,
-  HiOutlineAnnotation, HiOutlineRefresh,
+  HiOutlineAnnotation, HiOutlineRefresh, HiOutlineFilter,
+  HiOutlineChevronDown,
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 import { useApproval }      from "../../../redux/hooks/useApproval";
-import { getReimbursementApprovalsAPI } from "../../../api/approvalApi";
+import ReimbursementDetailModal from "./reimbursmentdetai";
 
 const STATUS_CFG = {
-  SUBMITTED: { cls: "bg-yellow-100 text-yellow-700", label: "Submitted" },
-  APPROVED:  { cls: "bg-green-100 text-green-700",   label: "Approved"  },
-  REJECTED:  { cls: "bg-red-100 text-red-700",       label: "Rejected"  },
+  SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Submitted" },
+  APPROVED:  { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved"  },
+  REJECTED:  { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected"  },
 };
-const AR_STATUS = {
-  PENDING:  { cls: "bg-yellow-100 text-yellow-700", label: "Pending"  },
-  APPROVED: { cls: "bg-green-100 text-green-700",   label: "Approved" },
-  REJECTED: { cls: "bg-red-100 text-red-700",       label: "Rejected" },
-};
+
+const ALL_STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"];
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -52,12 +50,7 @@ const ActionModal = ({ reimbursementId, reimbursementTitle, action, onClose, onS
       await processApproval(reimbursementId, action, notes);
       onSuccess(); onClose();
     } catch (err) {
-  console.log("ERROR APPROVAL:", err);
-  console.log("RESPONSE:", err?.response);
-  console.log("DATA:", err?.response?.data);
-
-  setError(err?.response?.data?.message || err?.message || "Gagal memproses approval.");
-
+      setError(err?.response?.data?.message || err?.message || "Gagal memproses approval.");
     } finally {
       setLoading(false);
     }
@@ -135,117 +128,117 @@ const ActionModal = ({ reimbursementId, reimbursementTitle, action, onClose, onS
   );
 };
 
-// ── Detail Modal ──────────────────────────────────────────────────────────────
-const DetailModal = ({ item, onClose }) => {
-  const [approvalRecords,  setApprovalRecords]  = useState([]);
-  const [loadingApprovals, setLoadingApprovals] = useState(true);
+// ── Filter Dropdown ───────────────────────────────────────────────────────────
+const FilterDropdown = ({ activeFilters, onChange, counts }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
   useEffect(() => {
-    const h = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", h);
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", h); document.body.style.overflow = ""; };
-  }, [onClose]);
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoadingApprovals(true);
-      try {
-        const res  = await getReimbursementApprovalsAPI(item.id);
-        const list = res.data?.data ?? res.data ?? [];
-        setApprovalRecords(Array.isArray(list) ? list : []);
-      } catch { setApprovalRecords([]); }
-      finally  { setLoadingApprovals(false); }
-    };
-    load();
-  }, [item.id]);
+  const toggle = (status) => {
+    if (activeFilters.includes(status)) {
+      if (activeFilters.length === 1) return; // minimal 1 harus aktif
+      onChange(activeFilters.filter((s) => s !== status));
+    } else {
+      onChange([...activeFilters, status]);
+    }
+  };
 
-  const statusCfg = STATUS_CFG[item.status] || STATUS_CFG.SUBMITTED;
+  const isAllActive = activeFilters.length === ALL_STATUSES.length;
+
+  const toggleAll = () => {
+    onChange(isAllActive ? ["SUBMITTED"] : [...ALL_STATUSES]);
+  };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800">Detail Reimbursement</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <HiOutlineX className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
+          activeFilters.length < ALL_STATUSES.length
+            ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+        }`}
+      >
+        <HiOutlineFilter className="w-4 h-4" />
+        <span className="font-medium">Filter</span>
+        {activeFilters.length < ALL_STATUSES.length && (
+          <span className="bg-indigo-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+            {activeFilters.length}
+          </span>
+        )}
+        <HiOutlineChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
 
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
-          <div className="flex gap-3 items-center">
-            <span className="text-xs font-medium text-gray-500 w-28 flex-shrink-0">Status</span>
-            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusCfg.cls}`}>{statusCfg.label}</span>
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-gray-100">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter Status</span>
           </div>
-          {[
-            ["Title",        item.title],
-            ["Employee",     item.employeeName],
-            ["Category",     item.category],
-            ["Expense Date", fmtDate(item.expenseDate)],
-            ["Total",        fmt(item.total)],
-            ["Paid By",      item.paidBy],
-            ["Submitted",    fmtDate(item.createdAt)],
-          ].map(([label, value]) => (
-            <div key={label} className="flex gap-3">
-              <span className="text-xs font-medium text-gray-500 w-28 flex-shrink-0 pt-0.5">{label}</span>
-              <span className="text-sm text-gray-800">{value || "—"}</span>
-            </div>
-          ))}
-          {item.notes && (
-            <div className="flex gap-3">
-              <span className="text-xs font-medium text-gray-500 w-28 flex-shrink-0 pt-0.5">Notes</span>
-              <p className="text-sm flex-1 rounded-lg px-3 py-2 bg-gray-50 text-gray-700">{item.notes}</p>
-            </div>
-          )}
-          {item.receiptFile && (
-            <div className="flex gap-3">
-              <span className="text-xs font-medium text-gray-500 w-28 flex-shrink-0 pt-0.5">Receipt</span>
-              <a href={item.receiptFile} target="_blank" rel="noopener noreferrer"
-                className="text-sm text-indigo-600 hover:underline">Lihat Receipt</a>
-            </div>
-          )}
 
-          {/* Approval History */}
-          <div className="pt-4 border-t border-gray-100">
-            <p className="text-xs font-semibold text-gray-600 mb-3">Approval History</p>
-            {loadingApprovals ? (
-              <p className="text-xs text-gray-400">Memuat…</p>
-            ) : approvalRecords.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">
-                Belum ada approval record. Pastikan approver sudah dikonfigurasi.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {approvalRecords.map((ar) => {
-                  const arCfg = AR_STATUS[ar.status] || { cls: "bg-gray-100 text-gray-600", label: ar.status };
-                  return (
-                    <div key={ar.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-                      <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <HiOutlineUser className="w-3.5 h-3.5 text-indigo-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-medium text-gray-800">{ar.approverName}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${arCfg.cls}`}>{arCfg.label}</span>
-                          {ar.approvedAt && <span className="text-[10px] text-gray-400">{fmtDate(ar.approvedAt)}</span>}
-                        </div>
-                        {ar.notes && <p className="text-xs text-gray-500 mt-1 italic">"{ar.notes}"</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div className="py-1.5">
+            {/* All row */}
+            <button
+              onClick={toggleAll}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 mb-1"
+            >
+              <span className={`w-4 h-4 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+                isAllActive ? "bg-indigo-600 border-indigo-600" : "border-gray-300 bg-white"
+              }`}>
+                {isAllActive && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </span>
+              <span className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="w-2 h-2 rounded-full flex-shrink-0 bg-gray-400" />
+                <span className="text-sm text-gray-700 font-medium">All</span>
+              </span>
+              <span className="text-xs text-gray-400 font-medium flex-shrink-0">
+                {Object.values(counts).reduce((a, b) => a + b, 0)}
+              </span>
+            </button>
+
+            {ALL_STATUSES.map((status) => {
+              const cfg     = STATUS_CFG[status];
+              const checked = activeFilters.includes(status);
+              const isLast  = activeFilters.length === 1 && checked;
+              return (
+                <button
+                  key={status}
+                  onClick={() => toggle(status)}
+                  disabled={isLast}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
+                    ${isLast ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}
+                  `}
+                >
+                  <span className={`w-4 h-4 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+                    checked ? "bg-indigo-600 border-indigo-600" : "border-gray-300 bg-white"
+                  }`}>
+                    {checked && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                    <span className="text-sm text-gray-700 font-medium">{cfg.label}</span>
+                  </span>
+                  {counts[status] != null && (
+                    <span className="text-xs text-gray-400 font-medium flex-shrink-0">{counts[status]}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
-
-        <div className="px-6 pb-5 pt-3 border-t border-gray-100">
-          <button onClick={onClose} className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
-            Tutup
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -255,9 +248,11 @@ const ApprovalReimbursementPage = () => {
   const navigate = useNavigate();
   const { reimbursements, fetchReimbursements } = useReimbursement();
 
-  const [loading,     setLoading]     = useState(true);
-  const [detailItem,  setDetailItem]  = useState(null);
-  const [actionModal, setActionModal] = useState(null);
+  const [loading,       setLoading]       = useState(true);
+  const [detailItem,    setDetailItem]    = useState(null);
+  const [actionModal,   setActionModal]   = useState(null);
+  // default: hanya SUBMITTED yang dicentang
+  const [activeFilters, setActiveFilters] = useState(["SUBMITTED"]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -272,10 +267,18 @@ const ApprovalReimbursementPage = () => {
     ...(reimbursements || []).filter((r) => r.status !== "SUBMITTED"),
   ];
 
+  const filtered = sorted.filter((r) => activeFilters.includes(r.status));
+
+  const counts = (reimbursements || []).reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <>
       <div className="w-full px-4 md:px-6 py-6">
-        <div className="flex items-center justify-between mb-6">
+        {/* header */}
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate("/approvals")} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <HiOutlineArrowLeft className="w-5 h-5 text-gray-600" />
@@ -289,9 +292,28 @@ const ApprovalReimbursementPage = () => {
               <h1 className="text-2xl font-bold text-gray-800 mt-0.5">Reimbursement Approvals</h1>
             </div>
           </div>
-          <button onClick={load} disabled={loading} className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-40" title="Refresh">
-            <HiOutlineRefresh className={`w-5 h-5 text-gray-500 ${loading ? "animate-spin" : ""}`} />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <FilterDropdown activeFilters={activeFilters} onChange={setActiveFilters} counts={counts} />
+            <button onClick={load} disabled={loading} className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-40" title="Refresh">
+              <HiOutlineRefresh className={`w-5 h-5 text-gray-500 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* active filter pills */}
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <span className="text-xs text-gray-400">Menampilkan:</span>
+          {activeFilters.map((s) => {
+            const cfg = STATUS_CFG[s];
+            return (
+              <span key={s} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${cfg.cls}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                {cfg.label}
+                {counts[s] != null && <span className="opacity-60">({counts[s]})</span>}
+              </span>
+            );
+          })}
         </div>
 
         {loading && (
@@ -300,14 +322,16 @@ const ApprovalReimbursementPage = () => {
           </div>
         )}
 
-        {!loading && sorted.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
             <HiOutlineCheck className="w-10 h-10 text-green-400 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">Tidak ada data reimbursement</p>
+            <p className="text-gray-500 text-sm">
+              {sorted.length === 0 ? "Tidak ada data reimbursement" : "Tidak ada data untuk filter yang dipilih"}
+            </p>
           </div>
         )}
 
-        {!loading && sorted.length > 0 && (
+        {!loading && filtered.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -321,7 +345,7 @@ const ApprovalReimbursementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {sorted.map((r) => {
+                {filtered.map((r) => {
                   const statusCfg = STATUS_CFG[r.status] || STATUS_CFG.SUBMITTED;
                   return (
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
@@ -339,7 +363,10 @@ const ApprovalReimbursementPage = () => {
                       </td>
                       <td className="px-4 py-3 text-xs font-medium text-gray-800 whitespace-nowrap">{fmt(r.total)}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.cls}`}>{statusCfg.label}</span>
+                        <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.cls}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                          {statusCfg.label}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         <span className="flex items-center gap-1">
@@ -386,8 +413,12 @@ const ApprovalReimbursementPage = () => {
           onSuccess={load}
         />
       )}
+
       {detailItem && (
-        <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+        <ReimbursementDetailModal
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+        />
       )}
     </>
   );

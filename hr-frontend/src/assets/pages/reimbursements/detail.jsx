@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   HiOutlineArrowLeft, HiOutlinePencil, HiOutlineTrash,
   HiOutlineCurrencyDollar, HiOutlineDocumentText,
   HiOutlineCheck, HiOutlineX, HiOutlineClock,
-  HiOutlineZoomIn, HiOutlineAnnotation, HiOutlineSave
+  HiOutlineZoomIn, HiOutlineAnnotation, HiOutlineCalendar,
+  HiOutlineChevronDown,
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
-import API from "../../../api/api";
+import { getReimbursementApprovalsAPI } from "../../../api/approvalApi";
 
 // ==================== HELPERS ====================
 const fmt = (n) =>
@@ -16,10 +17,19 @@ const fmt = (n) =>
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "—";
 
+const fmtDateShort = (d) =>
+  d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
 const STATUS_CFG = {
-  SUBMITTED: { label: "Submitted", cls: "bg-yellow-50 text-yellow-700 border-yellow-200", Icon: HiOutlineClock },
-  APPROVED:  { label: "Approved",  cls: "bg-green-50 text-green-700 border-green-200",   Icon: HiOutlineCheck },
-  REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200",         Icon: HiOutlineX    },
+  SUBMITTED: { label: "Submitted", cls: "bg-amber-50 text-amber-700 border-amber-200",       dot: "bg-amber-400",   Icon: HiOutlineClock  },
+  APPROVED:  { label: "Approved",  cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400", Icon: HiOutlineCheck  },
+  REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200",             dot: "bg-red-400",     Icon: HiOutlineX      },
+};
+
+const AR_STATUS = {
+  PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"  },
+  APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
+  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected" },
 };
 
 const Field = ({ label, value }) => (
@@ -28,6 +38,32 @@ const Field = ({ label, value }) => (
     <p className="text-sm text-gray-800 font-medium">{value || "—"}</p>
   </div>
 );
+
+const Badge = ({ cfg }) =>
+  cfg ? (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg.cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  ) : null;
+
+// ==================== COLLAPSIBLE SECTION ====================
+const Section = ({ title, children, defaultOpen = true }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className="w-full flex items-center justify-between px-6 py-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left border-b border-gray-100"
+      >
+        <span className="text-sm font-semibold text-gray-700">{title}</span>
+        <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="px-6 py-5">{children}</div>}
+    </div>
+  );
+};
 
 // ==================== RECEIPT MODAL ====================
 const ReceiptModal = ({ url, onClose }) => {
@@ -81,93 +117,83 @@ const ReceiptModal = ({ url, onClose }) => {
   );
 };
 
-// ==================== APPROVAL NOTES SECTION ====================
-// Editable oleh atasan (di halaman ini), read-only di sisi karyawan (lihat EditReimbursement)
-const ApprovalNotesSection = ({ reimbursementId, initialNotes, status, onSaved }) => {
-  const [notes,  setNotes]  = useState(initialNotes || "");
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
-  const [error,  setError]  = useState(null);
-
-  const isApproved  = status === "APPROVED";
-  const borderCls   = isApproved ? "border-green-200 bg-green-50"  : "border-red-200 bg-red-50";
-  const labelCls    = isApproved ? "text-green-800"                 : "text-red-800";
-  const ringCls     = isApproved ? "focus:ring-green-400 border-green-300" : "focus:ring-red-400 border-red-300";
-  const btnCls      = isApproved ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700";
-  const badgeCls    = isApproved ? "bg-green-100 text-green-700"    : "bg-red-100 text-red-700";
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      // Backend endpoint: PATCH /reimbursements/:id/review  body: { approvalNotes }
-      await API.patch(`/reimbursements/${reimbursementId}/review`, {
-        approvalNotes: notes.trim() || null,
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-      if (onSaved) onSaved(notes.trim() || null);
-    } catch (err) {
-      setError(err?.response?.data?.message || err?.message || "Failed to save notes.");
-    } finally {
-      setSaving(false);
-    }
+// ==================== APPROVAL STEP (timeline) ====================
+const ApprovalStep = ({ ar, isLast }) => {
+  const cfg = AR_STATUS[ar.status] || {
+    cls: "bg-gray-100 text-gray-600 border border-gray-200",
+    dot: "bg-gray-400",
+    label: ar.status,
   };
 
   return (
-    <div className={`rounded-xl border p-5 ${borderCls}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <HiOutlineAnnotation className={`w-4 h-4 ${labelCls}`} />
-        <p className={`text-sm font-semibold ${labelCls}`}>
-          {isApproved ? "Approval Notes" : "Rejection Notes"}
-        </p>
-        <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${badgeCls}`}>
-          {isApproved ? "Approved" : "Rejected"}
-        </span>
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border-2 ${
+          ar.status === "APPROVED" ? "bg-emerald-50 border-emerald-300"
+          : ar.status === "REJECTED" ? "bg-red-50 border-red-300"
+          : "bg-amber-50 border-amber-300"
+        }`}>
+          {ar.status === "APPROVED" ? (
+            <HiOutlineCheck className="w-3.5 h-3.5 text-emerald-600" />
+          ) : ar.status === "REJECTED" ? (
+            <HiOutlineX className="w-3.5 h-3.5 text-red-500" />
+          ) : (
+            <HiOutlineClock className="w-3.5 h-3.5 text-amber-500" />
+          )}
+        </div>
+        {!isLast && <div className="w-px flex-1 bg-gray-200 my-1" />}
       </div>
 
-      <textarea
-        value={notes}
-        onChange={(e) => { setNotes(e.target.value); setSaved(false); }}
-        disabled={saving}
-        rows={3}
-        placeholder={
-          isApproved
-            ? "e.g., All receipts verified and amounts match. Approved."
-            : "e.g., Receipt unclear, please resubmit with a clearer photo."
-        }
-        className={`w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 transition-colors resize-none disabled:opacity-60 ${ringCls}`}
-      />
-
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-
-      <div className="flex items-center justify-between mt-3">
-        <p className={`text-xs ${labelCls} opacity-70`}>
-          Note ini akan terlihat oleh karyawan pada record mereka.
-        </p>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${btnCls}`}
-        >
-          {saving ? (
-            <>
-              <svg className="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Saving…
-            </>
-          ) : saved ? (
-            <><HiOutlineCheck className="w-3 h-3" /> Saved!</>
-          ) : (
-            <><HiOutlineSave className="w-3 h-3" /> Save Notes</>
+      <div className={`flex-1 min-w-0 ${!isLast ? "pb-4" : ""}`}>
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <span className="text-sm font-semibold text-gray-800">{ar.approverName || "—"}</span>
+          <Badge cfg={cfg} />
+          {ar.approvedAt && (
+            <span className="text-[10px] text-gray-400 flex items-center gap-1">
+              <HiOutlineCalendar className="w-3 h-3" />
+              {fmtDateShort(ar.approvedAt)}
+            </span>
           )}
-        </button>
+        </div>
+
+        {ar.notes && (
+          <div className="mt-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <HiOutlineAnnotation className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-gray-600 leading-relaxed italic">"{ar.notes}"</p>
+          </div>
+        )}
       </div>
     </div>
   );
+};
+
+// ==================== HELPERS: parse approval list dari berbagai bentuk response ====================
+/**
+ * API bisa mengembalikan berbagai struktur:
+ *   { data: { data: [...] } }
+ *   { data: [...] }
+ *   { data: { content: [...] } }
+ *   [...]
+ * Fungsi ini mencoba semua kemungkinan dan selalu mengembalikan array.
+ */
+const parseApprovalList = (res) => {
+  const payload = res?.data;
+  if (!payload) return [];
+
+  // { data: { data: [...] } }
+  if (Array.isArray(payload?.data))    return payload.data;
+  // { data: { content: [...] } }
+  if (Array.isArray(payload?.content)) return payload.content;
+  // { data: [...] }
+  if (Array.isArray(payload))          return payload;
+  // { data: { approvals: [...] } }
+  if (Array.isArray(payload?.approvals)) return payload.approvals;
+
+  // fallback: cari key pertama yang berupa array
+  const firstArr = Object.values(payload).find((v) => Array.isArray(v));
+  if (firstArr) return firstArr;
+
+  return [];
 };
 
 // ==================== MAIN COMPONENT ====================
@@ -183,6 +209,11 @@ const ReimbursementDetail = () => {
   const [deleting,         setDeleting]         = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
+  // approval records
+  const [approvalRecords,  setApprovalRecords]  = useState([]);
+  const [loadingApprovals, setLoadingApprovals] = useState(false);
+
+  // ── Fetch main data ──────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
@@ -191,14 +222,33 @@ const ReimbursementDetail = () => {
         if (!item?.id) throw new Error("Not found");
         setData(item);
       } catch (e) {
-        console.error(e);
+        console.error("[ReimbursementDetail] fetch error:", e);
         setError("Failed to load reimbursement.");
       } finally {
         setLoading(false);
       }
     };
     if (id) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // ── Fetch approval records ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    const loadApprovals = async () => {
+      setLoadingApprovals(true);
+      try {
+        const res  = await getReimbursementApprovalsAPI(id);
+        const list = parseApprovalList(res);
+        console.debug("[ReimbursementDetail] approvalRecords:", list);
+        setApprovalRecords(list);
+      } catch (e) {
+        console.warn("[ReimbursementDetail] gagal fetch approvals:", e);
+        setApprovalRecords([]);
+      } finally {
+        setLoadingApprovals(false);
+      }
+    };
+    loadApprovals();
   }, [id]);
 
   const handleDelete = async () => {
@@ -215,6 +265,7 @@ const ReimbursementDetail = () => {
     }
   };
 
+  // ── Loading / error states ───────────────────────────────────────────────
   if (loading) return (
     <div className="w-full px-4 md:px-6 py-6 flex justify-center items-center h-64">
       <div className="text-gray-400">Loading…</div>
@@ -234,10 +285,20 @@ const ReimbursementDetail = () => {
     </div>
   );
 
-  const statusCfg  = STATUS_CFG[data.status] || { label: data.status, cls: "bg-gray-100 text-gray-600 border-gray-200", Icon: HiOutlineClock };
-  const receipt    = data.receiptFile;
-  const isImage    = receipt && /\.(jpg|jpeg|png)(\?|$)/i.test(receipt);
-  const isReviewed = data.status === "APPROVED" || data.status === "REJECTED";
+  // ── Derived values (setelah data & approvalRecords tersedia) ─────────────
+  const statusCfg = STATUS_CFG[data.status] || {
+    label: data.status,
+    cls: "bg-gray-100 text-gray-600 border-gray-200",
+    dot: "bg-gray-400",
+    Icon: HiOutlineClock,
+  };
+  const receipt = data.receiptFile;
+  const isImage = receipt && /\.(jpg|jpeg|png)(\?|$)/i.test(receipt);
+
+  // Cari record yang sudah diproses (APPROVED / REJECTED) — untuk banner notes
+  const processedRecord = approvalRecords.find(
+    (ar) => ar.status === "APPROVED" || ar.status === "REJECTED"
+  );
 
   return (
     <>
@@ -247,7 +308,7 @@ const ReimbursementDetail = () => {
 
       <div className="w-full px-4 md:px-6 py-6">
 
-        {/* Header */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <button onClick={() => navigate("/reimbursements")}
@@ -276,33 +337,27 @@ const ReimbursementDetail = () => {
 
         <div className="space-y-4">
 
-          {/* Status banner */}
-          <div className={`rounded-xl border px-5 py-4 flex items-center gap-3 ${statusCfg.cls}`}>
-            <statusCfg.Icon className="w-5 h-5 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-sm">Status: {statusCfg.label}</p>
-              {data.status === "SUBMITTED" && (
-                <p className="text-xs opacity-75 mt-0.5">Awaiting approval</p>
-              )}
-            </div>
-          </div>
-
-          {/* Main card */}
+          {/* ── Main card ───────────────────────────────────────────────── */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Title + amount */}
             <div className="flex items-center gap-4 p-6 border-b border-gray-100">
               <div className="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <HiOutlineCurrencyDollar className="w-7 h-7 text-indigo-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-gray-900 truncate">{data.title}</h2>
-                <p className="text-sm text-gray-500 mt-0.5">{data.category}</p>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h2 className="text-xl font-bold text-gray-900 truncate">{data.title}</h2>
+                  <Badge cfg={statusCfg} />
+                </div>
+                <p className="text-sm text-gray-500">{data.category}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 <p className="text-2xl font-bold text-indigo-600">{fmt(data.total)}</p>
                 <p className="text-xs text-gray-400 mt-0.5">Total Amount</p>
               </div>
             </div>
 
+            {/* Fields */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 p-6">
               <Field label="Expense Date" value={fmtDate(data.expenseDate)} />
               <Field label="Employee"     value={data.employeeName} />
@@ -313,7 +368,7 @@ const ReimbursementDetail = () => {
               <Field label="Last Updated" value={fmtDate(data.updatedAt)} />
             </div>
 
-            {/* Employee notes — read-only */}
+            {/* Employee notes */}
             {data.notes && (
               <div className="px-6 pb-6">
                 <p className="text-xs text-gray-400 font-medium mb-1">Notes</p>
@@ -322,17 +377,55 @@ const ReimbursementDetail = () => {
             )}
           </div>
 
-          {/* Approval / Rejection Notes — editable oleh atasan */}
-          {isReviewed && (
-            <ApprovalNotesSection
-              reimbursementId={id}
-              initialNotes={data.approvalNotes}
-              status={data.status}
-              onSaved={(val) => setData(prev => ({ ...prev, approvalNotes: val }))}
-            />
-          )}
+          {/* ── Approval notes banner ────────────────────────────────────── */}
+          {/* Tampil saat: loading selesai DAN ada processedRecord DAN ada notes */}
+          {loadingApprovals ? (
+            <div className="flex items-center gap-3 py-2 px-4 bg-gray-50 border border-gray-200 rounded-xl">
+              <div className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin flex-shrink-0" />
+              <p className="text-xs text-gray-400">Memuat catatan approval…</p>
+            </div>
+          ) : processedRecord?.notes ? (
+            <div className={`rounded-xl border px-5 py-4 flex items-start gap-3 ${
+              processedRecord.status === "APPROVED"
+                ? "bg-emerald-50 border-emerald-200"
+                : "bg-red-50 border-red-200"
+            }`}>
+              <HiOutlineAnnotation className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                processedRecord.status === "APPROVED" ? "text-emerald-500" : "text-red-400"
+              }`} />
+              <div>
+                <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${
+                  processedRecord.status === "APPROVED" ? "text-emerald-500" : "text-red-400"
+                }`}>
+                  {processedRecord.status === "APPROVED" ? "Catatan Approver" : "Alasan Penolakan"}
+                </p>
+                <p className={`text-sm leading-relaxed italic ${
+                  processedRecord.status === "APPROVED" ? "text-emerald-800" : "text-red-800"
+                }`}>
+                  "{processedRecord.notes}"
+                </p>
+                {/* Nama approver + tanggal */}
+                {(processedRecord.approverName || processedRecord.approvedAt) && (
+                  <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                    {processedRecord.approverName && (
+                      <span className="font-medium">{processedRecord.approverName}</span>
+                    )}
+                    {processedRecord.approverName && processedRecord.approvedAt && (
+                      <span>·</span>
+                    )}
+                    {processedRecord.approvedAt && (
+                      <span className="flex items-center gap-1">
+                        <HiOutlineCalendar className="w-3 h-3" />
+                        {fmtDateShort(processedRecord.approvedAt)}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
 
-          {/* Receipt */}
+          {/* ── Receipt ─────────────────────────────────────────────────── */}
           {receipt && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
               <p className="text-sm font-medium text-gray-700 mb-3">Attached Receipt</p>
@@ -360,6 +453,34 @@ const ReimbursementDetail = () => {
               )}
             </div>
           )}
+
+          {/* ── Riwayat Approval ─────────────────────────────────────────── */}
+          <Section title="Riwayat Approval">
+            {loadingApprovals ? (
+              <div className="flex items-center gap-3 py-2">
+                <div className="w-5 h-5 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
+                <p className="text-sm text-gray-400">Memuat riwayat approval…</p>
+              </div>
+            ) : approvalRecords.length === 0 ? (
+              <div className="flex flex-col items-center py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                  <HiOutlineDocumentText className="w-6 h-6 text-gray-300" />
+                </div>
+                <p className="text-sm font-medium text-gray-400">Belum ada approval record</p>
+                <p className="text-xs text-gray-300 mt-1">Pastikan approver sudah dikonfigurasi</p>
+              </div>
+            ) : (
+              <div className="pt-1">
+                {approvalRecords.map((ar, idx) => (
+                  <ApprovalStep
+                    key={ar.id}
+                    ar={ar}
+                    isLast={idx === approvalRecords.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
 
         </div>
       </div>

@@ -14,7 +14,7 @@ import { useCompany } from '../../../redux/hooks/useCompany';
 import API from '../../../api/api';
 import { SingleFileUpload, MultiFileUpload } from '../../components/FileComponents';
 
-// ── Constants (same as Add) ───────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 const EMPLOYEE_TYPE_OPTIONS = [
   { label:'Full Time', value:'FULL_TIME' },
   { label:'Part Time', value:'PART_TIME' },
@@ -150,18 +150,18 @@ const EditEmployee = () => {
   useEffect(() => {
     if (!empData) return;
     setFd({
-      name:         empData.name           || '',
-      jobTitle:     empData.jobTitle        || '',
-      workEmail:    empData.workEmail       || '',
-      workPhone:    empData.workPhone       || '',
-      workMobile:   empData.workMobile      || '',
+      name:         empData.name                || '',
+      jobTitle:     empData.jobTitle             || '',
+      workEmail:    empData.workEmail            || '',
+      workPhone:    empData.workPhone            || '',
+      workMobile:   empData.workMobile           || '',
       companyId:    empData.companyId?.toString()    || '',
       departmentId: empData.departmentId?.toString() || '',
-      joinDate:     empData.joinDate        || '',
+      joinDate:     empData.joinDate             || '',
       managerId:    empData.managerId?.toString()    || '',
       coachId:      empData.coachId?.toString()      || '',
-      employeeCode: empData.employeeCode    || '',
-      status:       empData.status          || 'ACTIVE',
+      employeeCode: empData.employeeCode         || '',
+      status:       empData.status               || 'ACTIVE',
     });
     setPriv({ address: empData.privateAddress||'', email: empData.privateEmail||'', phone: empData.privatePhone||'' });
     if (empData.banks?.length) setBanks(empData.banks);
@@ -171,25 +171,24 @@ const EditEmployee = () => {
     setEmg({ name: empData.emergencyContactName||'', phone: empData.emergencyContactPhone||'' });
     setFam({ maritalStatus: empData.maritalStatus||'', numberOfChildren: empData.numberOfDependentChildren||0 });
     setCit({
-      nationality:      empData.nationality         || '',
-      countryOfBirth:   empData.countryOfBirth       || '',
-      idNumber:         empData.identificationNumber || '',
-      passportNumber:   empData.passportNumber        || '',
-      familyCardNumber: empData.familyCardDocument    || '',
-      gender:           empData.gender               || '',
-      dateOfBirth:      empData.dateOfBirth           || '',
-      placeOfBirth:     empData.placeOfBirth          || '',
+      nationality:      empData.nationality          || '',
+      countryOfBirth:   empData.countryOfBirth        || '',
+      idNumber:         empData.identificationNumber  || '',
+      passportNumber:   empData.passportNumber         || '',
+      familyCardNumber: empData.familyCardDocument     || '',
+      gender:           empData.gender                || '',
+      dateOfBirth:      empData.dateOfBirth            || '',
+      placeOfBirth:     empData.placeOfBirth           || '',
     });
     setEdu({ certificateLevel: empData.certificateLevel||'', fieldOfStudy: empData.fieldOfStudy||'', school: empData.school||'' });
     setSett({
-      employeeType:                 empData.employeeType              || '',
-      relatedUserId:                empData.relatedUser               || '',
-      monthlyCost:                  empData.monthlyCost               || '',
+      employeeType:                 empData.employeeType               || '',
+      relatedUserId:                empData.relatedUser                || '',
+      monthlyCost:                  empData.monthlyCost                || '',
       employeeIdentificationNumber: empData.employeeIdentificationNumber || '',
     });
-    // Load existing multi-docs from comma-separated URL string
     setDocs({
-      idCard: null, familyCard: null, npwpCard: null,
+      idCard:null, familyCard:null, npwpCard:null,
       drivingLicense:  parseMultiUrl(empData.drivingLicenseCopy),
       insuranceCopies: parseMultiUrl(empData.assuranceCardCopy),
     });
@@ -214,7 +213,7 @@ const EditEmployee = () => {
     }
   },[]);
 
-  const setDoc  = (key,file) => file && setDocs(p=>({...p,[key]:{file,name:file.name,url:URL.createObjectURL(file),isLocal:true}}));
+  const setDoc   = (key,file) => file && setDocs(p=>({...p,[key]:{file,name:file.name,url:URL.createObjectURL(file),isLocal:true}}));
   const clearDoc = key => setDocs(p=>({...p,[key]:null}));
 
   const uploadOne = async file => {
@@ -260,10 +259,10 @@ const EditEmployee = () => {
     }
     setSubmitting(true);
     try {
-      const photoUrl = photo            ? await uploadOne(photo)               : empData?.photo||null;
-      const idUrl    = docs.idCard      ? await uploadOne(docs.idCard.file)    : empData?.idCardCopy||null;
-      const famUrl   = docs.familyCard  ? await uploadOne(docs.familyCard.file): empData?.familyCardCopy||null;
-      const npwpUrl  = docs.npwpCard    ? await uploadOne(docs.npwpCard.file)  : empData?.npwpCardCopy||null;
+      const photoUrl = photo           ? await uploadOne(photo)                : empData?.photo||null;
+      const idUrl    = docs.idCard     ? await uploadOne(docs.idCard.file)     : empData?.idCardCopy||null;
+      const famUrl   = docs.familyCard ? await uploadOne(docs.familyCard.file) : empData?.familyCardCopy||null;
+      const npwpUrl  = docs.npwpCard   ? await uploadOne(docs.npwpCard.file)   : empData?.npwpCardCopy||null;
       const driveUrl = await uploadMany(docs.drivingLicense);
       const insUrl   = await uploadMany(docs.insuranceCopies);
 
@@ -273,8 +272,8 @@ const EditEmployee = () => {
         joinDate:fd.joinDate||null, photo:photoUrl,
         companyId:    parseInt(fd.companyId,    10),
         departmentId: parseInt(fd.departmentId, 10),
-        managerId: fd.managerId  ? parseInt(fd.managerId,  10) : null,
-        coachId:   fd.coachId    ? parseInt(fd.coachId,    10) : null,
+        managerId: fd.managerId ? parseInt(fd.managerId,  10) : null,
+        coachId:   fd.coachId   ? parseInt(fd.coachId,    10) : null,
         privateAddress:priv.address||null, privateEmail:priv.email||null, privatePhone:priv.phone||null,
         banks: banks.filter(b=>b.bankName&&b.accountNumber&&b.accountHolder),
         insurances: ins.filter(i=>i.type&&i.provider&&i.policyNumber).map(({type,provider,policyNumber})=>({type,provider,policyNumber})),
@@ -477,13 +476,14 @@ const EditEmployee = () => {
                   {banks.length<3&&<button type="button" onClick={()=>setBanks(p=>[...p,{bankName:'',accountNumber:'',accountHolder:''}])} className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Bank</span></button>}
                 </div>
                 {banks.map((b,i)=>(
-                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative mb-3">
+                  // ← bg-white
+                  <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 relative mb-3">
                     {banks.length>1&&<button type="button" onClick={()=>setBanks(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Bank Name</label>
                         <select value={b.bankName} onChange={e=>setBanks(p=>{const n=[...p];n[i].bankName=e.target.value;return n;})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
                           <option value="">Select Bank</option>
                           {BANK_OPTIONS.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}
                         </select>
@@ -492,13 +492,15 @@ const EditEmployee = () => {
                         <label className="block text-xs text-gray-500 mb-1">Account Number</label>
                         <input type="text" inputMode="numeric" value={b.accountNumber}
                           onChange={e=>setBanks(p=>{const n=[...p];n[i].accountNumber=onlyNumber(e.target.value);return n;})}
-                          onPaste={pasteNumberOnly} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                          onPaste={pasteNumberOnly}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Account Holder</label>
                         <input type="text" value={b.accountHolder}
                           onChange={e=>setBanks(p=>{const n=[...p];n[i].accountHolder=onlyText(e.target.value);return n;})}
-                          onPaste={pasteTextOnly} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                          onPaste={pasteTextOnly}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                     </div>
                   </div>
@@ -512,23 +514,28 @@ const EditEmployee = () => {
                   {ins.length<3&&<button type="button" onClick={()=>setIns(p=>[...p,{type:'',provider:'',policyNumber:''}])} className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Insurance</span></button>}
                 </div>
                 {ins.map((v,i)=>(
-                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative mb-3">
+                  // ← bg-white
+                  <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 relative mb-3">
                     {ins.length>1&&<button type="button" onClick={()=>setIns(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Type</label>
-                        <select value={v.type} onChange={e=>setIns(p=>{const n=[...p];n[i].type=e.target.value;return n;})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <select value={v.type} onChange={e=>setIns(p=>{const n=[...p];n[i].type=e.target.value;return n;})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
                           <option value="">Select Type</option>
                           {INSURANCE_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Provider</label>
-                        <input type="text" value={v.provider} onChange={e=>setIns(p=>{const n=[...p];n[i].provider=e.target.value;return n;})} placeholder="e.g., BPJS" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                        <input type="text" value={v.provider} onChange={e=>setIns(p=>{const n=[...p];n[i].provider=e.target.value;return n;})}
+                          placeholder="e.g., BPJS"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Policy Number</label>
-                        <input type="text" value={v.policyNumber} onChange={e=>setIns(p=>{const n=[...p];n[i].policyNumber=e.target.value;return n;})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"/>
+                        <input type="text" value={v.policyNumber} onChange={e=>setIns(p=>{const n=[...p];n[i].policyNumber=e.target.value;return n;})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"/>
                       </div>
                     </div>
                   </div>
@@ -685,11 +692,9 @@ const EditEmployee = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MultiFileUpload label="Driving License Copy" icon={HiOutlineDocument} maxFiles={3}
-                  files={docs.drivingLicense}
-                  onChange={arr=>setDocs(p=>({...p,drivingLicense:arr}))}/>
+                  files={docs.drivingLicense} onChange={arr=>setDocs(p=>({...p,drivingLicense:arr}))}/>
                 <MultiFileUpload label="Insurance Copy" icon={HiOutlineShieldCheck} maxFiles={3}
-                  files={docs.insuranceCopies}
-                  onChange={arr=>setDocs(p=>({...p,insuranceCopies:arr}))}/>
+                  files={docs.insuranceCopies} onChange={arr=>setDocs(p=>({...p,insuranceCopies:arr}))}/>
               </div>
             </div>
           )}
@@ -699,7 +704,8 @@ const EditEmployee = () => {
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-700">Employee Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-5 rounded-lg">
+                {/* ← semua card settings bg-white */}
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Employee Type <span className="text-red-500">*</span>
                     {errors.employeeType&&<span className="text-red-500 text-xs ml-2">{errors.employeeType}</span>}
@@ -711,7 +717,7 @@ const EditEmployee = () => {
                     {EMPLOYEE_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status <span className="text-red-500">*</span>
                     {errors.status&&<span className="text-red-500 text-xs ml-2">{errors.status}</span>}
@@ -721,28 +727,28 @@ const EditEmployee = () => {
                     {STATUS_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Related User</label>
                   <select value={sett.relatedUserId} onChange={e=>setSett(p=>({...p,relatedUserId:e.target.value}))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">Select Related User</option>
                     {active.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Cost</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
                     <input type="number" min="0" value={sett.monthlyCost} onChange={e=>setSett(p=>({...p,monthlyCost:e.target.value}))}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"/>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Employee Identification Number</label>
                   <input type="text" inputMode="numeric" value={sett.employeeIdentificationNumber}
                     onChange={e=>setSett(p=>({...p,employeeIdentificationNumber:onlyNumber(e.target.value)}))}
                     onPaste={pasteNumberOnly}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"/>
                 </div>
               </div>
             </div>

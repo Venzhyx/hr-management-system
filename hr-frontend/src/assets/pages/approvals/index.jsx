@@ -12,8 +12,9 @@ import {
   HiOutlineUser,
   HiOutlineInformationCircle,
 } from "react-icons/hi";
-import { useApproval } from "../../../redux/hooks/useApproval";
-import { useEmployee } from "../../../redux/hooks/useEmployee";
+import { useApproval }  from "../../../redux/hooks/useApproval";
+import { useEmployee }  from "../../../redux/hooks/useEmployee";
+import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 
 // ─── Add Approver Modal ───────────────────────────────────────────────────────
 const AddApproverModal = ({ approvers, employees, onAdd, onClose }) => {
@@ -31,10 +32,8 @@ const AddApproverModal = ({ approvers, employees, onAdd, onClose }) => {
     setSaving(true);
     setError(null);
     try {
-      // Hitung minimumApproval: jumlah approver yang isRequired=true setelah approver baru ini ditambah
       const currentRequired = approvers.filter((a) => a.isRequired === true).length;
       const newMinimum      = form.isRequired ? currentRequired + 1 : Math.max(currentRequired, 1);
-
       await onAdd({
         employeeId:      parseInt(form.employeeId),
         isRequired:      form.isRequired,
@@ -262,11 +261,22 @@ const ApprovalSettingsModal = ({ approvers, employees, onClose, onAddApprover, o
   );
 };
 
+// ─── Pending Badge ────────────────────────────────────────────────────────────
+const PendingBadge = ({ count }) => {
+  if (!count) return null;
+  return (
+    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+};
+
 // ─── Card with dots menu ──────────────────────────────────────────────────────
-const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
+const ApprovalCard = ({ tab, pendingCount, onNavigate, onOpenSettings }) => {
   const Icon    = tab.icon;
   const menuRef = useRef();
   const [menuOpen, setMenuOpen] = useState(false);
+  const hasPending = pendingCount > 0;
 
   useEffect(() => {
     const handler = (e) => {
@@ -281,25 +291,51 @@ const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
       onClick={() => tab.available && onNavigate(tab.path)}
       className={`relative group bg-white rounded-2xl border-2 p-6 transition-all select-none ${
         tab.available
-          ? "border-gray-200 hover:border-indigo-400 hover:shadow-md cursor-pointer"
+          ? hasPending
+            ? "border-red-200 hover:border-red-400 hover:shadow-md cursor-pointer"
+            : "border-gray-200 hover:border-indigo-400 hover:shadow-md cursor-pointer"
           : "border-gray-100 opacity-60 cursor-not-allowed"
       }`}
     >
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${
-        tab.available ? "bg-indigo-100 group-hover:bg-indigo-600" : "bg-gray-100"
-      }`}>
-        <Icon className={`w-6 h-6 transition-colors ${
-          tab.available ? "text-indigo-600 group-hover:text-white" : "text-gray-400"
-        }`} />
+      {/* Icon */}
+      <div className="relative w-fit mb-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+          tab.available
+            ? hasPending
+              ? "bg-red-50 group-hover:bg-red-500"
+              : "bg-indigo-100 group-hover:bg-indigo-600"
+            : "bg-gray-100"
+        }`}>
+          <Icon className={`w-6 h-6 transition-colors ${
+            tab.available
+              ? hasPending
+                ? "text-red-500 group-hover:text-white"
+                : "text-indigo-600 group-hover:text-white"
+              : "text-gray-400"
+          }`} />
+        </div>
+
+        {/* Red dot on icon */}
+        {hasPending && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
+        )}
       </div>
 
       <h2 className="text-base font-bold text-gray-800 mb-1">{tab.label}</h2>
       <p className="text-xs text-gray-500 leading-relaxed">{tab.description}</p>
 
+      {/* Pending count — always shown for reimbursement */}
       {tab.key === "reimbursement" && (
-        <p className="text-xs text-indigo-500 font-medium mt-3">
-          {approverCount} approver{approverCount !== 1 ? "s" : ""} configured
-        </p>
+        <div className="flex items-center gap-2 mt-3">
+          <span className={`text-xs font-semibold ${hasPending ? "text-red-500" : "text-gray-400"}`}>
+            Pending Review
+          </span>
+          <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full leading-none ${
+            hasPending ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"
+          }`}>
+            {pendingCount > 99 ? "99+" : pendingCount}
+          </span>
+        </div>
       )}
 
       {!tab.available && (
@@ -335,7 +371,9 @@ const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
       )}
 
       {tab.available && (
-        <div className="absolute bottom-5 right-5 text-gray-300 group-hover:text-indigo-500 transition-colors">
+        <div className={`absolute bottom-5 right-5 transition-colors ${
+          hasPending ? "text-red-300 group-hover:text-red-500" : "text-gray-300 group-hover:text-indigo-500"
+        }`}>
           <HiOutlineChevronRight className="w-5 h-5" />
         </div>
       )}
@@ -343,7 +381,7 @@ const ApprovalCard = ({ tab, approverCount, onNavigate, onOpenSettings }) => {
   );
 };
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── TABS config ──────────────────────────────────────────────────────────────
 const TABS = [
   {
     key:         "reimbursement",
@@ -371,23 +409,35 @@ const TABS = [
   },
 ];
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
 const ApprovalPage = () => {
   const navigate = useNavigate();
   const { approvers, fetchApprovalApprovers, createApprovalApprover, deleteApprovalApprover } = useApproval();
-  const { employees, fetchEmployees } = useEmployee();
+  const { employees, fetchEmployees }       = useEmployee();
+  const { reimbursements, fetchReimbursements } = useReimbursement();
 
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetchApprovalApprovers();
     fetchEmployees();
+    fetchReimbursements();
   }, []);
+
+  const pendingCounts = {
+    reimbursement: (reimbursements || []).filter((r) => r.status === "SUBMITTED").length,
+  };
+
+  const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);
 
   return (
     <>
       <div className="w-full px-4 md:px-6 py-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Approval</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-800">Approval</h1>
+            {totalPending > 0 && <PendingBadge count={totalPending} />}
+          </div>
           <p className="text-sm text-gray-500 mt-0.5">
             Select a category to manage approval workflows
           </p>
@@ -398,7 +448,7 @@ const ApprovalPage = () => {
             <ApprovalCard
               key={tab.key}
               tab={tab}
-              approverCount={approvers.length}
+              pendingCount={pendingCounts[tab.key] ?? 0}
               onNavigate={navigate}
               onOpenSettings={() => setShowSettings(true)}
             />

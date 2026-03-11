@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HiOutlinePlus, HiOutlineSearch, HiOutlineEye,
   HiOutlinePencil, HiOutlineTrash, HiOutlineCurrencyDollar,
-  HiOutlineChevronLeft, HiOutlineChevronRight
+  HiOutlineChevronLeft, HiOutlineChevronRight,
+  HiOutlineFilter, HiOutlineChevronDown, HiOutlineCheck,
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 
 const STATUS_CFG = {
-  SUBMITTED: { label: "Submitted", cls: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-  APPROVED:  { label: "Approved",  cls: "bg-green-50 text-green-700 border-green-200"   },
-  REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200"         },
+  SUBMITTED: { label: "Submitted", cls: "bg-amber-50 text-amber-700 border-amber-200",     dot: "bg-amber-400"   },
+  APPROVED:  { label: "Approved",  cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
+  REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200",           dot: "bg-red-400"     },
 };
+
+const ALL_STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"];
 
 const fmt = (n) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -20,27 +23,143 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const Badge = ({ status }) => {
-  const cfg = STATUS_CFG[status] || { label: status, cls: "bg-gray-100 text-gray-600 border-gray-200" };
+  const cfg = STATUS_CFG[status] || { label: status, cls: "bg-gray-100 text-gray-600 border-gray-200", dot: "bg-gray-400" };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cfg.cls}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${cfg.cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
   );
 };
 
+// ── Filter Dropdown ───────────────────────────────────────────────────────────
+const FilterDropdown = ({ activeFilters, onChange, counts }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggle = (status) => {
+    if (activeFilters.includes(status)) {
+      if (activeFilters.length === 1) return;
+      onChange(activeFilters.filter((s) => s !== status));
+    } else {
+      onChange([...activeFilters, status]);
+    }
+  };
+
+  const isAllActive = activeFilters.length === ALL_STATUSES.length;
+
+  const toggleAll = () => {
+    onChange(isAllActive ? ["SUBMITTED"] : [...ALL_STATUSES]);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2.5 text-sm rounded-lg border transition-colors ${
+          activeFilters.length < ALL_STATUSES.length
+            ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+            : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+        }`}
+      >
+        <HiOutlineFilter className="w-4 h-4" />
+        <span className="font-medium">Status</span>
+        {activeFilters.length < ALL_STATUSES.length && (
+          <span className="bg-indigo-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+            {activeFilters.length}
+          </span>
+        )}
+        <HiOutlineChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-gray-100">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter Status</span>
+          </div>
+
+          <div className="py-1.5">
+            {/* All row */}
+            <button
+              onClick={toggleAll}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 mb-1"
+            >
+              <span className={`w-4 h-4 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+                isAllActive ? "bg-indigo-600 border-indigo-600" : "border-gray-300 bg-white"
+              }`}>
+                {isAllActive && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </span>
+              <span className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="w-2 h-2 rounded-full flex-shrink-0 bg-gray-400" />
+                <span className="text-sm text-gray-700 font-medium">All</span>
+              </span>
+              <span className="text-xs text-gray-400 font-medium flex-shrink-0">
+                {Object.values(counts).reduce((a, b) => a + b, 0)}
+              </span>
+            </button>
+
+            {ALL_STATUSES.map((status) => {
+              const cfg     = STATUS_CFG[status];
+              const checked = activeFilters.includes(status);
+              const isLast  = activeFilters.length === 1 && checked;
+              return (
+                <button
+                  key={status}
+                  onClick={() => toggle(status)}
+                  disabled={isLast}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
+                    ${isLast ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                >
+                  <span className={`w-4 h-4 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+                    checked ? "bg-indigo-600 border-indigo-600" : "border-gray-300 bg-white"
+                  }`}>
+                    {checked && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                    <span className="text-sm text-gray-700 font-medium">{cfg.label}</span>
+                  </span>
+                  {counts[status] != null && (
+                    <span className="text-xs text-gray-400 font-medium flex-shrink-0">{counts[status]}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 const ReimbursementIndex = () => {
   const navigate = useNavigate();
   const { reimbursements, fetchReimbursements, deleteReimbursement, loading } = useReimbursement();
 
-  const [search,       setSearch]       = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [page,         setPage]         = useState(1);
-  const [toast,        setToast]        = useState(null);
+  const [search,        setSearch]        = useState("");
+  // default: tampilkan semua
+  const [activeFilters, setActiveFilters] = useState([...ALL_STATUSES]);
+  const [page,          setPage]          = useState(1);
+  const [toast,         setToast]         = useState(null);
   const PER_PAGE = 10;
 
   useEffect(() => { fetchReimbursements(); }, []);
 
-  // Toast dari navigate state
   useEffect(() => {
     const state = window.history.state?.usr;
     if (state?.toast) {
@@ -49,18 +168,29 @@ const ReimbursementIndex = () => {
     }
   }, []);
 
+  // count per status (unfiltered)
+  const counts = (reimbursements || []).reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+
   const filtered = (reimbursements || []).filter(r => {
     const q = search.toLowerCase();
     const matchSearch =
-      r.title?.toLowerCase().includes(q)        ||
-      r.category?.toLowerCase().includes(q)     ||
-      r.employeeName?.toLowerCase().includes(q); // ← pakai employeeName (dari ReimbursementResponse)
-    const matchStatus = !filterStatus || r.status === filterStatus;
+      r.title?.toLowerCase().includes(q)    ||
+      r.category?.toLowerCase().includes(q) ||
+      r.employeeName?.toLowerCase().includes(q);
+    const matchStatus = activeFilters.includes(r.status);
     return matchSearch && matchStatus;
   });
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paged      = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const handleFilterChange = (filters) => {
+    setActiveFilters(filters);
+    setPage(1);
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this reimbursement?")) return;
@@ -115,16 +245,26 @@ const ReimbursementIndex = () => {
             className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
-        >
-          <option value="">All Status</option>
-          <option value="SUBMITTED">Submitted</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
+        <FilterDropdown
+          activeFilters={activeFilters}
+          onChange={handleFilterChange}
+          counts={counts}
+        />
+      </div>
+
+      {/* Active filter pills */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <span className="text-xs text-gray-400">Menampilkan:</span>
+        {activeFilters.map((s) => {
+          const cfg = STATUS_CFG[s];
+          return (
+            <span key={s} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${cfg.cls}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+              {cfg.label}
+              {counts[s] != null && <span className="opacity-60">({counts[s]})</span>}
+            </span>
+          );
+        })}
       </div>
 
       {/* Table */}

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { 
+import React, { useState, useEffect } from 'react';
+import {
   HiOutlineHome,
   HiOutlineUsers,
   HiOutlineOfficeBuilding,
@@ -18,22 +18,37 @@ import {
 } from 'react-icons/hi';
 import { NavLink, useNavigate } from 'react-router-dom';
 import companyLogo from '../images/ABE.png';
+import { useReimbursement } from '../../redux/hooks/useReimbursement';
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
+  // Fetch reimbursements untuk hitung pending
+  const { reimbursements, fetchReimbursements } = useReimbursement();
+
+  useEffect(() => {
+    fetchReimbursements();
+  }, []);
+
+  const pendingReimbursements = (reimbursements || []).filter(
+    (r) => r.status === 'SUBMITTED'
+  ).length;
+
+  const totalApprovalPending = pendingReimbursements;
+  // Tambah kategori lain di sini nanti: + pendingAttendance + pendingTimeoff
+
   const mainMenuItems = [
-    { name: 'Dashboard',     icon: <HiOutlineHome className="w-5 h-5" />,             path: '/dashboard' },
-    { name: 'Employees',     icon: <HiOutlineUsers className="w-5 h-5" />,            path: '/employees' },
-    { name: 'Departments',   icon: <HiOutlineOfficeBuilding className="w-5 h-5" />,   path: '/departments' },
-    { name: 'Company',       icon: <HiOutlineOfficeBuilding className="w-5 h-5" />,   path: '/companies' },
-    { name: 'Attendance',    icon: <HiOutlineClock className="w-5 h-5" />,            path: '/attendance' },
-    { name: 'Time Off',      icon: <HiOutlineBriefcase className="w-5 h-5" />,        path: '/timeoff' },
-    { name: 'Payroll',       icon: <HiOutlineCurrencyDollar className="w-5 h-5" />,   path: '/payroll' },
-    { name: 'Reimbursement', icon: <HiOutlineReceiptRefund className="w-5 h-5" />,    path: '/reimbursements' }, // ← fix: plural
-    { name: 'Approvals',     icon: <HiOutlineClipboardCheck className="w-5 h-5" />,   path: '/approvals' },
-    { name: 'Account',       icon: <HiOutlineLibrary className="w-5 h-5" />,          path: '/account' },
+    { name: 'Dashboard',     icon: <HiOutlineHome className="w-5 h-5" />,           path: '/dashboard' },
+    { name: 'Employees',     icon: <HiOutlineUsers className="w-5 h-5" />,          path: '/employees' },
+    { name: 'Departments',   icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, path: '/departments' },
+    { name: 'Company',       icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, path: '/companies' },
+    { name: 'Attendance',    icon: <HiOutlineClock className="w-5 h-5" />,          path: '/attendance' },
+    { name: 'Time Off',      icon: <HiOutlineBriefcase className="w-5 h-5" />,      path: '/timeoff' },
+    { name: 'Payroll',       icon: <HiOutlineCurrencyDollar className="w-5 h-5" />, path: '/payroll' },
+    { name: 'Reimbursement', icon: <HiOutlineReceiptRefund className="w-5 h-5" />,  path: '/reimbursements' },
+    { name: 'Approvals',     icon: <HiOutlineClipboardCheck className="w-5 h-5" />, path: '/approvals', badge: totalApprovalPending },
+    { name: 'Account',       icon: <HiOutlineLibrary className="w-5 h-5" />,        path: '/account' },
   ];
 
   const bottomMenuItems = [
@@ -82,10 +97,22 @@ const Sidebar = () => {
           >
             {({ isActive }) => (
               <>
-                <span className={`transition-all duration-300 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
+                {/* Icon with red dot if has badge */}
+                <span className={`relative transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
                   {item.icon}
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
+                  )}
                 </span>
-                <span className="text-sm font-medium">{item.name}</span>
+
+                <span className="text-sm font-medium flex-1">{item.name}</span>
+
+                {/* Badge count pill */}
+                {item.badge > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </>
             )}
           </NavLink>
