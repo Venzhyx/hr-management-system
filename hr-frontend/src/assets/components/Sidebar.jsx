@@ -44,7 +44,7 @@ const Sidebar = () => {
     { name: 'Departments',   icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, path: '/departments' },
     { name: 'Company',       icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, path: '/companies' },
     { name: 'Attendance',    icon: <HiOutlineClock className="w-5 h-5" />,          path: '/attendance' },
-    { name: 'Time Off',      icon: <HiOutlineBriefcase className="w-5 h-5" />,      path: '/timeoff' },
+    { name: 'Time Off',      icon: <HiOutlineBriefcase className="w-5 h-5" />,      path: '/time-off' },
     { name: 'Payroll',       icon: <HiOutlineCurrencyDollar className="w-5 h-5" />, path: '/payroll' },
     { name: 'Reimbursement', icon: <HiOutlineReceiptRefund className="w-5 h-5" />,  path: '/reimbursements' },
     { name: 'Approvals',     icon: <HiOutlineClipboardCheck className="w-5 h-5" />, path: '/approvals', badge: totalApprovalPending },

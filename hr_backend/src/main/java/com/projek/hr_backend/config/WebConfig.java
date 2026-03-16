@@ -13,8 +13,13 @@ public class WebConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+
                 registry.addMapping("/**")
-                        .allowedOriginPatterns("*") // ✅ pakai ini, bukan allowedOrigins
+                        .allowedOriginPatterns(
+                                "http://172.16.17.197:3000",
+                                "http://localhost:3000",
+                                "http://127.0.0.1:3000"
+                        )
                         .allowedMethods("*")
                         .allowedHeaders("*")
                         .allowCredentials(true);
