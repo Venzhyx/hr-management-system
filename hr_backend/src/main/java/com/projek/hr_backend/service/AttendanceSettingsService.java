@@ -2,7 +2,6 @@ package com.projek.hr_backend.service;
 
 import com.projek.hr_backend.dto.AttendanceSettingsRequest;
 import com.projek.hr_backend.dto.AttendanceSettingsResponse;
-import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.AttendanceSettings;
 import com.projek.hr_backend.model.ExtraHoursValidation;
 import com.projek.hr_backend.repository.AttendanceSettingsRepository;
