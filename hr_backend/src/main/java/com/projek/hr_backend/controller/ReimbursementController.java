@@ -1,7 +1,6 @@
 package com.projek.hr_backend.controller;
 
 import com.projek.hr_backend.dto.ApiResponse;
-import com.projek.hr_backend.dto.ApprovalActionRequest;
 import com.projek.hr_backend.dto.ReimbursementRequest;
 import com.projek.hr_backend.dto.ReimbursementResponse;
 import com.projek.hr_backend.service.ReimbursementService;
@@ -53,21 +52,5 @@ public class ReimbursementController {
     public ResponseEntity<ApiResponse<Void>> deleteReimbursement(@PathVariable Long id) {
         service.deleteReimbursement(id);
         return ResponseEntity.ok(new ApiResponse<>(true, "Reimbursement deleted successfully", null));
-    }
-    
-    @PostMapping("/{id}/approve")
-    public ResponseEntity<ApiResponse<ReimbursementResponse>> approveReimbursement(
-            @PathVariable Long id,
-            @Valid @RequestBody ApprovalActionRequest request) {
-        ReimbursementResponse response = service.approveReimbursement(id, request);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Reimbursement approved successfully", response));
-    }
-    
-    @PostMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<ReimbursementResponse>> rejectReimbursement(
-            @PathVariable Long id,
-            @Valid @RequestBody ApprovalActionRequest request) {
-        ReimbursementResponse response = service.rejectReimbursement(id, request);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Reimbursement rejected successfully", response));
     }
 }
