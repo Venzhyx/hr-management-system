@@ -1,6 +1,5 @@
 package com.projek.hr_backend.service;
 
-import com.projek.hr_backend.dto.ApprovalActionRequest;
 import com.projek.hr_backend.dto.ReimbursementRequest;
 import com.projek.hr_backend.dto.ReimbursementResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
@@ -10,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,9 +45,7 @@ public class ReimbursementService {
         }
         
         Reimbursement saved = reimbursementRepository.save(reimbursement);
-        
         createApprovalRecords(saved);
-        
         return mapToResponse(saved);
     }
     
@@ -101,64 +97,6 @@ public class ReimbursementService {
             throw new ResourceNotFoundException("Reimbursement not found");
         }
         reimbursementRepository.deleteById(id);
-    }
-    
-    @Transactional
-    public ReimbursementResponse approveReimbursement(Long id, ApprovalActionRequest request) {
-        Reimbursement reimbursement = reimbursementRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Reimbursement not found"));
-        
-        List<ReimbursementApproval> approvals = reimbursementApprovalRepository.findByReimbursementId(id);
-        ReimbursementApproval approval = approvals.stream()
-                .filter(a -> a.getApprover().getId().equals(request.getApproverId()))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Approval record not found"));
-        
-        approval.setStatus(ApprovalStatus.APPROVED);
-        approval.setNotes(request.getNotes());
-        approval.setApprovedAt(LocalDateTime.now());
-        reimbursementApprovalRepository.save(approval);
-        
-        checkAndUpdateReimbursementStatus(reimbursement);
-        
-        return mapToResponse(reimbursement);
-    }
-    
-    @Transactional
-    public ReimbursementResponse rejectReimbursement(Long id, ApprovalActionRequest request) {
-        Reimbursement reimbursement = reimbursementRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Reimbursement not found"));
-        
-        List<ReimbursementApproval> approvals = reimbursementApprovalRepository.findByReimbursementId(id);
-        ReimbursementApproval approval = approvals.stream()
-                .filter(a -> a.getApprover().getId().equals(request.getApproverId()))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Approval record not found"));
-        
-        approval.setStatus(ApprovalStatus.REJECTED);
-        approval.setNotes(request.getNotes());
-        approval.setApprovedAt(LocalDateTime.now());
-        reimbursementApprovalRepository.save(approval);
-        
-        reimbursement.setStatus(ReimbursementStatus.REJECTED);
-        reimbursementRepository.save(reimbursement);
-        
-        return mapToResponse(reimbursement);
-    }
-    
-    private void checkAndUpdateReimbursementStatus(Reimbursement reimbursement) {
-        List<ApprovalApprover> approvers = approvalApproverRepository.findAllByOrderByApprovalOrderAsc();
-        if (approvers.isEmpty()) return;
-        
-        Integer minimumApproval = approvers.get(0).getMinimumApproval();
-        
-        long approvedCount = reimbursementApprovalRepository
-                .countByReimbursementIdAndStatus(reimbursement.getId(), ApprovalStatus.APPROVED);
-        
-        if (approvedCount >= minimumApproval) {
-            reimbursement.setStatus(ReimbursementStatus.APPROVED);
-            reimbursementRepository.save(reimbursement);
-        }
     }
     
     private ReimbursementResponse mapToResponse(Reimbursement reimbursement) {
