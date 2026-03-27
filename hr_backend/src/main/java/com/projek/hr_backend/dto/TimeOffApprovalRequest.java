@@ -8,10 +8,13 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ApprovalActionRequest {
-    
+public class TimeOffApprovalRequest {
+
     @NotNull(message = "Approver ID is required")
     private Long approverId;
-    
+
+    @NotNull(message = "Action is required")
+    private String action;
+
     private String notes;
 }
