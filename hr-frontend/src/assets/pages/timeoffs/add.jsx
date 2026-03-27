@@ -12,7 +12,7 @@ import { getEmployeesAPI } from "../../../api/employeeApi";
 import { uploadAttachmentAPI } from "../../../api/timeoffApi";
 
 const inputCls    = "w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
-const inputErrCls = "w-full px-3.5 py-2.5 text-sm bg-red-50 border border-red-300 rounded-xl focus:outline-none focus:bg-white focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all";
+const inputErrCls = "w-full px-3.5 py-2.5 text-sm bg-amber-50 border border-amber-300 rounded-xl focus:outline-none focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all";
 const selectCls   = inputCls + " appearance-none pr-10";
 const labelCls    = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5";
 
@@ -84,10 +84,7 @@ const AddTimeOffPage = () => {
       setError("End date tidak boleh sebelum start date.");
       return;
     }
-    if (exceedsMax) {
-      setError(`${requestedDays} hari melebihi batas maksimal ${maxDays} hari untuk "${selectedType.name}".`);
-      return;
-    }
+    // exceedsMax: hanya warning, tidak memblokir submit
     setLoading(true); setError(null);
     try {
       // Upload attachment dulu kalau ada file baru
@@ -270,7 +267,7 @@ const AddTimeOffPage = () => {
             <div className="mt-4 flex items-center gap-3">
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border ${
                 exceedsMax
-                  ? "bg-red-50 text-red-600 border-red-200"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
                   : "bg-emerald-50 text-emerald-700 border-emerald-200"
               }`}>
                 {exceedsMax
@@ -286,14 +283,14 @@ const AddTimeOffPage = () => {
             </div>
           )}
 
-          {/* Exceeds warning */}
+          {/* Exceeds warning — kuning, bisa tetap submit */}
           {exceedsMax && (
-            <div className="mt-3 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <HiOutlineExclamation className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">
-                <span className="font-semibold">{selectedType.name}</span> hanya mengizinkan maks.{" "}
-                <span className="font-semibold">{maxDays} hari</span>. Kamu memilih{" "}
-                <span className="font-semibold">{requestedDays} hari</span> — kurangi {requestedDays - maxDays} hari lagi.
+            <div className="mt-3 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <HiOutlineExclamation className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">{selectedType.name}</span> memiliki batas maks.{" "}
+                <span className="font-semibold">{maxDays} hari</span>, kamu memilih{" "}
+                <span className="font-semibold">{requestedDays} hari</span>. Request tetap bisa diajukan namun perlu persetujuan khusus.
               </p>
             </div>
           )}
@@ -380,14 +377,13 @@ const AddTimeOffPage = () => {
           <button
             onClick={() => navigate("/time-off")}
             disabled={loading}
-            className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 shadow-sm disabled:opacity-50 transition-all"
+            className="flex-1 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 shadow-sm disabled:opacity-50 transition-all"
           >
             Batal
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || exceedsMax}
-            title={exceedsMax ? `Melebihi batas ${maxDays} hari` : ""}
+            disabled={loading}
             className="flex-1 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
           >
             {loading ? (

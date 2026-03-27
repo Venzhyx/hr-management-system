@@ -14,7 +14,7 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const STATUS_CFG = {
-  SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"  },
+  SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Submitted"  },
   APPROVED:  { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
   REJECTED:  { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected" },
 };
@@ -326,13 +326,15 @@ const TimeOffTablePage = () => {
                         >
                           <HiOutlineEye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => navigate(`/time-off/edit/${r.id}`)}
-                          className="p-1.5 rounded-lg text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          title="Edit"
-                        >
-                          <HiOutlinePencil className="w-4 h-4" />
-                        </button>
+                        {r.status === "SUBMITTED" && (
+                          <button
+                            onClick={() => navigate(`/time-off/edit/${r.id}`)}
+                            className="p-1.5 rounded-lg text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            title="Edit"
+                          >
+                            <HiOutlinePencil className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(r.id, r.employeeName)}
                           disabled={deletingId === r.id}

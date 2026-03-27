@@ -19,24 +19,37 @@ import {
 import { NavLink, useNavigate } from 'react-router-dom';
 import companyLogo from '../images/ABE.png';
 import { useReimbursement } from '../../redux/hooks/useReimbursement';
+import { useTimeOff } from '../../redux/hooks/useTimeOff';
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  // Fetch reimbursements untuk hitung pending
   const { reimbursements, fetchReimbursements } = useReimbursement();
+  const { timeOffRequests, fetchTimeOffRequests } = useTimeOff();
 
   useEffect(() => {
     fetchReimbursements();
+    fetchTimeOffRequests();
   }, []);
 
   const pendingReimbursements = (reimbursements || []).filter(
-    (r) => r.status === 'SUBMITTED'
+    (r) => r.status?.toLowerCase() === 'submitted'
   ).length;
 
-  const totalApprovalPending = pendingReimbursements;
-  // Tambah kategori lain di sini nanti: + pendingAttendance + pendingTimeoff
+  const pendingTimeOff = (timeOffRequests || []).filter(
+    (t) => t.status?.toLowerCase() === 'submitted'
+  ).length;
+
+  const totalApprovalPending = pendingReimbursements + pendingTimeOff;
+
+  console.log('=== APPROVAL BADGE DEBUG ===');
+  console.log('All reimbursements:', reimbursements);
+  console.log('Pending reimbursements (SUBMITTED):', pendingReimbursements);
+  console.log('All time off requests:', timeOffRequests);
+  console.log('Pending time off (SUBMITTED):', pendingTimeOff);
+  console.log('Total badge count:', totalApprovalPending);
+  console.log('============================');
 
   const mainMenuItems = [
     { name: 'Dashboard',     icon: <HiOutlineHome className="w-5 h-5" />,           path: '/dashboard' },
@@ -97,7 +110,6 @@ const Sidebar = () => {
           >
             {({ isActive }) => (
               <>
-                {/* Icon with red dot if has badge */}
                 <span className={`relative transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
                   {item.icon}
                   {item.badge > 0 && (
@@ -107,7 +119,6 @@ const Sidebar = () => {
 
                 <span className="text-sm font-medium flex-1">{item.name}</span>
 
-                {/* Badge count pill */}
                 {item.badge > 0 && (
                   <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
                     {item.badge > 99 ? '99+' : item.badge}

@@ -1,57 +1,13 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   HiOutlineSearch, HiOutlineRefresh, HiOutlineFilter,
   HiOutlineChevronDown, HiOutlineClock, HiOutlineCheck,
   HiOutlineX, HiOutlineDocumentText, HiOutlineZoomIn,
   HiOutlineOfficeBuilding, HiOutlineBriefcase,
 } from "react-icons/hi";
+import { useTimeOff }   from "../../../redux/hooks/useTimeOff";
+import { useEmployee }  from "../../../redux/hooks/useEmployee";
 
-/* ── Mock data ── */
-const MOCK = [
-  {
-    id: 1, employeeId: 1, employeeName: "Budi Santoso",
-    jobTitle: "Frontend Developer", departmentName: "Engineering",
-    photo: null,
-    timeOffTypeName: "Cuti Tahunan", startDate: "2026-03-15", endDate: "2026-03-17",
-    requested: 3, reason: "Keperluan keluarga di kampung halaman.", attachmentUrl: null, attachmentName: null,
-    status: "SUBMITTED", createdAt: "2026-03-10",
-  },
-  {
-    id: 2, employeeId: 2, employeeName: "Sari Dewi",
-    jobTitle: "UI/UX Designer", departmentName: "Product",
-    photo: null,
-    timeOffTypeName: "Cuti Sakit", startDate: "2026-03-12", endDate: "2026-03-12",
-    requested: 1, reason: "Demam dan perlu istirahat.", attachmentUrl: null, attachmentName: null,
-    status: "SUBMITTED", createdAt: "2026-03-11",
-  },
-  {
-    id: 3, employeeId: 3, employeeName: "Andi Pratama",
-    jobTitle: "Backend Engineer", departmentName: "Engineering",
-    photo: null,
-    timeOffTypeName: "Cuti Tahunan", startDate: "2026-02-20", endDate: "2026-02-25",
-    requested: 6, reason: null, attachmentUrl: null, attachmentName: null,
-    status: "APPROVED", createdAt: "2026-02-15",
-  },
-  {
-    id: 4, employeeId: 4, employeeName: "Maya Putri",
-    jobTitle: "HR Manager", departmentName: "Human Resources",
-    photo: null,
-    timeOffTypeName: "Cuti Melahirkan", startDate: "2026-01-05", endDate: "2026-04-05",
-    requested: 90, reason: "Cuti melahirkan sesuai peraturan perusahaan.", attachmentUrl: null, attachmentName: null,
-    status: "APPROVED", createdAt: "2025-12-20",
-  },
-  {
-    id: 5, employeeId: 5, employeeName: "Rizky Fauzi",
-    jobTitle: "Sales Executive", departmentName: "Sales",
-    photo: null,
-    timeOffTypeName: "Cuti Tahunan", startDate: "2026-03-01", endDate: "2026-03-05",
-    requested: 5, reason: "Liburan keluarga.", attachmentUrl: null, attachmentName: null,
-    status: "REJECTED", createdAt: "2026-02-25",
-  },
-];
-
-const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "—";
 const fmtDateShort = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
@@ -144,10 +100,8 @@ const FilterDropdown = ({ activeFilters, onChange, counts }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════
-   Side Panel
-══════════════════════════════════════════════════════ */
-const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading }) => {
+/* ══ Side Panel ══ */
+const ApprovalPanel = ({ request, emp, onClose, onApprove, onReject, actionLoading }) => {
   const [showPreview, setShowPreview] = useState(false);
   if (!request) return null;
 
@@ -158,10 +112,8 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Preview modal */}
       {showPreview && request.attachmentUrl && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowPreview(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -178,10 +130,7 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
         </div>
       )}
 
-      {/* Panel */}
       <div className="fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
-
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Approval</p>
@@ -192,26 +141,24 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-
           {/* Employee */}
           <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
             <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm">
-              {request.photo
-                ? <img src={request.photo} alt={request.employeeName} className="w-full h-full object-cover" />
+              {emp?.photo
+                ? <img src={emp.photo} alt={request.employeeName} className="w-full h-full object-cover" />
                 : <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">{initials}</div>}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-gray-900 truncate">{request.employeeName}</p>
-              {request.jobTitle && (
+              {(emp?.jobTitle || emp?.position) && (
                 <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                  <HiOutlineBriefcase className="w-3 h-3" /> {request.jobTitle}
+                  <HiOutlineBriefcase className="w-3 h-3" /> {emp.jobTitle || emp.position}
                 </p>
               )}
-              {request.departmentName && (
+              {emp?.departmentName && (
                 <p className="flex items-center gap-1 text-xs text-gray-400">
-                  <HiOutlineOfficeBuilding className="w-3 h-3" /> {request.departmentName}
+                  <HiOutlineOfficeBuilding className="w-3 h-3" /> {emp.departmentName}
                 </p>
               )}
             </div>
@@ -221,7 +168,7 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
             </span>
           </div>
 
-          {/* Days + Date range */}
+          {/* Days + Dates */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-indigo-50 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-indigo-600">{request.requested ?? "—"}</p>
@@ -246,7 +193,6 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
             </div>
           </div>
 
-          {/* Reason */}
           {request.reason && (
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Alasan</p>
@@ -254,7 +200,6 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
             </div>
           )}
 
-          {/* Attachment */}
           {request.attachmentUrl && (
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Attachment</p>
@@ -284,7 +229,6 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 bg-white">
           {isPending ? (
             <div className="flex gap-3">
@@ -309,38 +253,55 @@ const ApprovalPanel = ({ request, onClose, onApprove, onReject, actionLoading })
   );
 };
 
-/* ══════════════════════════════════════════════════════
-   Main Page
-══════════════════════════════════════════════════════ */
+/* ══ Main Page ══ */
 const ApprovalTimeOffPage = () => {
-  const [data,          setData]          = useState(MOCK);
+  const { timeOffRequests, fetchTimeOffRequests, approveTimeOffRequest, rejectTimeOffRequest } = useTimeOff();
+  const { employees, fetchEmployees } = useEmployee();
+
+  const empMap = React.useMemo(() => {
+    const m = {};
+    (employees || []).forEach(e => { m[String(e.id)] = e; });
+    return m;
+  }, [employees]);
+
+  const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
   const [activeFilters, setActiveFilters] = useState([...ALL_STATUSES]);
   const [selected,      setSelected]      = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [toast,         setToast]         = useState(null);
-  const [loading,       setLoading]       = useState(false);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
-  const reload = () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    setTimeout(() => setLoading(false), 600); // simulate reload
-  };
+    try { await fetchTimeOffRequests(); }
+    finally { setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const stats = data.reduce(
-    (acc, r) => { acc.total++; acc[r.status === "SUBMITTED" ? "pending" : r.status === "APPROVED" ? "approved" : "rejected"]++; return acc; },
+  useEffect(() => { load(); fetchEmployees(); }, [load]);
+
+  // Sync panel when list updates
+  useEffect(() => {
+    if (selected) {
+      const updated = (timeOffRequests || []).find(r => r.id === selected.id);
+      if (updated) setSelected(updated);
+    }
+  }, [timeOffRequests]);
+
+  const stats = (timeOffRequests || []).reduce(
+    (acc, r) => { acc.total++; if(r.status==="SUBMITTED") acc.pending++; if(r.status==="APPROVED") acc.approved++; if(r.status==="REJECTED") acc.rejected++; return acc; },
     { total: 0, pending: 0, approved: 0, rejected: 0 }
   );
+  const counts = (timeOffRequests || []).reduce((acc, r) => { acc[r.status] = (acc[r.status]||0)+1; return acc; }, {});
 
-  const counts = data.reduce((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {});
-
-  const sorted = [...data].sort((a, b) => {
-    const o = { SUBMITTED: 0, APPROVED: 1, REJECTED: 2 };
-    return (o[a.status] ?? 3) - (o[b.status] ?? 3);
+  const sorted = [...(timeOffRequests || [])].sort((a,b) => {
+    const o = { SUBMITTED:0, APPROVED:1, REJECTED:2 };
+    return (o[a.status]??3)-(o[b.status]??3);
   });
 
   const filtered = sorted.filter(r => {
@@ -352,30 +313,26 @@ const ApprovalTimeOffPage = () => {
     return true;
   });
 
-  // Sync panel when data changes
-  useEffect(() => {
-    if (selected) {
-      const updated = data.find(r => r.id === selected.id);
-      if (updated) setSelected(updated);
-    }
-  }, [data]);
-
   const handleApprove = async () => {
     if (!selected) return;
     setActionLoading("approve");
-    await new Promise(r => setTimeout(r, 800)); // simulate API
-    setData(prev => prev.map(r => r.id === selected.id ? { ...r, status: "APPROVED" } : r));
-    showToast(`Request ${selected.employeeName} berhasil di-approve.`);
-    setActionLoading(null);
+    try {
+      await approveTimeOffRequest(selected.id);
+      showToast(`Request ${selected.employeeName} berhasil di-approve.`);
+    } catch (err) {
+      showToast(err?.message || "Gagal approve.", "error");
+    } finally { setActionLoading(null); }
   };
 
   const handleReject = async () => {
     if (!selected) return;
     setActionLoading("reject");
-    await new Promise(r => setTimeout(r, 800));
-    setData(prev => prev.map(r => r.id === selected.id ? { ...r, status: "REJECTED" } : r));
-    showToast(`Request ${selected.employeeName} di-reject.`, "error");
-    setActionLoading(null);
+    try {
+      await rejectTimeOffRequest(selected.id);
+      showToast(`Request ${selected.employeeName} di-reject.`, "error");
+    } catch (err) {
+      showToast(err?.message || "Gagal reject.", "error");
+    } finally { setActionLoading(null); }
   };
 
   return (
@@ -383,18 +340,13 @@ const ApprovalTimeOffPage = () => {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-gray-800">Approval Time Off</h1>
-          {stats.pending > 0 && (
-            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-              {stats.pending} pending
-            </span>
-          )}
-        </div>
-        <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full font-medium">
-          ⚠️ Mock data — belum terhubung ke backend
-        </span>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Approval Time Off</h1>
+        {stats.pending > 0 && (
+          <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+            {stats.pending} pending
+          </span>
+        )}
       </div>
 
       {/* Stats */}
@@ -407,14 +359,14 @@ const ApprovalTimeOffPage = () => {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 divide-x divide-gray-100">
           {[
-            { label: "Total",    value: stats.total,    color: "text-gray-800"    },
-            { label: "Pending",  value: stats.pending,  color: "text-amber-600"   },
-            { label: "Approved", value: stats.approved, color: "text-emerald-600" },
-            { label: "Rejected", value: stats.rejected, color: "text-red-500"     },
-          ].map((s, i) => (
-            <div key={s.label} className={i > 0 ? "pl-6" : ""}>
+            { label:"Total",    value: stats.total,    color:"text-gray-800"    },
+            { label:"Pending",  value: stats.pending,  color:"text-amber-600"   },
+            { label:"Approved", value: stats.approved, color:"text-emerald-600" },
+            { label:"Rejected", value: stats.rejected, color:"text-red-500"     },
+          ].map((s,i) => (
+            <div key={s.label} className={i>0?"pl-6":""}>
               <p className="text-xs text-gray-400 font-medium">{s.label}</p>
-              <p className={`text-3xl font-bold ${s.color}`}>{s.value ?? 0}</p>
+              <p className={`text-3xl font-bold ${s.color}`}>{s.value??0}</p>
             </div>
           ))}
         </div>
@@ -430,7 +382,7 @@ const ApprovalTimeOffPage = () => {
         </div>
         <FilterDropdown activeFilters={activeFilters} onChange={setActiveFilters} counts={counts} />
         <div className="flex-1" />
-        <button onClick={reload} disabled={loading} className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-40" title="Refresh">
+        <button onClick={load} disabled={loading} className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-40" title="Refresh">
           <HiOutlineRefresh className={`w-5 h-5 text-gray-500 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
@@ -448,7 +400,7 @@ const ApprovalTimeOffPage = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["Employee", "Tipe Cuti", "Tanggal", "Durasi", "Status", "Action"].map(h => (
+                {["Employee","Tipe Cuti","Tanggal","Durasi","Status","Action"].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -456,24 +408,24 @@ const ApprovalTimeOffPage = () => {
             <tbody className="divide-y divide-gray-100">
               {filtered.map(r => {
                 const sCfg    = STATUS_CFG[r.status] || STATUS_CFG.SUBMITTED;
-                const initials = r.employeeName?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+                const emp     = empMap[String(r.employeeId)];
+                const initials = r.employeeName?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?";
                 const isActive = selected?.id === r.id;
 
                 return (
-                  <tr key={r.id}
-                    onClick={() => setSelected(r)}
+                  <tr key={r.id} onClick={() => setSelected(r)}
                     className={`transition-colors cursor-pointer ${isActive ? "bg-indigo-50" : "hover:bg-gray-50"}`}>
 
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-                          {r.photo
-                            ? <img src={r.photo} alt={r.employeeName} className="w-full h-full object-cover" />
+                          {emp?.photo
+                            ? <img src={emp.photo} alt={r.employeeName} className="w-full h-full object-cover" />
                             : <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-[10px]">{initials}</div>}
                         </div>
                         <div>
                           <p className="font-medium text-gray-800 whitespace-nowrap">{r.employeeName}</p>
-                          <p className="text-xs text-gray-400">{r.departmentName}</p>
+                          {emp?.departmentName && <p className="text-xs text-gray-400">{emp.departmentName}</p>}
                         </div>
                       </div>
                     </td>
@@ -484,8 +436,7 @@ const ApprovalTimeOffPage = () => {
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{r.requested} hari</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${sCfg.cls}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />
-                        {sCfg.label}
+                        <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} /> {sCfg.label}
                       </span>
                     </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
@@ -509,6 +460,7 @@ const ApprovalTimeOffPage = () => {
       {selected && (
         <ApprovalPanel
           request={selected}
+          emp={empMap[String(selected.employeeId)]}
           onClose={() => setSelected(null)}
           onApprove={handleApprove}
           onReject={handleReject}
