@@ -20,7 +20,7 @@ public class EmployeeSettings {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @OneToOne
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id", nullable = false, unique = true)
     private Employee employee;
     

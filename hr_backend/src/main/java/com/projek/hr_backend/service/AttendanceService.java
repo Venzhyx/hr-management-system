@@ -53,6 +53,13 @@ public class AttendanceService {
                                 "Employee not found with identification number: " + employeeIdentificationNumber));
 
                 Employee employee = settings.getEmployee();
+                if (employee == null) {
+                    throw new ResourceNotFoundException(
+                            "Employee data is null for identification number: " + employeeIdentificationNumber);
+                }
+
+                System.out.println("EMP CODE: " + settings.getEmployeeIdentificationNumber());
+                System.out.println("EMP NAME: " + employee.getName());
 
                 LocalDateTime checkIn = LocalDateTime.parse(checkInCell.getStringCellValue().trim(), FORMATTER);
                 LocalDateTime checkOut = (checkOutCell != null && !checkOutCell.getStringCellValue().trim().isEmpty())
