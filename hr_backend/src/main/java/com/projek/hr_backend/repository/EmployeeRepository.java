@@ -26,5 +26,5 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("SELECT COUNT(d) FROM Department d WHERE d.manager.id = :employeeId")
     long countDepartmentsByManagerId(Long employeeId);
     
-    Optional<Employee> findByBadgeId(String badgeId);
+   
 }
