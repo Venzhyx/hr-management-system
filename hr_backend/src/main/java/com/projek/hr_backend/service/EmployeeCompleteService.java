@@ -34,11 +34,6 @@
         
         @Transactional
         public EmployeeCompleteResponse createEmployee(EmployeeCompleteRequest request) {
-            // Validasi badgeId unique
-            employeeRepository.findByBadgeId(request.getBadgeId()).ifPresent(e -> {
-                throw new IllegalArgumentException("Badge ID already exists: " + request.getBadgeId());
-            });
-            
             // Create Employee
             Employee employee = new Employee();
             mapBasicInfo(request, employee);
@@ -174,13 +169,6 @@
             Employee employee = employeeRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 
-        // Validasi badgeId unique (exclude current employee)
-        employeeRepository.findByBadgeId(request.getBadgeId()).ifPresent(e -> {
-            if (!e.getId().equals(id)) {
-                throw new IllegalArgumentException("Badge ID already exists: " + request.getBadgeId());
-            }
-        });
-
         mapBasicInfo(request, employee);
         employeeRepository.save(employee);
 
@@ -238,7 +226,6 @@
             employee.setWorkPhone(request.getWorkPhone());
             employee.setWorkMobile(request.getWorkMobile());
             employee.setJoinDate(request.getJoinDate());
-            employee.setBadgeId(request.getBadgeId());
 
             if (request.getPhoto() != null) {
                 employee.setPhoto(request.getPhoto());
@@ -281,7 +268,6 @@
             response.setWorkMobile(employee.getWorkMobile());
             response.setJoinDate(employee.getJoinDate());
             response.setPhoto(employee.getPhoto());
-            response.setBadgeId(employee.getBadgeId());
             response.setCreatedAt(employee.getCreatedAt());
             response.setUpdatedAt(employee.getUpdatedAt());
             

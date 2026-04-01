@@ -38,9 +38,6 @@ public class EmployeeCompleteRequest {
     
     private String photo;
     
-    @NotBlank(message = "Badge ID is required")
-    private String badgeId;
-    
     @NotNull(message = "Company is required")
     private Long companyId;
     

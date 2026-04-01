@@ -23,7 +23,6 @@ public class EmployeeCompleteResponse {
     private String workMobile;
     private LocalDate joinDate;
     private String photo;
-    private String badgeId;
     private Long companyId;
     private String companyName;
     private Long departmentId;

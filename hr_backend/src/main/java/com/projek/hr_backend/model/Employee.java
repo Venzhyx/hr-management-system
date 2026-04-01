@@ -42,9 +42,6 @@ public class Employee {
     
     private String photo;
     
-    @Column(name = "badge_id", unique = true)
-    private String badgeId;
-    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;

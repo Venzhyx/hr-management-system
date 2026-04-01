@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface EmployeeSettingsRepository extends JpaRepository<EmployeeSettings, Long> {
     Optional<EmployeeSettings> findByEmployeeId(Long employeeId);
     
+    Optional<EmployeeSettings> findByEmployeeIdentificationNumber(String employeeIdentificationNumber);
+    
     long countByEmployeeType(EmployeeType employeeType);
     
     @Modifying

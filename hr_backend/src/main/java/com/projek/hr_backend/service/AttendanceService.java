@@ -3,8 +3,9 @@ package com.projek.hr_backend.service;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.Attendance;
 import com.projek.hr_backend.model.Employee;
+import com.projek.hr_backend.model.EmployeeSettings;
 import com.projek.hr_backend.repository.AttendanceRepository;
-import com.projek.hr_backend.repository.EmployeeRepository;
+import com.projek.hr_backend.repository.EmployeeSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -24,7 +25,7 @@ import java.util.List;
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeSettingsRepository employeeSettingsRepository;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -37,24 +38,28 @@ public class AttendanceService {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                Cell badgeIdCell = row.getCell(0);
-                Cell checkInCell = row.getCell(1);
-                Cell checkOutCell = row.getCell(2);
+                Cell identificationCell = row.getCell(0);
+                Cell checkInCell        = row.getCell(1);
+                Cell checkOutCell       = row.getCell(2);
 
-                if (badgeIdCell == null || checkInCell == null) continue;
+                if (identificationCell == null || checkInCell == null) continue;
 
-                String badgeId = badgeIdCell.getStringCellValue().trim();
-                if (badgeId.isEmpty()) continue;
+                String employeeIdentificationNumber = identificationCell.getStringCellValue().trim();
+                if (employeeIdentificationNumber.isEmpty()) continue;
 
-                Employee employee = employeeRepository.findByBadgeId(badgeId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Employee not found with badgeId: " + badgeId));
+                EmployeeSettings settings = employeeSettingsRepository
+                        .findByEmployeeIdentificationNumber(employeeIdentificationNumber)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Employee not found with identification number: " + employeeIdentificationNumber));
+
+                Employee employee = settings.getEmployee();
 
                 LocalDateTime checkIn = LocalDateTime.parse(checkInCell.getStringCellValue().trim(), FORMATTER);
-                LocalDateTime checkOut = checkOutCell != null && !checkOutCell.getStringCellValue().trim().isEmpty()
+                LocalDateTime checkOut = (checkOutCell != null && !checkOutCell.getStringCellValue().trim().isEmpty())
                         ? LocalDateTime.parse(checkOutCell.getStringCellValue().trim(), FORMATTER)
                         : null;
 
-                String status = checkIn.getHour() > 8 || (checkIn.getHour() == 8 && checkIn.getMinute() > 0)
+                String status = (checkIn.getHour() > 8 || (checkIn.getHour() == 8 && checkIn.getMinute() > 0))
                         ? "LATE"
                         : "PRESENT";
 
