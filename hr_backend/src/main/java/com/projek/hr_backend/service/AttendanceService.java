@@ -65,6 +65,8 @@ public class AttendanceService {
 
                 Attendance attendance = new Attendance();
                 attendance.setEmployee(employee);
+                attendance.setEmployeeCode(settings.getEmployeeIdentificationNumber());
+                attendance.setEmployeeName(employee.getName());
                 attendance.setDate(checkIn.toLocalDate());
                 attendance.setCheckIn(checkIn);
                 attendance.setCheckOut(checkOut);

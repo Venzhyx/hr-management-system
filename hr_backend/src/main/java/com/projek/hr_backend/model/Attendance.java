@@ -36,6 +36,12 @@ public class Attendance {
     @Column(nullable = false, length = 20)
     private String status;
 
+    @Column(name = "employee_code")
+    private String employeeCode;
+
+    @Column(name = "employee_name")
+    private String employeeName;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
