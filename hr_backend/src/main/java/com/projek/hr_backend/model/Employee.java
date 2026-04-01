@@ -42,7 +42,7 @@ public class Employee {
     
     private String photo;
     
-    @Column(name = "badge_id", unique = true, nullable = false)
+    @Column(name = "badge_id", unique = true)
     private String badgeId;
     
     @ManyToOne(fetch = FetchType.LAZY)
