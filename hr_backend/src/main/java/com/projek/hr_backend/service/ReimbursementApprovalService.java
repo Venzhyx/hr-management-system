@@ -86,15 +86,13 @@ public class ReimbursementApprovalService {
 
         List<ApprovalApprover> approvers = approverRepository.findAllByOrderByApprovalOrderAsc();
 
-        // Kalau tidak ada approver sama sekali → langsung approve
+        // Kalau tidak ada approver sama sekali → langsung APPROVED
         if (approvers.isEmpty()) {
             reimbursement.setStatus(ReimbursementStatus.APPROVED);
             reimbursementRepository.save(reimbursement);
             return;
         }
 
-        // Hitung minimum dari jumlah approver isRequired = true
-        // Lebih aman daripada ambil minimumApproval dari row (bisa null)
         long minimumApproval = approvers.stream()
                 .filter(a -> Boolean.TRUE.equals(a.getIsRequired()))
                 .count();
@@ -104,10 +102,15 @@ public class ReimbursementApprovalService {
             minimumApproval = approvers.size();
         }
 
-        if (approvedCount >= minimumApproval) {
-            reimbursement.setStatus(ReimbursementStatus.APPROVED);
-            reimbursementRepository.save(reimbursement);
-        }
+        if (approvedCount == 0) {
+    reimbursement.setStatus(ReimbursementStatus.SUBMITTED);
+} else if (approvedCount < minimumApproval) {
+    reimbursement.setStatus(ReimbursementStatus.PENDING);
+} else {
+    reimbursement.setStatus(ReimbursementStatus.APPROVED);
+}
+
+        reimbursementRepository.save(reimbursement);
     }
 
     private ReimbursementApprovalResponse mapToResponse(ReimbursementApproval approval) {

@@ -3,11 +3,16 @@ package com.projek.hr_backend.service;
 import com.projek.hr_backend.dto.TimeOffRequestRequest;
 import com.projek.hr_backend.dto.TimeOffRequestResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
+import com.projek.hr_backend.model.ApprovalApprover;
+import com.projek.hr_backend.model.ApprovalStatus;
 import com.projek.hr_backend.model.Employee;
+import com.projek.hr_backend.model.TimeOffApproval;
 import com.projek.hr_backend.model.TimeOffRequest;
 import com.projek.hr_backend.model.TimeOffRequestStatus;
 import com.projek.hr_backend.model.TimeOffType;
+import com.projek.hr_backend.repository.ApprovalApproverRepository;
 import com.projek.hr_backend.repository.EmployeeRepository;
+import com.projek.hr_backend.repository.TimeOffApprovalRepository;
 import com.projek.hr_backend.repository.TimeOffRequestRepository;
 import com.projek.hr_backend.repository.TimeOffTypeRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,9 +32,12 @@ public class TimeOffRequestService {
     private final TimeOffRequestRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final TimeOffTypeRepository timeOffTypeRepository;
+    private final ApprovalApproverRepository approvalApproverRepository;
+    private final TimeOffApprovalRepository timeOffApprovalRepository;
 
     @Transactional
     public TimeOffRequestResponse createRequest(TimeOffRequestRequest request) {
+
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("End date must be after or equal to start date");
         }
@@ -41,6 +50,9 @@ public class TimeOffRequestService {
 
         int requestedDays = calculateDays(request.getStartDate(), request.getEndDate());
 
+        // =========================
+        // 1. SAVE REQUEST
+        // =========================
         TimeOffRequest timeOffRequest = new TimeOffRequest();
         timeOffRequest.setEmployee(employee);
         timeOffRequest.setTimeOffType(timeOffType);
@@ -53,6 +65,33 @@ public class TimeOffRequestService {
         timeOffRequest.setStatus(TimeOffRequestStatus.SUBMITTED);
 
         TimeOffRequest saved = requestRepository.save(timeOffRequest);
+
+        // =========================
+        // 2. AMBIL APPROVERS
+        // =========================
+        List<ApprovalApprover> approvers = approvalApproverRepository.findAll();
+
+        if (approvers.isEmpty()) {
+            throw new RuntimeException("Approval approver belum dikonfigurasi");
+        }
+
+        // =========================
+        // 3. CREATE APPROVAL
+        // =========================
+        List<TimeOffApproval> approvals = new ArrayList<>();
+
+        for (ApprovalApprover ap : approvers) {
+            TimeOffApproval ta = new TimeOffApproval();
+            ta.setTimeOffRequest(saved);
+            ta.setApprover(ap.getEmployee());
+            ta.setStatus(ApprovalStatus.PENDING);
+            ta.setNotes(null);
+            ta.setActionAt(null);
+            approvals.add(ta);
+        }
+
+        timeOffApprovalRepository.saveAll(approvals);
+
         return mapToResponse(saved);
     }
 
@@ -106,6 +145,10 @@ public class TimeOffRequestService {
         if (!requestRepository.existsById(id)) {
             throw new ResourceNotFoundException("Time off request not found");
         }
+
+        // ✅ FIX: hapus semua approval yang terkait dulu sebelum hapus request-nya
+        timeOffApprovalRepository.deleteByTimeOffRequestId(id);
+
         requestRepository.deleteById(id);
     }
 

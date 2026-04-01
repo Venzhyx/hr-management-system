@@ -5,11 +5,7 @@ import {
   createTimeOffRequestAPI,
   updateTimeOffRequestAPI,
   deleteTimeOffRequestAPI,
-  approveTimeOffRequestAPI,
-  rejectTimeOffRequestAPI,
 } from "../../api/timeoffApi";
-
-// ── Thunks ────────────────────────────────────────────────────────────────────
 
 export const fetchTimeOffRequests = createAsyncThunk(
   "timeOff/fetchAll",
@@ -71,30 +67,6 @@ export const deleteTimeOffRequest = createAsyncThunk(
   }
 );
 
-export const approveTimeOffRequest = createAsyncThunk(
-  "timeOff/approve",
-  async (id, { rejectWithValue }) => {
-    try {
-      const res = await approveTimeOffRequestAPI(id);
-      return res.data?.data ?? res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
-    }
-  }
-);
-
-export const rejectTimeOffRequest = createAsyncThunk(
-  "timeOff/reject",
-  async (id, { rejectWithValue }) => {
-    try {
-      const res = await rejectTimeOffRequestAPI(id);
-      return res.data?.data ?? res.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
-    }
-  }
-);
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const upsert = (list, updated) =>
   list.map((item) => (item.id === updated.id ? updated : item));
@@ -103,10 +75,17 @@ const upsert = (list, updated) =>
 const timeOffSlice = createSlice({
   name: "timeOff",
   initialState: { list: [], loading: false, error: null },
-  reducers: {},
+  reducers: {
+    // Dipakai oleh useTimeOff hook untuk update status lokal setelah approve/reject
+    upsertTimeOffRequest: (state, action) => {
+      if (action.payload?.id) {
+        state.list = upsert(state.list, action.payload);
+      }
+    },
+  },
   extraReducers: (builder) => {
-    const pending  = (state)          => { state.loading = true;  state.error = null; };
-    const rejected = (state, action)  => { state.loading = false; state.error = action.payload; };
+    const pending  = (state)         => { state.loading = true;  state.error = null; };
+    const rejected = (state, action) => { state.loading = false; state.error = action.payload; };
 
     builder
       .addCase(fetchTimeOffRequests.pending,   pending)
@@ -115,6 +94,13 @@ const timeOffSlice = createSlice({
         state.list    = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchTimeOffRequests.rejected,  rejected)
+
+      .addCase(fetchTimeOffRequestById.pending,   pending)
+      .addCase(fetchTimeOffRequestById.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload?.id) state.list = upsert(state.list, action.payload);
+      })
+      .addCase(fetchTimeOffRequestById.rejected,  rejected)
 
       .addCase(createTimeOffRequest.pending,   pending)
       .addCase(createTimeOffRequest.fulfilled, (state, action) => {
@@ -135,22 +121,9 @@ const timeOffSlice = createSlice({
         state.loading = false;
         state.list    = state.list.filter((r) => r.id !== action.payload);
       })
-      .addCase(deleteTimeOffRequest.rejected,  rejected)
-
-      .addCase(approveTimeOffRequest.pending,   pending)
-      .addCase(approveTimeOffRequest.fulfilled, (state, action) => {
-        state.loading = false;
-        if (action.payload?.id) state.list = upsert(state.list, action.payload);
-      })
-      .addCase(approveTimeOffRequest.rejected,  rejected)
-
-      .addCase(rejectTimeOffRequest.pending,   pending)
-      .addCase(rejectTimeOffRequest.fulfilled, (state, action) => {
-        state.loading = false;
-        if (action.payload?.id) state.list = upsert(state.list, action.payload);
-      })
-      .addCase(rejectTimeOffRequest.rejected,  rejected);
+      .addCase(deleteTimeOffRequest.rejected,  rejected);
   },
 });
 
+export const { upsertTimeOffRequest } = timeOffSlice.actions;
 export default timeOffSlice.reducer;

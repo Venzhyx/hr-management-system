@@ -1,20 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HiOutlinePlus, HiOutlineSearch, HiOutlineEye,
   HiOutlinePencil, HiOutlineTrash, HiOutlineCurrencyDollar,
   HiOutlineChevronLeft, HiOutlineChevronRight,
-  HiOutlineFilter, HiOutlineChevronDown, HiOutlineCheck,
+  HiOutlineFilter, HiOutlineChevronDown,
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 
 const STATUS_CFG = {
   SUBMITTED: { label: "Submitted", cls: "bg-amber-50 text-amber-700 border-amber-200",     dot: "bg-amber-400"   },
+  PENDING:   { label: "Pending",   cls: "bg-amber-50 text-amber-700 border-amber-200",   dot: "bg-amber-400"   },
   APPROVED:  { label: "Approved",  cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
   REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200",           dot: "bg-red-400"     },
 };
 
-const ALL_STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"];
+const ALL_STATUSES = ["SUBMITTED", "PENDING", "APPROVED", "REJECTED"];
 
 const fmt = (n) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -29,6 +30,99 @@ const Badge = ({ status }) => {
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
+  );
+};
+
+// ── Pagination Component ──────────────────────────────────────────────────────
+const Pagination = ({ currentPage, totalPages, onPageChange, totalItems, pageSize }) => {
+  const getPageNumbers = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+        range.push(i);
+      }
+    }
+
+    range.forEach((i) => {
+      if (l) {
+        if (i - l === 2) {
+          rangeWithDots.push(l + 1);
+        } else if (i - l !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      l = i;
+    });
+
+    return rangeWithDots;
+  };
+
+  const startItem = (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+      <div className="flex items-center gap-2 text-sm text-gray-500">
+        <span className="hidden sm:inline">Menampilkan</span>
+        <span className="font-medium text-gray-700">{startItem}</span>
+        <span>-</span>
+        <span className="font-medium text-gray-700">{endItem}</span>
+        <span className="hidden sm:inline">dari</span>
+        <span className="font-medium text-gray-700">{totalItems}</span>
+        <span>data</span>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`p-2 rounded-lg transition-colors ${
+            currentPage === 1
+              ? "text-gray-300 cursor-not-allowed"
+              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          }`}
+        >
+          <HiOutlineChevronLeft className="w-4 h-4" />
+        </button>
+
+        {getPageNumbers().map((page, idx) => (
+          page === '...' ? (
+            <span key={`dots-${idx}`} className="px-2 py-1 text-gray-400 text-sm">...</span>
+          ) : (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === page
+                  ? "bg-indigo-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {page}
+            </button>
+          )
+        ))}
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`p-2 rounded-lg transition-colors ${
+            currentPage === totalPages
+              ? "text-gray-300 cursor-not-allowed"
+              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          }`}
+        >
+          <HiOutlineChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -85,7 +179,6 @@ const FilterDropdown = ({ activeFilters, onChange, counts }) => {
           </div>
 
           <div className="py-1.5">
-            {/* All row */}
             <button
               onClick={toggleAll}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 mb-1"
@@ -152,11 +245,10 @@ const ReimbursementIndex = () => {
   const { reimbursements, fetchReimbursements, deleteReimbursement, loading } = useReimbursement();
 
   const [search,        setSearch]        = useState("");
-  // default: tampilkan semua
   const [activeFilters, setActiveFilters] = useState([...ALL_STATUSES]);
-  const [page,          setPage]          = useState(1);
+  const [currentPage,   setCurrentPage]   = useState(1);
+  const [pageSize,      setPageSize]      = useState(10); // Options: 10, 25, 50, 100
   const [toast,         setToast]         = useState(null);
-  const PER_PAGE = 10;
 
   useEffect(() => { fetchReimbursements(); }, []);
 
@@ -168,28 +260,42 @@ const ReimbursementIndex = () => {
     }
   }, []);
 
-  // count per status (unfiltered)
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeFilters]);
+
   const counts = (reimbursements || []).reduce((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {});
 
-  const filtered = (reimbursements || []).filter(r => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      r.title?.toLowerCase().includes(q)    ||
-      r.category?.toLowerCase().includes(q) ||
-      r.employeeName?.toLowerCase().includes(q);
-    const matchStatus = activeFilters.includes(r.status);
-    return matchSearch && matchStatus;
-  });
+  // Filter data with useMemo for performance
+  const filteredData = useMemo(() => {
+    return (reimbursements || []).filter(r => {
+      const q = search.toLowerCase();
+      const matchSearch =
+        r.title?.toLowerCase().includes(q)    ||
+        r.category?.toLowerCase().includes(q) ||
+        r.employeeName?.toLowerCase().includes(q);
+      const matchStatus = activeFilters.includes(r.status);
+      return matchSearch && matchStatus;
+    });
+  }, [reimbursements, search, activeFilters]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paged      = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  // Pagination logic
+  const totalItems = filteredData.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedData = filteredData.slice(startIndex, startIndex + pageSize);
 
   const handleFilterChange = (filters) => {
     setActiveFilters(filters);
-    setPage(1);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   const handleDelete = async (id) => {
@@ -198,6 +304,11 @@ const ReimbursementIndex = () => {
       await deleteReimbursement(id);
       setToast({ type: "success", message: "Reimbursement deleted." });
       setTimeout(() => setToast(null), 3000);
+      
+      // Adjust current page if last item on page is deleted
+      if (paginatedData.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
     } catch {
       setToast({ type: "error", message: "Failed to delete." });
       setTimeout(() => setToast(null), 3000);
@@ -222,7 +333,7 @@ const ReimbursementIndex = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Reimbursements</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{filtered.length} records found</p>
+          <p className="text-sm text-gray-500 mt-0.5">{totalItems} records found</p>
         </div>
         <button
           onClick={() => navigate("/reimbursements/add")}
@@ -241,15 +352,32 @@ const ReimbursementIndex = () => {
             type="text"
             placeholder="Search title, category, employee…"
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            onChange={e => { setSearch(e.target.value); }}
             className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           />
         </div>
+        
         <FilterDropdown
           activeFilters={activeFilters}
           onChange={handleFilterChange}
           counts={counts}
         />
+        
+        {/* Page Size Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 hidden sm:inline">Tampilkan</span>
+          <select
+            value={pageSize}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            className="px-2 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span className="text-xs text-gray-500 hidden sm:inline">data</span>
+        </div>
       </div>
 
       {/* Active filter pills */}
@@ -280,14 +408,19 @@ const ReimbursementIndex = () => {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Employee</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-600">Actions</th>
-              </tr>
+               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400">Loading…</td>
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-indigo-600 rounded-full animate-spin" />
+                      <span>Loading...</span>
+                    </div>
+                  </td>
                 </tr>
-              ) : paged.length === 0 ? (
+              ) : paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
@@ -299,7 +432,7 @@ const ReimbursementIndex = () => {
                     </div>
                   </td>
                 </tr>
-              ) : paged.map(r => (
+              ) : paginatedData.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDate(r.expenseDate)}</td>
                   <td className="px-4 py-3">
@@ -344,22 +477,14 @@ const ReimbursementIndex = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
-            <span>Page {page} of {totalPages}</span>
-            <div className="flex gap-1">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 transition-colors">
-                <HiOutlineChevronLeft className="w-4 h-4" />
-              </button>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 transition-colors">
-                <HiOutlineChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Pagination Component */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+        />
       </div>
     </div>
   );

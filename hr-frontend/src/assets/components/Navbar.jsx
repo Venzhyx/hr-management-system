@@ -8,22 +8,28 @@ import {
 import { useLocation } from 'react-router-dom';
 
 const ROUTE_TITLES = {
-  '/':                          { title: 'Dashboard',             sub: 'Selamat datang kembali' },
-  '/dashboard':                 { title: 'Dashboard',             sub: 'Ringkasan aktivitas perusahaan' },
-  '/employees':                 { title: 'Employees',             sub: 'Manajemen data karyawan' },
-  '/employees/add':             { title: 'Add Employee',          sub: 'Tambah karyawan baru' },
-  '/departments':               { title: 'Departments',           sub: 'Struktur departemen' },
-  '/departments/add':           { title: 'Add Department',        sub: 'Buat departemen baru' },
-  '/companies':                 { title: 'Company',               sub: 'Data & profil perusahaan' },
-  '/companies/add':             { title: 'Add Company',           sub: 'Daftarkan perusahaan baru' },
-  '/attendance':                { title: 'Attendance',            sub: 'Rekap kehadiran karyawan' },
-  '/timeoff':                   { title: 'Time Off',              sub: 'Pengajuan & persetujuan cuti' },
-  '/payroll':                   { title: 'Payroll',               sub: 'Penggajian & slip gaji' },
-  '/reimbursements':            { title: 'Reimbursement',         sub: 'Klaim & penggantian biaya' },
-  '/reimbursements/add':        { title: 'New Reimbursement',     sub: 'Ajukan klaim biaya baru' },
-  '/settings':                  { title: 'Settings',              sub: 'Pengaturan aplikasi' },
-  '/profile':                   { title: 'My Profile',            sub: 'Informasi akun Anda' },
-  '/help':                      { title: 'Help & Support',        sub: 'Pusat bantuan & dokumentasi' },
+  '/':                               { title: 'Dashboard',              sub: 'Selamat datang kembali' },
+  '/dashboard':                      { title: 'Dashboard',              sub: 'Ringkasan aktivitas perusahaan' },
+  '/employees':                      { title: 'Employees',              sub: 'Manajemen data karyawan' },
+  '/employees/add':                  { title: 'Add Employee',           sub: 'Tambah karyawan baru' },
+  '/departments':                    { title: 'Departments',            sub: 'Struktur departemen' },
+  '/departments/add':                { title: 'Add Department',         sub: 'Buat departemen baru' },
+  '/companies':                      { title: 'Company',                sub: 'Data & profil perusahaan' },
+  '/companies/add':                  { title: 'Add Company',            sub: 'Daftarkan perusahaan baru' },
+  '/attendance':                     { title: 'Attendance',             sub: 'Rekap kehadiran karyawan' },
+  '/time-off':                       { title: 'Time Off',               sub: 'Pengajuan & persetujuan cuti' },
+  '/time-off/add':                   { title: 'New Time Off',           sub: 'Ajukan permintaan cuti baru' },
+  '/payroll':                        { title: 'Payroll',                sub: 'Penggajian & slip gaji' },
+  '/reimbursements':                 { title: 'Reimbursement',          sub: 'Klaim & penggantian biaya' },
+  '/reimbursements/add':             { title: 'New Reimbursement',      sub: 'Ajukan klaim biaya baru' },
+  '/approvals':                      { title: 'Approvals',              sub: 'Manajemen persetujuan' },
+  '/approvals/reimbursement':        { title: 'Reimbursement Approval', sub: 'Review klaim biaya karyawan' },
+  '/approvals/timeoff':              { title: 'Time Off Approval',      sub: 'Review pengajuan cuti karyawan' },
+  '/approvals/attendance':           { title: 'Attendance Approval',    sub: 'Review koreksi kehadiran' },
+  '/account':                        { title: 'Account',                sub: 'Informasi akun & keuangan' },
+  '/settings':                       { title: 'Settings',               sub: 'Pengaturan aplikasi' },
+  '/profile':                        { title: 'My Profile',             sub: 'Informasi akun Anda' },
+  '/help':                           { title: 'Help & Support',         sub: 'Pusat bantuan & dokumentasi' },
 };
 
 const getRouteInfo = (pathname) => {
@@ -34,6 +40,9 @@ const getRouteInfo = (pathname) => {
   if (/\/companies\/.+\/edit/.test(pathname))       return { title: 'Edit Company',         sub: 'Ubah data perusahaan' };
   if (/\/reimbursements\/.+\/edit/.test(pathname))  return { title: 'Edit Reimbursement',   sub: 'Ubah klaim biaya' };
   if (/\/reimbursements\/.+/.test(pathname))        return { title: 'Reimbursement Detail', sub: 'Detail klaim biaya' };
+  if (/\/time-off\/.+\/edit/.test(pathname))        return { title: 'Edit Time Off',        sub: 'Ubah pengajuan cuti' };
+  if (/\/time-off\/.+/.test(pathname))              return { title: 'Time Off Detail',      sub: 'Detail pengajuan cuti' };
+  if (/\/employees\/.+/.test(pathname))             return { title: 'Employee Detail',      sub: 'Detail informasi karyawan' };
   return { title: 'PeopleFlow' };
 };
 

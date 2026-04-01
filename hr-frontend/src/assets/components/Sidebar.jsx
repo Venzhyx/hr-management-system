@@ -21,6 +21,8 @@ import companyLogo from '../images/ABE.png';
 import { useReimbursement } from '../../redux/hooks/useReimbursement';
 import { useTimeOff } from '../../redux/hooks/useTimeOff';
 
+const NEEDS_REVIEW_STATUSES = ['submitted', 'pending'];
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -34,22 +36,14 @@ const Sidebar = () => {
   }, []);
 
   const pendingReimbursements = (reimbursements || []).filter(
-    (r) => r.status?.toLowerCase() === 'submitted'
+    (r) => NEEDS_REVIEW_STATUSES.includes(r.status?.toLowerCase())
   ).length;
 
   const pendingTimeOff = (timeOffRequests || []).filter(
-    (t) => t.status?.toLowerCase() === 'submitted'
+    (t) => NEEDS_REVIEW_STATUSES.includes(t.status?.toLowerCase())
   ).length;
 
   const totalApprovalPending = pendingReimbursements + pendingTimeOff;
-
-  console.log('=== APPROVAL BADGE DEBUG ===');
-  console.log('All reimbursements:', reimbursements);
-  console.log('Pending reimbursements (SUBMITTED):', pendingReimbursements);
-  console.log('All time off requests:', timeOffRequests);
-  console.log('Pending time off (SUBMITTED):', pendingTimeOff);
-  console.log('Total badge count:', totalApprovalPending);
-  console.log('============================');
 
   const mainMenuItems = [
     { name: 'Dashboard',     icon: <HiOutlineHome className="w-5 h-5" />,           path: '/dashboard' },

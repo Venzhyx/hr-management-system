@@ -22,6 +22,7 @@ const fmtDateShort = (d) =>
 
 const STATUS_CFG = {
   SUBMITTED: { label: "Submitted", cls: "bg-amber-50 text-amber-700 border-amber-200",       dot: "bg-amber-400",   Icon: HiOutlineClock  },
+  PENDING:   { label: "Pending",   cls: "bg-amber-50 text-amber-700 border-amber-200",       dot: "bg-amber-400",   Icon: HiOutlineClock  },
   APPROVED:  { label: "Approved",  cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400", Icon: HiOutlineCheck  },
   REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200",             dot: "bg-red-400",     Icon: HiOutlineX      },
 };
@@ -30,6 +31,36 @@ const AR_STATUS = {
   PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"  },
   APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
   REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected" },
+};
+
+// ==================== DERIVE STATUS ====================
+/**
+ * Rules:
+ *  - Tidak ada record / semua PENDING           → "SUBMITTED"
+ *  - Ada ≥1 APPROVED tapi belum semua selesai   → "PENDING"
+ *  - Ada yang REJECTED (kapanpun)               → "REJECTED"
+ *  - Semua APPROVED                             → "APPROVED"
+ */
+const deriveStatus = (records, fallback) => {
+  if (!records || records.length === 0) return fallback || "SUBMITTED";
+
+  const total    = records.length;
+  const approved = records.filter((r) => r.status === "APPROVED").length;
+  const rejected = records.filter((r) => r.status === "REJECTED").length;
+
+  // Belum ada yang action sama sekali
+  if (approved === 0 && rejected === 0) return "SUBMITTED";
+
+  // Langsung REJECTED kalau ada yang reject
+  if (rejected > 0) return "REJECTED";
+
+  // Sebagian sudah approve, belum semua
+  if (approved > 0 && approved < total) return "PENDING";
+
+  // Semua sudah approve
+  if (approved === total) return "APPROVED";
+
+  return fallback || "SUBMITTED";
 };
 
 const Field = ({ label, value }) => (
@@ -167,32 +198,16 @@ const ApprovalStep = ({ ar, isLast }) => {
   );
 };
 
-// ==================== HELPERS: parse approval list dari berbagai bentuk response ====================
-/**
- * API bisa mengembalikan berbagai struktur:
- *   { data: { data: [...] } }
- *   { data: [...] }
- *   { data: { content: [...] } }
- *   [...]
- * Fungsi ini mencoba semua kemungkinan dan selalu mengembalikan array.
- */
+// ==================== PARSE APPROVAL LIST ====================
 const parseApprovalList = (res) => {
   const payload = res?.data;
   if (!payload) return [];
-
-  // { data: { data: [...] } }
-  if (Array.isArray(payload?.data))    return payload.data;
-  // { data: { content: [...] } }
-  if (Array.isArray(payload?.content)) return payload.content;
-  // { data: [...] }
-  if (Array.isArray(payload))          return payload;
-  // { data: { approvals: [...] } }
+  if (Array.isArray(payload?.data))      return payload.data;
+  if (Array.isArray(payload?.content))   return payload.content;
+  if (Array.isArray(payload))            return payload;
   if (Array.isArray(payload?.approvals)) return payload.approvals;
-
-  // fallback: cari key pertama yang berupa array
   const firstArr = Object.values(payload).find((v) => Array.isArray(v));
   if (firstArr) return firstArr;
-
   return [];
 };
 
@@ -209,7 +224,6 @@ const ReimbursementDetail = () => {
   const [deleting,         setDeleting]         = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  // approval records
   const [approvalRecords,  setApprovalRecords]  = useState([]);
   const [loadingApprovals, setLoadingApprovals] = useState(false);
 
@@ -239,7 +253,6 @@ const ReimbursementDetail = () => {
       try {
         const res  = await getReimbursementApprovalsAPI(id);
         const list = parseApprovalList(res);
-        console.debug("[ReimbursementDetail] approvalRecords:", list);
         setApprovalRecords(list);
       } catch (e) {
         console.warn("[ReimbursementDetail] gagal fetch approvals:", e);
@@ -285,17 +298,18 @@ const ReimbursementDetail = () => {
     </div>
   );
 
-  // ── Derived values (setelah data & approvalRecords tersedia) ─────────────
-  const statusCfg = STATUS_CFG[data.status] || {
-    label: data.status,
+  // ── Derived values ───────────────────────────────────────────────────────
+  const derivedStatus = deriveStatus(approvalRecords, data.status);
+  const statusCfg = STATUS_CFG[derivedStatus] || {
+    label: derivedStatus,
     cls: "bg-gray-100 text-gray-600 border-gray-200",
     dot: "bg-gray-400",
     Icon: HiOutlineClock,
   };
+
   const receipt = data.receiptFile;
   const isImage = receipt && /\.(jpg|jpeg|png)(\?|$)/i.test(receipt);
 
-  // Cari record yang sudah diproses (APPROVED / REJECTED) — untuk banner notes
   const processedRecord = approvalRecords.find(
     (ar) => ar.status === "APPROVED" || ar.status === "REJECTED"
   );
@@ -339,7 +353,6 @@ const ReimbursementDetail = () => {
 
           {/* ── Main card ───────────────────────────────────────────────── */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            {/* Title + amount */}
             <div className="flex items-center gap-4 p-6 border-b border-gray-100">
               <div className="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <HiOutlineCurrencyDollar className="w-7 h-7 text-indigo-600" />
@@ -357,7 +370,6 @@ const ReimbursementDetail = () => {
               </div>
             </div>
 
-            {/* Fields */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 p-6">
               <Field label="Expense Date" value={fmtDate(data.expenseDate)} />
               <Field label="Employee"     value={data.employeeName} />
@@ -368,7 +380,6 @@ const ReimbursementDetail = () => {
               <Field label="Last Updated" value={fmtDate(data.updatedAt)} />
             </div>
 
-            {/* Employee notes */}
             {data.notes && (
               <div className="px-6 pb-6">
                 <p className="text-xs text-gray-400 font-medium mb-1">Notes</p>
@@ -378,7 +389,6 @@ const ReimbursementDetail = () => {
           </div>
 
           {/* ── Approval notes banner ────────────────────────────────────── */}
-          {/* Tampil saat: loading selesai DAN ada processedRecord DAN ada notes */}
           {loadingApprovals ? (
             <div className="flex items-center gap-3 py-2 px-4 bg-gray-50 border border-gray-200 rounded-xl">
               <div className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin flex-shrink-0" />
@@ -404,7 +414,6 @@ const ReimbursementDetail = () => {
                 }`}>
                   "{processedRecord.notes}"
                 </p>
-                {/* Nama approver + tanggal */}
                 {(processedRecord.approverName || processedRecord.approvedAt) && (
                   <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
                     {processedRecord.approverName && (

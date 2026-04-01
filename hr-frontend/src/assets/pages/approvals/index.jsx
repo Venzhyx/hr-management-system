@@ -17,7 +17,10 @@ import { useEmployee }      from "../../../redux/hooks/useEmployee";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 import { useTimeOff }       from "../../../redux/hooks/useTimeOff";
 
-// ─── Add Approver Modal (unchanged) ──────────────────────────────────────────
+// Status yang masih butuh review (belum selesai)
+const NEEDS_REVIEW_STATUSES = ["SUBMITTED", "PENDING"];
+
+// ─── Add Approver Modal ───────────────────────────────────────────────────────
 const AddApproverModal = ({ approvers, employees, onAdd, onClose }) => {
   const usedIds   = approvers.map((a) => a.employeeId);
   const active    = employees?.filter((e) => e.status === "ACTIVE" && !usedIds.includes(e.id)) || [];
@@ -78,7 +81,7 @@ const AddApproverModal = ({ approvers, employees, onAdd, onClose }) => {
   );
 };
 
-// ─── Approval Settings Modal (unchanged) ─────────────────────────────────────
+// ─── Approval Settings Modal ──────────────────────────────────────────────────
 const ApprovalSettingsModal = ({ approvers, employees, onClose, onAddApprover, onDeleteApprover }) => {
   const sorted          = [...approvers].sort((a, b) => a.approvalOrder - b.approvalOrder);
   const minimumApproval = sorted.filter((a) => a.isRequired === true).length;
@@ -241,8 +244,8 @@ const ApprovalCard = ({ tab, pendingCount, onNavigate, onOpenSettings }) => {
         <span className="absolute top-4 right-4 text-[10px] font-semibold bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Coming soon</span>
       )}
 
-      {/* Dots menu — only reimbursement has settings */}
-      {tab.available && tab.key === "reimbursement" && (
+      {/* Dots menu */}
+      {tab.available && ["reimbursement", "timeoff"].includes(tab.key) && (
         <div ref={menuRef} className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setMenuOpen((v) => !v)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
             <HiOutlineDotsVertical className="w-4 h-4 text-gray-400" />
@@ -299,8 +302,8 @@ const TABS = [
 const ApprovalPage = () => {
   const navigate = useNavigate();
   const { approvers, fetchApprovalApprovers, createApprovalApprover, deleteApprovalApprover } = useApproval();
-  const { employees, fetchEmployees }           = useEmployee();
-  const { reimbursements, fetchReimbursements } = useReimbursement();
+  const { employees, fetchEmployees }             = useEmployee();
+  const { reimbursements, fetchReimbursements }   = useReimbursement();
   const { timeOffRequests, fetchTimeOffRequests } = useTimeOff();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -313,8 +316,8 @@ const ApprovalPage = () => {
   }, []);
 
   const pendingCounts = {
-    reimbursement: (reimbursements  || []).filter((r) => r.status === "SUBMITTED").length,
-    timeoff:       (timeOffRequests || []).filter((r) => r.status === "SUBMITTED").length,
+    reimbursement: (reimbursements  || []).filter((r) => NEEDS_REVIEW_STATUSES.includes(r.status)).length,
+    timeoff:       (timeOffRequests || []).filter((r) => NEEDS_REVIEW_STATUSES.includes(r.status)).length,
   };
 
   const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);
