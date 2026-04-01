@@ -24,8 +24,8 @@ public class Attendance {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @Column(name = "work_date", nullable = false)
-    private LocalDate workDate;
+    @Column(name = "date", nullable = false)
+    private LocalDate date;
 
     @Column(name = "check_in")
     private LocalDateTime checkIn;
