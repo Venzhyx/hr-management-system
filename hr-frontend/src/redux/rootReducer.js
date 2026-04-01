@@ -3,22 +3,24 @@ import employeeReducer           from './slices/employeeSlice';
 import departmentReducer         from './slices/departmentSlice';
 import companyReducer            from './slices/companySlice';
 import attendanceSettingsReducer from './slices/attendanceSettingsSlice';
+import attendanceReducer         from './slices/attendanceSlice'; // ← tambah ini
 import calendarEventReducer      from './slices/calendarEventSlice';
 import timeOffTypeReducer        from './slices/timeOffTypeSlice';
-import timeOffReducer            from './slices/timeoffSlice'; // ← tambah ini
+import timeOffReducer            from './slices/timeoffSlice';
 import reimbursementReducer      from './slices/reimbursementSlice';
 import approvalReducer           from './slices/approvalSlice';
- 
+
 const rootReducer = combineReducers({
   employees:          employeeReducer,
   departments:        departmentReducer,
   companies:          companyReducer,
   attendanceSettings: attendanceSettingsReducer,
+  attendance:         attendanceReducer,         // ← tambah ini
   calendarEvents:     calendarEventReducer,
   timeOffTypes:       timeOffTypeReducer,
-  timeOff:            timeOffReducer,           // ← tambah ini
+  timeOff:            timeOffReducer,
   reimbursements:     reimbursementReducer,
   approval:           approvalReducer,
 });
- 
+
 export default rootReducer;
