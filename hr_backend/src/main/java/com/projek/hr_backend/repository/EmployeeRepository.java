@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
@@ -24,4 +25,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     
     @Query("SELECT COUNT(d) FROM Department d WHERE d.manager.id = :employeeId")
     long countDepartmentsByManagerId(Long employeeId);
+    
+    Optional<Employee> findByBadgeId(String badgeId);
 }
