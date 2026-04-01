@@ -6,8 +6,7 @@ import {
   HiOutlineBan,
   HiOutlinePencilAlt,
   HiOutlineChevronLeft,
-  HiOutlineChevronRight,
-  HiOutlineCalendar
+  HiOutlineChevronRight
 } from 'react-icons/hi';
 
 const AttendanceDashboard = () => {
@@ -24,7 +23,7 @@ const AttendanceDashboard = () => {
   });
   
   // Dummy calendar data for July 1 - August 11, 2018
-  const [calendarDays, setCalendarDays] = useState([]);
+  const [calendarWeeks, setCalendarWeeks] = useState([]);
   
   // Activity data for heatmap (like GitHub contributions)
   const [activityData, setActivityData] = useState([]);
@@ -42,7 +41,6 @@ const AttendanceDashboard = () => {
         date.setDate(startDate.getDate() + (week * 7) + day);
         
         // Generate random activity level (0-4)
-        // 0: no activity, 4: very high activity
         let level = 0;
         const month = date.getMonth();
         
@@ -64,10 +62,8 @@ const AttendanceDashboard = () => {
         // Add some specific patterns based on the original data
         const dateStr = date.toISOString().split('T')[0];
         if (dateStr >= '2018-04-01' && dateStr <= '2018-10-31') {
-          // For the months shown in original, make data consistent
           const dayOfMonth = date.getDate();
           if (dayOfMonth <= 27) {
-            // Match the pattern from original: 100, 102, 103, etc.
             const baseValue = [100, 102, 103, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150][dayOfMonth - 1];
             if (baseValue >= 140) level = 4;
             else if (baseValue >= 120) level = 3;
@@ -83,7 +79,7 @@ const AttendanceDashboard = () => {
           date: date,
           dateStr,
           level,
-          value: level === 0 ? 0 : (level * 25) + 75 // Convert level to actual value
+          value: level === 0 ? 0 : (level * 25) + 75
         });
       }
       weeks.push(days);
@@ -92,79 +88,49 @@ const AttendanceDashboard = () => {
     setActivityData(weeks);
   }, []);
   
-  // Generate calendar data for July 1 - August 11, 2018
+  // Generate calendar data based on the image pattern
   useEffect(() => {
-    const days = [];
-    const startDate = new Date(2018, 6, 1); // July 1, 2018
-    const endDate = new Date(2018, 7, 11); // August 11, 2018
-    
-    // Dummy attendance status for each date
-    const attendanceStatus = {
-      '2018-07-01': 'weekend',
-      '2018-07-02': 'present',
-      '2018-07-03': 'absent',
-      '2018-07-04': 'present',
-      '2018-07-05': 'present',
-      '2018-07-06': 'present',
-      '2018-07-07': 'present',
-      '2018-07-08': 'weekend',
-      '2018-07-09': 'present',
-      '2018-07-10': 'present',
-      '2018-07-11': 'present',
-      '2018-07-12': 'present',
-      '2018-07-13': 'present',
-      '2018-07-14': 'present',
-      '2018-07-15': 'weekend',
-      '2018-07-16': 'present',
-      '2018-07-17': 'present',
-      '2018-07-18': 'present',
-      '2018-07-19': 'present',
-      '2018-07-20': 'present',
-      '2018-07-21': 'present',
-      '2018-07-22': 'weekend',
-      '2018-07-23': 'present',
-      '2018-07-24': 'present',
-      '2018-07-25': 'present',
-      '2018-07-26': 'absent',
-      '2018-07-27': 'present',
-      '2018-07-28': 'present',
-      '2018-07-29': 'weekend',
-      '2018-07-30': 'present',
-      '2018-07-31': 'present',
-      '2018-08-01': 'present',
-      '2018-08-02': 'present',
-      '2018-08-03': 'present',
-      '2018-08-04': 'present',
-      '2018-08-05': 'weekend',
-      '2018-08-06': 'present',
-      '2018-08-07': 'present',
-      '2018-08-08': 'present',
-      '2018-08-09': 'present',
-      '2018-08-10': 'present',
-      '2018-08-11': 'present',
-    };
-    
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      const dayOfWeek = d.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      
-      let status = attendanceStatus[dateStr] || 'present';
-      if (isWeekend && !attendanceStatus[dateStr]) {
-        status = 'weekend';
+    // Data based on the image: 3 weeks pattern with Attend/Non Present
+    const weeksData = [
+      {
+        weekNumber: 1,
+        days: [
+          { day: 27, status: 'attend', label: 'Attend', event: '' },
+          { day: 28, status: 'non-present', label: 'Non Present', event: '' },
+          { day: 29, status: 'attend', label: 'Attend', event: '' },
+          { day: 30, status: 'attend', label: 'Attend', event: '' },
+          { day: 31, status: 'attend', label: 'Attend', event: '' },
+          { day: 1, status: 'attend', label: 'Attend', event: '' },
+          { day: 2, status: 'weekend', label: 'Weekend', event: '' }
+        ]
+      },
+      {
+        weekNumber: 2,
+        days: [
+          { day: 4, status: 'attend', label: 'Attend', event: 'Analytics Meeting' },
+          { day: 5, status: 'non-present', label: 'Non Present', event: '' },
+          { day: 6, status: 'attend', label: 'Attend', event: '' },
+          { day: 7, status: 'attend', label: 'Attend', event: 'Design project' },
+          { day: 8, status: 'attend', label: 'Attend', event: 'Meeting' },
+          { day: 9, status: 'attend', label: 'Attend', event: 'PHP development' },
+          { day: 10, status: 'weekend', label: 'Weekend', event: '' }
+        ]
+      },
+      {
+        weekNumber: 3,
+        days: [
+          { day: 11, status: 'attend', label: 'Attend', event: '' },
+          { day: 12, status: 'attend', label: 'Attend', event: '' },
+          { day: 13, status: 'attend', label: 'Attend', event: '' },
+          { day: 14, status: 'non-present', label: 'Non Present', event: '' },
+          { day: 15, status: 'attend', label: 'Attend', event: '' },
+          { day: 16, status: 'attend', label: 'Attend', event: 'Ux ui design' },
+          { day: 17, status: 'weekend', label: 'Weekend', event: '' }
+        ]
       }
-      
-      days.push({
-        date: new Date(d),
-        dateStr,
-        day: d.getDate(),
-        month: d.getMonth(),
-        status,
-        events: []
-      });
-    }
+    ];
     
-    setCalendarDays(days);
+    setCalendarWeeks(weeksData);
   }, []);
   
   // Format date range display
@@ -172,17 +138,17 @@ const AttendanceDashboard = () => {
     return `Jul 1 - Aug 11, 2018`;
   };
   
-  // Get status color and icon
+  // Get status color and style
   const getStatusStyle = (status) => {
     switch(status) {
-      case 'present':
-        return { bg: 'bg-green-100', text: 'text-green-700', icon: HiOutlineCheckCircle, label: 'Attend' };
-      case 'absent':
-        return { bg: 'bg-red-100', text: 'text-red-700', icon: HiOutlineXCircle, label: 'Non Present' };
+      case 'attend':
+        return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', label: 'Attend' };
+      case 'non-present':
+        return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Non Present' };
       case 'weekend':
-        return { bg: 'bg-gray-100', text: 'text-gray-500', icon: null, label: 'Weekend' };
+        return { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-200', label: 'Weekend' };
       default:
-        return { bg: 'bg-gray-50', text: 'text-gray-600', icon: null, label: '' };
+        return { bg: 'bg-white', text: 'text-gray-600', border: 'border-gray-200', label: '' };
     }
   };
   
@@ -198,35 +164,9 @@ const AttendanceDashboard = () => {
     }
   };
   
-  // Group days by week for calendar
-  const getWeeks = () => {
-    const weeks = [];
-    let currentWeek = [];
-    
-    for (let i = 0; i < calendarDays.length; i++) {
-      const day = calendarDays[i];
-      const dayOfWeek = day.date.getDay();
-      
-      if (dayOfWeek === 1 && currentWeek.length > 0) {
-        weeks.push([...currentWeek]);
-        currentWeek = [];
-      }
-      
-      currentWeek.push(day);
-      
-      if (i === calendarDays.length - 1 && currentWeek.length > 0) {
-        weeks.push(currentWeek);
-      }
-    }
-    
-    return weeks;
-  };
-  
-  const weeks = getWeeks();
-  
-  // Month labels for heatmap (Jan - Dec)
+  // Month labels for heatmap
   const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const dayLabels = ['Mon', 'Wed', 'Fri']; // Show fewer day labels
+  const dayLabels = ['Mon', 'Wed', 'Fri'];
   
   return (
     <div className="w-full px-4 md:px-6 py-6 space-y-6">
@@ -322,8 +262,7 @@ const AttendanceDashboard = () => {
               {/* Month labels */}
               <div className="flex ml-8 mb-2">
                 {monthLabels.map((month, idx) => {
-                  // Position months roughly where they start
-                  const weekPosition = idx * 4.33; // Approximately 4.33 weeks per month
+                  const weekPosition = idx * 4.33;
                   return (
                     <div 
                       key={month} 
@@ -360,7 +299,6 @@ const AttendanceDashboard = () => {
                             className={`w-3 h-3 mr-1 rounded-sm ${getActivityColor(day.level)} transition-colors cursor-pointer group relative`}
                             title={`${day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}: ${day.value} activities`}
                           >
-                            {/* Tooltip */}
                             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
                               {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {day.value} activities
                             </div>
@@ -389,59 +327,63 @@ const AttendanceDashboard = () => {
         </div>
       </div>
       
-      {/* Calendar Section */}
+      {/* Calendar Section - Like the image */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-        <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800">Attendance Calendar</h2>
-            <p className="text-sm text-gray-500 mt-1">{formatDateRange()}</p>
-          </div>
-          <div className="flex space-x-2">
-            <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
-              <HiOutlineChevronLeft className="w-4 h-4" />
-            </button>
-            <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
-              <HiOutlineChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800">Recent Screenshot / Video</h2>
         </div>
         
-        <div className="p-6 overflow-x-auto">
+        <div className="p-6">
           {/* Weekday Headers */}
-          <div className="grid grid-cols-7 gap-2 mb-4">
+          <div className="grid grid-cols-7 gap-3 mb-4">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-              <div key={day} className="text-center py-2 text-sm font-medium text-gray-500">
+              <div key={day} className="text-center py-2 text-sm font-semibold text-gray-600 bg-gray-50 rounded-lg">
                 {day}
               </div>
             ))}
           </div>
           
-          {/* Calendar Days */}
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 gap-2 mb-2">
-              {week.map((day, dayIndex) => {
-                const statusStyle = getStatusStyle(day.status);
-                const StatusIcon = statusStyle.icon;
-                
-                return (
-                  <div
-                    key={dayIndex}
-                    className={`min-h-[100px] p-2 rounded-lg border ${statusStyle.bg} border-gray-100 hover:shadow-md transition-shadow`}
-                  >
-                    <div className={`text-sm font-medium mb-1 ${statusStyle.text}`}>
-                      {day.day}
-                    </div>
-                    {StatusIcon && (
-                      <div className="flex justify-center mb-1">
-                        <StatusIcon className="w-5 h-5" />
+          {/* Calendar Weeks */}
+          {calendarWeeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="mb-6">
+              <div className="grid grid-cols-7 gap-3 mb-2">
+                {week.days.map((day, dayIndex) => {
+                  const statusStyle = getStatusStyle(day.status);
+                  
+                  return (
+                    <div
+                      key={dayIndex}
+                      className={`relative rounded-lg border ${statusStyle.border} ${statusStyle.bg} overflow-hidden`}
+                    >
+                      {/* Top bar with status - small bar at top */}
+                      <div className={`text-center py-1 text-xs font-medium ${statusStyle.text} border-b ${statusStyle.border}`}>
+                        {statusStyle.label}
                       </div>
-                    )}
-                    <div className="text-xs text-center font-medium">
-                      {statusStyle.label}
+                      
+                      {/* Day number */}
+                      <div className="text-center py-2">
+                        <span className={`text-lg font-semibold ${statusStyle.text}`}>
+                          {day.day}
+                        </span>
+                      </div>
+                      
+                      {/* Event text if any */}
+                      {day.event && (
+                        <div className="px-1 pb-1">
+                          <p className="text-[10px] text-gray-600 text-center truncate">
+                            {day.event}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              
+              {/* Week separator line (except last week) */}
+              {weekIndex < calendarWeeks.length - 1 && (
+                <div className="border-t border-gray-200 my-3"></div>
+              )}
             </div>
           ))}
         </div>
