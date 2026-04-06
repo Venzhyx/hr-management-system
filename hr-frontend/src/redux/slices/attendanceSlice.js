@@ -1,167 +1,110 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import API from "../../api/api";
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// ─── Async Thunks ─────────────────────────────────────────────────────────────
 
-// Fetch all attendances by employee ID (internal use)
+export const fetchAllEmployeesForDropdown = createAsyncThunk(
+  "attendance/fetchAllEmployees",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await API.get("/employees");
+      const parsed = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+      return parsed?.data ?? [];
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Gagal memuat daftar karyawan.");
+    }
+  }
+);
+
 export const fetchAttendancesByEmployeeId = createAsyncThunk(
-  'attendance/fetchByEmployeeId',
+  "attendance/fetchByEmployeeId",
   async (employeeId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/attendances/employee/${employeeId}`);
-      return response.data.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch attendances');
-    }
-  }
-);
+      const res = await API.get(`/attendances/employee/${employeeId}`, {
+        // Naikkan limit response — default Axios kadang terpotong untuk response besar
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
 
-// Fetch attendances by employee identification number (NIK)
-export const fetchAttendancesByIdentificationNumber = createAsyncThunk(
-  'attendance/fetchByIdentificationNumber',
-  async (employeeIdentificationNumber, { rejectWithValue }) => {
-    try {
-      // Step 1: Get all employees to find the one with matching identification number
-      const employeesRes = await axios.get(`${BASE_URL}/api/employees`);
-      const employees = employeesRes.data.data;
-
-      const matched = employees.find(
-        (emp) => emp.employeeIdentificationNumber === employeeIdentificationNumber
-      );
-
-      if (!matched) {
-        return rejectWithValue(`Employee with identification number "${employeeIdentificationNumber}" not found`);
+      let parsed;
+      if (typeof res.data === "string") {
+        try {
+          parsed = JSON.parse(res.data);
+        } catch (parseErr) {
+          console.error("[Slice] JSON.parse gagal, kemungkinan response terpotong");
+          console.error("[Slice] res.data.length:", res.data.length);
+          console.error("[Slice] res.data (100 char terakhir):", res.data.slice(-100));
+          return rejectWithValue("Response dari server tidak valid (terpotong).");
+        }
+      } else {
+        parsed = res.data;
       }
 
-      // Step 2: Fetch attendances by found employee ID
-      const attendanceRes = await axios.get(`${BASE_URL}/api/attendances/employee/${matched.id}`);
-      return {
-        employee: matched,
-        attendances: attendanceRes.data.data,
-      };
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch attendances');
+      const list = Array.isArray(parsed?.data) ? parsed.data : [];
+      return { attendances: list };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Gagal memuat data absensi.");
     }
   }
 );
 
-// Upload Excel attendance file
-export const uploadAttendanceExcel = createAsyncThunk(
-  'attendance/uploadExcel',
-  async (file, { rejectWithValue }) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await axios.post(`${BASE_URL}/api/attendances/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return response.data.message;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Upload failed');
-    }
-  }
-);
-
-// Compute summary from attendance list
-const computeSummary = (attendances) => {
-  const summary = { present: 0, absent: 0, lates: 0, leave: 0 };
-  attendances.forEach((a) => {
-    const status = (a.status || '').toUpperCase();
-    if (status === 'PRESENT') summary.present += 1;
-    else if (status === 'ABSENT') summary.absent += 1;
-    else if (status === 'LATE') summary.lates += 1;
-    else if (status === 'LEAVE') summary.leave += 1;
-  });
-  return summary;
-};
+// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const attendanceSlice = createSlice({
-  name: 'attendance',
+  name: "attendance",
   initialState: {
-    attendances: [],
-    employee: null,
-    summary: { present: 0, absent: 0, lates: 0, leave: 0 },
-    loading: false,
-    uploadLoading: false,
-    error: null,
-    uploadSuccess: null,
+    attendances:      [],
+    loading:          false,
+    error:            null,
+    employees:        [],
+    loadingEmployees: false,
   },
   reducers: {
     clearAttendanceError(state) {
       state.error = null;
     },
-    clearUploadStatus(state) {
-      state.uploadSuccess = null;
-      state.error = null;
-    },
-    resetAttendance(state) {
+    clearAttendanceData(state) {
       state.attendances = [];
-      state.employee = null;
-      state.summary = { present: 0, absent: 0, lates: 0, leave: 0 };
-      state.error = null;
+      state.error       = null;
     },
   },
   extraReducers: (builder) => {
-    // fetchAttendancesByEmployeeId
+    builder
+      .addCase(fetchAllEmployeesForDropdown.pending, (state) => {
+        state.loadingEmployees = true;
+      })
+      .addCase(fetchAllEmployeesForDropdown.fulfilled, (state, action) => {
+        state.loadingEmployees = false;
+        state.employees        = action.payload;
+      })
+      .addCase(fetchAllEmployeesForDropdown.rejected, (state) => {
+        state.loadingEmployees = false;
+      });
+
     builder
       .addCase(fetchAttendancesByEmployeeId.pending, (state) => {
         state.loading = true;
-        state.error = null;
+        state.error   = null;
       })
       .addCase(fetchAttendancesByEmployeeId.fulfilled, (state, action) => {
-        state.loading = false;
-        state.attendances = action.payload;
-        state.summary = computeSummary(action.payload);
+        state.loading     = false;
+        state.attendances = action.payload.attendances;
       })
       .addCase(fetchAttendancesByEmployeeId.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
-      });
-
-    // fetchAttendancesByIdentificationNumber
-    builder
-      .addCase(fetchAttendancesByIdentificationNumber.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchAttendancesByIdentificationNumber.fulfilled, (state, action) => {
-        state.loading = false;
-        state.employee = action.payload.employee;
-        state.attendances = action.payload.attendances;
-        state.summary = computeSummary(action.payload.attendances);
-      })
-      .addCase(fetchAttendancesByIdentificationNumber.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      });
-
-    // uploadAttendanceExcel
-    builder
-      .addCase(uploadAttendanceExcel.pending, (state) => {
-        state.uploadLoading = true;
-        state.uploadSuccess = null;
-        state.error = null;
-      })
-      .addCase(uploadAttendanceExcel.fulfilled, (state, action) => {
-        state.uploadLoading = false;
-        state.uploadSuccess = action.payload;
-      })
-      .addCase(uploadAttendanceExcel.rejected, (state, action) => {
-        state.uploadLoading = false;
-        state.error = action.payload;
+        state.error   = action.payload;
       });
   },
 });
 
-export const { clearAttendanceError, clearUploadStatus, resetAttendance } = attendanceSlice.actions;
+export const { clearAttendanceError, clearAttendanceData } = attendanceSlice.actions;
 
-// Selectors
-export const selectAttendances = (state) => state.attendance.attendances;
-export const selectAttendanceEmployee = (state) => state.attendance.employee;
-export const selectAttendanceSummary = (state) => state.attendance.summary;
-export const selectAttendanceLoading = (state) => state.attendance.loading;
-export const selectAttendanceError = (state) => state.attendance.error;
-export const selectUploadLoading = (state) => state.attendance.uploadLoading;
-export const selectUploadSuccess = (state) => state.attendance.uploadSuccess;
+// ─── Selectors ────────────────────────────────────────────────────────────────
+
+export const selectAttendances       = (s) => s.attendance.attendances;
+export const selectAttendanceLoading = (s) => s.attendance.loading;
+export const selectAttendanceError   = (s) => s.attendance.error;
+export const selectEmployees         = (s) => s.attendance.employees;
+export const selectLoadingEmployees  = (s) => s.attendance.loadingEmployees;
 
 export default attendanceSlice.reducer;

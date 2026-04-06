@@ -1,5 +1,6 @@
 package com.projek.hr_backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,6 +23,11 @@ public class Attendance {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
+    @JsonIgnoreProperties({
+        "company", "department", "manager",
+        "workEmail", "workPhone", "workMobile",
+        "joinDate", "photo", "hibernateLazyInitializer", "handler"
+    })
     private Employee employee;
 
     @Column(name = "date", nullable = false)

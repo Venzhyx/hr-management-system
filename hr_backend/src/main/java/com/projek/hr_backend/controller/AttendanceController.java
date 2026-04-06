@@ -9,7 +9,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/attendances")
@@ -26,14 +29,38 @@ public class AttendanceController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Attendance>>> getAllAttendances() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllAttendances() {
         List<Attendance> attendances = service.getAllAttendances();
-        return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", attendances));
+        return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", toDto(attendances)));
     }
 
     @GetMapping("/employee/{id}")
-    public ResponseEntity<ApiResponse<List<Attendance>>> getAttendancesByEmployee(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAttendancesByEmployee(@PathVariable Long id) {
         List<Attendance> attendances = service.getAttendancesByEmployee(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", attendances));
+        return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", toDto(attendances)));
+    }
+
+    // ── Helper: ubah Attendance → Map sederhana tanpa circular reference ──────
+    private List<Map<String, Object>> toDto(List<Attendance> attendances) {
+        return attendances.stream().map(att -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id",           att.getId());
+            map.put("date",         att.getDate());
+            map.put("checkIn",      att.getCheckIn());
+            map.put("checkOut",     att.getCheckOut());
+            map.put("status",       att.getStatus());
+            map.put("employeeCode", att.getEmployeeCode());
+            map.put("employeeName", att.getEmployeeName());
+            map.put("createdAt",    att.getCreatedAt());
+
+            if (att.getEmployee() != null) {
+                Map<String, Object> emp = new LinkedHashMap<>();
+                emp.put("id",   att.getEmployee().getId());
+                emp.put("name", att.getEmployee().getName());
+                map.put("employee", emp);
+            }
+
+            return map;
+        }).collect(Collectors.toList());
     }
 }
