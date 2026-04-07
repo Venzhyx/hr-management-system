@@ -28,6 +28,7 @@ services:
       - "8080:8080"
     volumes:
       - ./hr_backend/uploads:/app/uploads
+      - C:/attendance:/app/attendance
 
   frontend:
     build: ./hr-frontend

@@ -11,10 +11,13 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -81,6 +84,18 @@ public class AttendanceService {
 
                 attendanceRepository.save(attendance);
             }
+        }
+    }
+
+    public void importExcel(File file) throws IOException {
+        try (FileInputStream fis = new FileInputStream(file)) {
+            MultipartFile multipartFile = new MockMultipartFile(
+                    file.getName(),
+                    file.getName(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    fis
+            );
+            importExcel(multipartFile);
         }
     }
 
