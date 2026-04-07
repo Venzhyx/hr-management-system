@@ -19,7 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -30,7 +33,8 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final EmployeeSettingsRepository employeeSettingsRepository;
 
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter FORMATTER      = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter DATE_FORMATTER  = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Transactional
     public void importExcel(MultipartFile file) throws IOException {
@@ -42,10 +46,11 @@ public class AttendanceService {
                 if (row == null) continue;
 
                 Cell identificationCell = row.getCell(0);
-                Cell checkInCell        = row.getCell(1);
-                Cell checkOutCell       = row.getCell(2);
+                Cell workDateCell        = row.getCell(1);
+                Cell checkInCell         = row.getCell(2);
+                Cell checkOutCell        = row.getCell(3);
 
-                if (identificationCell == null || checkInCell == null) continue;
+                if (identificationCell == null || workDateCell == null) continue;
 
                 String employeeIdentificationNumber = identificationCell.getStringCellValue().trim();
                 if (employeeIdentificationNumber.isEmpty()) continue;
@@ -64,23 +69,43 @@ public class AttendanceService {
                 System.out.println("EMP CODE: " + settings.getEmployeeIdentificationNumber());
                 System.out.println("EMP NAME: " + employee.getName());
 
-                LocalDateTime checkIn = LocalDateTime.parse(checkInCell.getStringCellValue().trim(), FORMATTER);
+                LocalDate workDate = LocalDate.parse(workDateCell.getStringCellValue().trim(), DATE_FORMATTER);
+
+                LocalDateTime checkIn = (checkInCell != null && !checkInCell.getStringCellValue().trim().isEmpty())
+                        ? LocalDateTime.parse(checkInCell.getStringCellValue().trim(), FORMATTER)
+                        : null;
+
                 LocalDateTime checkOut = (checkOutCell != null && !checkOutCell.getStringCellValue().trim().isEmpty())
                         ? LocalDateTime.parse(checkOutCell.getStringCellValue().trim(), FORMATTER)
                         : null;
 
-                String status = (checkIn.getHour() > 8 || (checkIn.getHour() == 8 && checkIn.getMinute() > 0))
-                        ? "LATE"
-                        : "PRESENT";
+                DayOfWeek day = workDate.getDayOfWeek();
 
                 Attendance attendance = new Attendance();
                 attendance.setEmployee(employee);
                 attendance.setEmployeeCode(settings.getEmployeeIdentificationNumber());
                 attendance.setEmployeeName(employee.getName());
-                attendance.setDate(checkIn.toLocalDate());
-                attendance.setCheckIn(checkIn);
-                attendance.setCheckOut(checkOut);
-                attendance.setStatus(status);
+                attendance.setDate(workDate);
+
+                if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
+                    attendance.setStatus("OFF");
+                    attendance.setCheckIn(null);
+                    attendance.setCheckOut(null);
+                } else {
+                    if (checkIn == null) {
+                        attendance.setStatus("ABSENT");
+                        attendance.setCheckIn(null);
+                        attendance.setCheckOut(null);
+                    } else {
+                        attendance.setCheckIn(checkIn);
+                        attendance.setCheckOut(checkOut);
+                        if (checkIn.toLocalTime().isAfter(LocalTime.of(8, 0))) {
+                            attendance.setStatus("LATE");
+                        } else {
+                            attendance.setStatus("PRESENT");
+                        }
+                    }
+                }
 
                 attendanceRepository.save(attendance);
             }
