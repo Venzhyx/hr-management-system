@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
-  HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineClock, HiOutlineBan,
-  HiOutlineCalendar, HiOutlineUser, HiOutlineOfficeBuilding,
+  HiOutlineXCircle, HiOutlineCalendar, HiOutlineUser, HiOutlineOfficeBuilding,
   HiOutlineSearch, HiOutlineChevronDown, HiOutlineRefresh,
-  HiOutlineChevronLeft, HiOutlineChevronRight,
+  HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineInformationCircle,
 } from "react-icons/hi";
 import { useAttendance } from "../../redux/hooks/useAttendance";
 
@@ -11,8 +10,8 @@ const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const monthFull   = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const weekDays    = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
-const getDate     = (att) => att.date;
-const getStatus   = (att) => att.status?.toUpperCase();
+const getDate   = (att) => att.date;
+const getStatus = (att) => att.status?.toUpperCase();
 
 const fmtTime = (t) => {
   if (!t) return "-";
@@ -21,15 +20,48 @@ const fmtTime = (t) => {
   return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 };
 
-// Heatmap color berdasarkan status
 const getActivityColor = (status) => {
   switch (status) {
     case "PRESENT": return "bg-green-500 hover:bg-green-600";
     case "LATE":    return "bg-yellow-400 hover:bg-yellow-500";
-    case "LEAVE":   return "bg-purple-400 hover:bg-purple-500";
     case "ABSENT":  return "bg-red-400 hover:bg-red-500";
     default:        return "bg-gray-100 hover:bg-gray-200";
   }
+};
+
+// ─── Status Icon ──────────────────────────────────────────────────────────────
+
+const StatusIcon = ({ status }) => {
+  if (status === "PRESENT") return (
+    <span className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full bg-green-500 flex-shrink-0">
+      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+        <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </span>
+  );
+  if (status === "ABSENT") return (
+    <span className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full bg-red-500 flex-shrink-0">
+      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+        <path d="M3 3l4 4M7 3l-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    </span>
+  );
+  if (status === "LATE") return (
+    <span className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full bg-yellow-400 flex-shrink-0">
+      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+        <circle cx="5" cy="5" r="3.5" stroke="white" strokeWidth="1.2"/>
+        <path d="M5 3.5V5l1 1" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </span>
+  );
+  return null;
+};
+
+const statusLabel = (status) => {
+  if (status === "PRESENT") return "Attend";
+  if (status === "ABSENT")  return "Non Present";
+  if (status === "LATE")    return "Late";
+  return "";
 };
 
 // ─── Employee Dropdown ────────────────────────────────────────────────────────
@@ -130,7 +162,7 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
   );
 };
 
-// ─── Monthly Calendar (Full Width) ───────────────────────────────────────────
+// ─── Monthly Calendar ─────────────────────────────────────────────────────────
 
 const MonthCalendar = ({ year, month, attendanceMap }) => {
   const today       = new Date();
@@ -143,105 +175,286 @@ const MonthCalendar = ({ year, month, attendanceMap }) => {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const getDayAtt = (day) => {
+  const getDayAtt  = (day) => {
     if (!day) return null;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return attendanceMap[dateStr] || null;
   };
-
-  const isToday  = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+  const isToday   = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
   const isWeekend = (idx) => idx % 7 === 5 || idx % 7 === 6;
-
-  const pillStyle = (status) => {
-    switch (status) {
-      case "PRESENT": return { bg: "bg-green-100",  text: "text-green-700",  dot: "bg-green-500",  label: "Hadir"       };
-      case "LATE":    return { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500", label: "Terlambat"   };
-      case "LEAVE":   return { bg: "bg-purple-100", text: "text-purple-700", dot: "bg-purple-500", label: "Izin"        };
-      case "ABSENT":  return { bg: "bg-red-100",    text: "text-red-700",    dot: "bg-red-500",    label: "Tidak Hadir" };
-      default: return null;
-    }
-  };
 
   const rows = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white">
-        <p className="text-base font-semibold text-gray-800">{monthFull[month]} {year}</p>
+      <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+        <p className="text-sm font-semibold text-gray-700">{monthFull[month]} {year}</p>
       </div>
 
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-gray-100">
-        {["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"].map((d, i) => (
-          <div key={d} className={`text-center text-xs font-semibold py-3 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
+          <div key={d} className={`text-left text-xs font-semibold px-3 py-2 border-r border-gray-100 last:border-r-0 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>
             {d}
           </div>
         ))}
       </div>
 
-      {/* Date grid */}
+      {/* Date rows */}
       {rows.map((row, ri) => (
         <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
           {row.map((day, ci) => {
             const att     = getDayAtt(day);
             const status  = att?.status?.toUpperCase();
-            const pill    = pillStyle(status);
             const today_  = isToday(day);
             const weekend = isWeekend(ci);
 
             return (
               <div
                 key={ci}
-                className={`min-h-[90px] p-2 border-r border-gray-100 last:border-r-0
+                className={`min-h-[60px] px-2 py-2 border-r border-gray-100 last:border-r-0
                   ${!day ? "bg-gray-50/50" : ""}
                   ${weekend && day ? "bg-orange-50/30" : ""}
                 `}
               >
                 {day && (
-                  <>
-                    {/* Tanggal */}
-                    <div className="mb-1.5">
-                      <span className={`text-sm font-semibold w-7 h-7 inline-flex items-center justify-center rounded-full
-                        ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-700"}
-                      `}>
-                        {day}
-                      </span>
-                    </div>
+                  /* date number + status icon + label all inline in one row */
+                  <div className="flex items-center gap-1 flex-wrap group relative">
+                    <span className={`text-sm font-medium inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0
+                      ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-600"}
+                    `}>
+                      {day}
+                    </span>
 
-                    {/* Status pill */}
-                    {pill && (
-                      <div className={`group relative rounded-md px-2 py-1 ${pill.bg} cursor-default w-full`}>
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${pill.dot}`} />
-                          <span className={`text-xs font-medium truncate ${pill.text}`}>
-                            {pill.label}
-                          </span>
-                        </div>
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-0 mb-2 z-30 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
-                          <p className="font-semibold">{pill.label}</p>
-                          {att?.checkIn && (
-                            <p className="text-gray-300 mt-0.5">
-                              Masuk: {fmtTime(att.checkIn)}
-                            </p>
-                          )}
-                          {att?.checkOut && (
-                            <p className="text-gray-300">
-                              Keluar: {fmtTime(att.checkOut)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                    {status ? (
+                      <>
+                        <StatusIcon status={status} />
+                        <span className={`text-xs font-medium
+                          ${status === "PRESENT" ? "text-green-700" : status === "ABSENT" ? "text-red-600" : "text-yellow-600"}
+                        `}>
+                          {statusLabel(status)}
+                        </span>
+                        {(att?.checkIn || att?.checkOut) && (
+                          <div className="absolute top-full left-0 mt-1 z-30 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
+                            <p className="font-semibold mb-0.5">{statusLabel(status)}</p>
+                            {att?.checkIn  && <p className="text-gray-300">Masuk: {fmtTime(att.checkIn)}</p>}
+                            {att?.checkOut && <p className="text-gray-300">Keluar: {fmtTime(att.checkOut)}</p>}
+                          </div>
+                        )}
+                      </>
+                    ) : weekend ? (
+                      <span className="text-xs text-orange-300">Weekend</span>
+                    ) : null}
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
       ))}
+    </div>
+  );
+};
+
+// ─── Attendance Summary Card ──────────────────────────────────────────────────
+
+const AttendanceSummary = ({ present, absent, late }) => {
+  const items = [
+    {
+      label: "Present",
+      value: String(present).padStart(2, "0"),
+      bg: "bg-green-600",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="4" width="14" height="13" rx="2" stroke="white" strokeWidth="1.5"/>
+          <path d="M7 2v4M13 2v4M3 8h14" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M6.5 12l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+    {
+      label: "Absents",
+      value: String(absent).padStart(2, "0"),
+      bg: "bg-red-500",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="4" width="14" height="13" rx="2" stroke="white" strokeWidth="1.5"/>
+          <path d="M7 2v4M13 2v4M3 8h14" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M7 12l6 4M13 12l-6 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+    {
+      label: "Lates",
+      value: String(late).padStart(2, "0"),
+      bg: "bg-amber-500",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="11" r="6" stroke="white" strokeWidth="1.5"/>
+          <path d="M10 8v3l2 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M7 3h6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-gray-800">Attendance Summary</h2>
+        <HiOutlineInformationCircle className="w-3.5 h-3.5 text-gray-400" />
+      </div>
+      <div className="grid grid-cols-3 divide-x divide-gray-100">
+        {items.map(({ label, value, bg, icon }) => (
+          <div key={label} className="flex flex-col items-center py-5 px-3">
+            <div className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center mb-2`}>
+              {icon}
+            </div>
+            <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+            <p className="text-xl font-bold text-gray-800 tabular-nums">{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Activity Heatmap — 6-month paged ────────────────────────────────────────
+
+const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, availableYears }) => {
+  const [halfPage, setHalfPage] = useState(0); // 0 = Jan–Jun, 1 = Jul–Dec
+
+  const statusMap = useMemo(() => {
+    const map = {};
+    attendances.forEach((att) => {
+      const d = att.date;
+      if (d) map[d] = att.status?.toUpperCase();
+    });
+    return map;
+  }, [attendances]);
+
+  const { weeks, visibleMonths } = useMemo(() => {
+    const startMonth = halfPage === 0 ? 0 : 6;
+    const endMonth   = halfPage === 0 ? 5 : 11;
+    const visibleMonths = monthLabels.slice(startMonth, endMonth + 1);
+
+    const cursor = new Date(selectedYear, startMonth, 1);
+    const dow = cursor.getDay();
+    cursor.setDate(cursor.getDate() + (dow === 0 ? -6 : 1 - dow));
+
+    const endDate = new Date(selectedYear, endMonth + 1, 0);
+    const weeks = [];
+    while (cursor <= endDate) {
+      const week = [];
+      for (let d = 0; d < 7; d++) {
+        const dateStr = cursor.toISOString().split("T")[0];
+        const inRange = cursor.getMonth() >= startMonth && cursor.getMonth() <= endMonth && cursor.getFullYear() === selectedYear;
+        week.push({ dateStr, status: inRange ? (statusMap[dateStr] || null) : null, inRange });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      weeks.push(week);
+    }
+    return { weeks, visibleMonths };
+  }, [statusMap, selectedYear, halfPage]);
+
+  const halfLabel = halfPage === 0 ? `Jan – Jun ${selectedYear}` : `Jul – Des ${selectedYear}`;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">Activity</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Hover untuk lihat tanggal & status</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Legend */}
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            {[
+              { color: "bg-green-500",  label: "Hadir"     },
+              { color: "bg-yellow-400", label: "Terlambat" },
+              { color: "bg-red-400",    label: "Absen"     },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1">
+                <div className={`w-2.5 h-2.5 rounded-sm ${color}`} />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+          {/* Year select */}
+          {availableYears.length > 0 && (
+            <select
+              value={selectedYear}
+              onChange={(e) => { setSelectedYear(+e.target.value); setHalfPage(0); }}
+              className="px-2 py-1 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
+          {/* Half-year nav */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setHalfPage(0)}
+              disabled={halfPage === 0}
+              className="p-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
+            >
+              <HiOutlineChevronLeft className="w-3.5 h-3.5 text-gray-600" />
+            </button>
+            <span className="text-xs text-gray-500 min-w-[96px] text-center">{halfLabel}</span>
+            <button
+              onClick={() => setHalfPage(1)}
+              disabled={halfPage === 1}
+              className="p-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
+            >
+              <HiOutlineChevronRight className="w-3.5 h-3.5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4">
+        {/* Month labels */}
+        <div className="flex ml-7 mb-1.5">
+          {visibleMonths.map((m) => (
+            <div key={m} className="text-xs text-gray-400 flex-1">{m}</div>
+          ))}
+        </div>
+        <div className="flex">
+          {/* Day labels */}
+          <div className="flex flex-col mr-1.5 gap-[3px] pt-0.5 w-6 flex-shrink-0">
+            {weekDays.map((d) => (
+              <div key={d} className="text-xs text-gray-400 h-3 leading-3">{d}</div>
+            ))}
+          </div>
+          {/* Week columns */}
+          <div className="flex gap-[3px] flex-1">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="flex flex-col gap-[3px] flex-1">
+                {week.map((day, di) => (
+                  <div
+                    key={di}
+                    className={`w-full aspect-square rounded-sm cursor-pointer group relative transition-colors
+                      ${day.inRange ? getActivityColor(day.status) : "bg-transparent"}
+                    `}
+                  >
+                    {day.inRange && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                        {day.dateStr}
+                        {day.status && ` · ${
+                          day.status === "PRESENT" ? "Hadir" :
+                          day.status === "LATE"    ? "Terlambat" :
+                          day.status === "ABSENT"  ? "Tidak Hadir" : day.status
+                        }`}
+                        {!day.status && " · Tidak ada data"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -267,7 +480,6 @@ const AttendanceDashboard = () => {
 
   useEffect(() => { setCalPage(0); }, [selectedEmployee]);
 
-  // Map date → attendance
   const attendanceMap = useMemo(() => {
     const map = {};
     attendances.forEach((att) => {
@@ -277,70 +489,28 @@ const AttendanceDashboard = () => {
     return map;
   }, [attendances]);
 
-  // Daftar bulan yang ada data, diurutkan terbaru
   const availableMonths = useMemo(() => {
     if (!attendances.length) return [];
     const set = new Set();
     attendances.forEach((att) => {
       const d = getDate(att);
-      if (d) set.add(d.slice(0, 7)); // "2026-03"
+      if (d) set.add(d.slice(0, 7));
     });
     return [...set].sort((a, b) => b.localeCompare(a));
   }, [attendances]);
 
-  const MONTHS_PER_PAGE = 1; // 1 bulan full-width per halaman
-  const pagedMonths     = useMemo(() => {
+  const MONTHS_PER_PAGE = 1;
+  const pagedMonths = useMemo(() => {
     const start = calPage * MONTHS_PER_PAGE;
     return availableMonths.slice(start, start + MONTHS_PER_PAGE);
   }, [availableMonths, calPage]);
   const totalPages = Math.ceil(availableMonths.length / MONTHS_PER_PAGE);
 
-  // Summary
   const summary = useMemo(() => ({
     present: attendances.filter((a) => getStatus(a) === "PRESENT").length,
     late:    attendances.filter((a) => getStatus(a) === "LATE").length,
-    leave:   attendances.filter((a) => getStatus(a) === "LEAVE").length,
     absent:  attendances.filter((a) => getStatus(a) === "ABSENT").length,
   }), [attendances]);
-
-  const stats = useMemo(() => {
-    const total = attendances.length;
-    const { present, late, leave, absent } = summary;
-    return {
-      total, present, late, leave, absent,
-      attendanceRate:  total > 0 ? (((present + late) / total) * 100).toFixed(1) : 0,
-      punctualityRate: (present + late) > 0 ? ((present / (present + late)) * 100).toFixed(1) : 0,
-    };
-  }, [attendances, summary]);
-
-  // Heatmap — status-based coloring
-  const heatmapData = useMemo(() => {
-    if (!attendances.length) return { weeks: [] };
-
-    const statusMap = {};
-    attendances.forEach((att) => {
-      const d = getDate(att);
-      if (d) statusMap[d] = att.status?.toUpperCase();
-    });
-
-    const cursor = new Date(selectedYear, 0, 1);
-    const dow    = cursor.getDay();
-    cursor.setDate(cursor.getDate() + (dow === 0 ? -6 : 1 - dow));
-
-    const weeks = [];
-    const endDate = new Date(selectedYear, 11, 31);
-    while (cursor <= endDate || weeks.length < 53) {
-      const week = [];
-      for (let d = 0; d < 7; d++) {
-        const dateStr = cursor.toISOString().split("T")[0];
-        week.push({ dateStr, status: statusMap[dateStr] || null });
-        cursor.setDate(cursor.getDate() + 1);
-      }
-      weeks.push(week);
-      if (cursor.getFullYear() > selectedYear && weeks.length >= 52) break;
-    }
-    return { weeks };
-  }, [attendances, selectedYear]);
 
   const availableYears = useMemo(() => {
     const years = attendances.map((a) => new Date(getDate(a)).getFullYear()).filter((y) => !isNaN(y));
@@ -427,132 +597,26 @@ const AttendanceDashboard = () => {
 
       {attendances.length > 0 && (
         <>
-          {/* Stat cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Total Hari Kerja",  value: stats.total,               sub: "Hari tercatat",     color: "blue"   },
-              { label: "Tingkat Kehadiran", value: `${stats.attendanceRate}%`,  sub: "Hadir + Terlambat", color: "green"  },
-              { label: "Tingkat Ketepatan", value: `${stats.punctualityRate}%`, sub: "Tepat waktu",       color: "yellow" },
-              { label: "Izin Diambil",      value: stats.leave,               sub: "Hari izin",         color: "purple" },
-            ].map(({ label, value, sub, color }) => (
-              <div key={label} className={`bg-gradient-to-br from-${color}-50 to-${color}-100 rounded-xl p-4 border border-${color}-200`}>
-                <p className={`text-sm text-${color}-600 font-medium`}>{label}</p>
-                <p className={`text-2xl font-bold text-${color}-700 mt-1`}>{value}</p>
-                <p className={`text-xs text-${color}-500 mt-1`}>{sub}</p>
-              </div>
-            ))}
+          {/* Summary (kiri, kecil) + Activity (kanan, besar 2:1) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4 items-start">
+            <AttendanceSummary
+              present={summary.present}
+              absent={summary.absent}
+              late={summary.late}
+            />
+            <ActivityHeatmap
+              attendances={attendances}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              availableYears={availableYears}
+            />
           </div>
 
-          {/* Summary + Heatmap */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Summary */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-800">Ringkasan Absensi</h2>
-              </div>
-              <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { icon: HiOutlineCheckCircle, val: stats.present, label: "Hadir",       color: "green"  },
-                  { icon: HiOutlineXCircle,     val: stats.absent,  label: "Tidak Hadir", color: "red"    },
-                  { icon: HiOutlineClock,       val: stats.late,    label: "Terlambat",   color: "yellow" },
-                  { icon: HiOutlineBan,         val: stats.leave,   label: "Izin",        color: "purple" },
-                ].map(({ icon: Icon, val, label, color }) => (
-                  <div key={label} className={`text-center p-4 rounded-lg bg-${color}-50 hover:scale-105 transition-transform`}>
-                    <Icon className={`w-8 h-8 text-${color}-500 mx-auto mb-2`} />
-                    <div className={`text-2xl font-bold text-${color}-700`}>{val}</div>
-                    <div className={`text-xs text-${color}-600 font-medium`}>{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Heatmap */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-white border-b border-gray-100">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-800">Peta Aktivitas</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">Hover untuk lihat tanggal & status</p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {/* Legend */}
-                    <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
-                      {[
-                        { color: "bg-green-500",  label: "Hadir"       },
-                        { color: "bg-yellow-400", label: "Terlambat"   },
-                        { color: "bg-purple-400", label: "Izin"        },
-                        { color: "bg-red-400",    label: "Absen"       },
-                      ].map(({ color, label }) => (
-                        <div key={label} className="flex items-center gap-1">
-                          <div className={`w-3 h-3 rounded-sm ${color}`} />
-                          <span>{label}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {availableYears.length > 0 && (
-                      <select
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(+e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 overflow-x-auto">
-                <div className="min-w-[700px]">
-                  {/* Month labels */}
-                  <div className="flex ml-8 mb-2">
-                    {monthLabels.map((m) => (
-                      <div key={m} className="text-xs text-gray-400 flex-1" style={{ minWidth: 40 }}>{m}</div>
-                    ))}
-                  </div>
-                  <div className="flex">
-                    {/* Day labels */}
-                    <div className="flex flex-col mr-2 gap-1 pt-1">
-                      {weekDays.map((d) => (
-                        <div key={d} className="text-xs text-gray-400 h-3 leading-3">{d}</div>
-                      ))}
-                    </div>
-                    {/* Cells */}
-                    <div className="flex gap-1 flex-1">
-                      {heatmapData.weeks.map((week, wi) => (
-                        <div key={wi} className="flex flex-col gap-1 flex-1">
-                          {week.map((day, di) => (
-                            <div
-                              key={di}
-                              className={`w-full aspect-square rounded-sm cursor-pointer group relative transition-colors
-                                ${getActivityColor(day.status)}
-                              `}
-                            >
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
-                                {day.dateStr}
-                                {day.status && ` · ${
-                                  day.status === "PRESENT" ? "Hadir" :
-                                  day.status === "LATE"    ? "Terlambat" :
-                                  day.status === "LEAVE"   ? "Izin" :
-                                  day.status === "ABSENT"  ? "Tidak Hadir" : day.status
-                                }`}
-                                {!day.status && " · Tidak ada data"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Kalender Bulanan Full Width */}
+          {/* Kalender Bulanan */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-800">Absensi Bulanan</h2>
+                <h2 className="text-base font-semibold text-gray-800">Absensi Bulanan</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Hover tanggal untuk lihat jam masuk & keluar</p>
               </div>
               {totalPages > 1 && (
@@ -564,7 +628,7 @@ const AttendanceDashboard = () => {
                   >
                     <HiOutlineChevronLeft className="w-4 h-4 text-gray-600" />
                   </button>
-                  <span className="text-xs text-gray-500 min-w-[60px] text-center">
+                  <span className="text-xs text-gray-500 min-w-[100px] text-center">
                     {pagedMonths[0] ? (() => { const [y,m] = pagedMonths[0].split("-"); return `${monthFull[+m-1]} ${y}`; })() : ""}
                   </span>
                   <button
