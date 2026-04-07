@@ -8,6 +8,7 @@ import com.projek.hr_backend.repository.AttendanceRepository;
 import com.projek.hr_backend.repository.EmployeeSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -69,7 +70,17 @@ public class AttendanceService {
                 System.out.println("EMP CODE: " + settings.getEmployeeIdentificationNumber());
                 System.out.println("EMP NAME: " + employee.getName());
 
-                LocalDate workDate = LocalDate.parse(workDateCell.getStringCellValue().trim(), DATE_FORMATTER);
+                LocalDate workDate;
+                if (workDateCell.getCellType() == CellType.NUMERIC) {
+                    workDate = workDateCell.getLocalDateTimeCellValue().toLocalDate();
+                } else {
+                    String dateValue = workDateCell.getStringCellValue().trim();
+                    if (dateValue.length() == 10) {
+                        workDate = LocalDate.parse(dateValue);
+                    } else {
+                        workDate = LocalDateTime.parse(dateValue, FORMATTER).toLocalDate();
+                    }
+                }
 
                 LocalDateTime checkIn = (checkInCell != null && !checkInCell.getStringCellValue().trim().isEmpty())
                         ? LocalDateTime.parse(checkInCell.getStringCellValue().trim(), FORMATTER)
