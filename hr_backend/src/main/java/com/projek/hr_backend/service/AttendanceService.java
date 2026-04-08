@@ -92,6 +92,12 @@ public class AttendanceService {
 
                 DayOfWeek day = workDate.getDayOfWeek();
 
+                // Anti duplicate: skip jika sudah ada data untuk employee + tanggal ini
+                if (attendanceRepository.existsByEmployeeIdAndDate(employee.getId(), workDate)) {
+                    System.out.println("[Skip] Data sudah ada: " + employeeIdentificationNumber + " - " + workDate);
+                    continue;
+                }
+
                 Attendance attendance = new Attendance();
                 attendance.setEmployee(employee);
                 attendance.setEmployeeCode(settings.getEmployeeIdentificationNumber());

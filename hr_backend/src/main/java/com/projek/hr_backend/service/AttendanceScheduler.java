@@ -6,10 +6,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 @Component
 @RequiredArgsConstructor
@@ -46,10 +42,14 @@ public class AttendanceScheduler {
             try {
                 attendanceService.importExcel(file);
 
-                Path destination = Paths.get(PROCESSED_FOLDER, file.getName());
-                Files.move(file.toPath(), destination, StandardCopyOption.REPLACE_EXISTING);
+                File newFile = new File(processedDir, file.getName());
+                boolean moved = file.renameTo(newFile);
 
-                System.out.println("[Scheduler] Berhasil diproses dan dipindahkan: " + file.getName());
+                if (moved) {
+                    System.out.println("[Scheduler] File berhasil dipindahkan: " + file.getName());
+                } else {
+                    System.out.println("[Scheduler] Gagal memindahkan file: " + file.getName());
+                }
             } catch (Exception e) {
                 System.err.println("[Scheduler] Gagal memproses file: " + file.getName() + " - " + e.getMessage());
             }
