@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   HiOutlineXCircle, HiOutlineCalendar, HiOutlineUser, HiOutlineOfficeBuilding,
   HiOutlineSearch, HiOutlineChevronDown, HiOutlineRefresh,
   HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineInformationCircle,
+  HiOutlineDotsVertical, HiOutlineClipboardList, HiOutlineClock,
 } from "react-icons/hi";
 import { useAttendance } from "../../redux/hooks/useAttendance";
 
@@ -20,35 +21,26 @@ const fmtTime = (t) => {
   return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 };
 
-const getActivityColor = (status) => {
-  switch (status) {
-    case "PRESENT": return "bg-green-500 hover:bg-green-600";
-    case "LATE":    return "bg-yellow-400 hover:bg-yellow-500";
-    case "ABSENT":  return "bg-red-400 hover:bg-red-500";
-    default:        return "bg-gray-100 hover:bg-gray-200";
-  }
-};
-
 // ─── Status Icon ──────────────────────────────────────────────────────────────
 
 const StatusIcon = ({ status }) => {
   if (status === "PRESENT") return (
-    <span className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full bg-green-500 flex-shrink-0">
-      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-500 flex-shrink-0">
+      <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
         <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     </span>
   );
   if (status === "ABSENT") return (
-    <span className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full bg-red-500 flex-shrink-0">
-      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 flex-shrink-0">
+      <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
         <path d="M3 3l4 4M7 3l-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     </span>
   );
   if (status === "LATE") return (
-    <span className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full bg-yellow-400 flex-shrink-0">
-      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-yellow-400 flex-shrink-0">
+      <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
         <circle cx="5" cy="5" r="3.5" stroke="white" strokeWidth="1.2"/>
         <path d="M5 3.5V5l1 1" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
@@ -162,101 +154,6 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
   );
 };
 
-// ─── Monthly Calendar ─────────────────────────────────────────────────────────
-
-const MonthCalendar = ({ year, month, attendanceMap }) => {
-  const today       = new Date();
-  const firstDay    = new Date(year, month, 1);
-  const startDow    = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const cells = [];
-  for (let i = 0; i < startDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const getDayAtt  = (day) => {
-    if (!day) return null;
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return attendanceMap[dateStr] || null;
-  };
-  const isToday   = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-  const isWeekend = (idx) => idx % 7 === 5 || idx % 7 === 6;
-
-  const rows = [];
-  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
-        <p className="text-sm font-semibold text-gray-700">{monthFull[month]} {year}</p>
-      </div>
-
-      {/* Day headers */}
-      <div className="grid grid-cols-7 border-b border-gray-100">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
-          <div key={d} className={`text-left text-xs font-semibold px-3 py-2 border-r border-gray-100 last:border-r-0 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* Date rows */}
-      {rows.map((row, ri) => (
-        <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
-          {row.map((day, ci) => {
-            const att     = getDayAtt(day);
-            const status  = att?.status?.toUpperCase();
-            const today_  = isToday(day);
-            const weekend = isWeekend(ci);
-
-            return (
-              <div
-                key={ci}
-                className={`min-h-[60px] px-2 py-2 border-r border-gray-100 last:border-r-0
-                  ${!day ? "bg-gray-50/50" : ""}
-                  ${weekend && day ? "bg-orange-50/30" : ""}
-                `}
-              >
-                {day && (
-                  /* date number + status icon + label all inline in one row */
-                  <div className="flex items-center gap-1 flex-wrap group relative">
-                    <span className={`text-sm font-medium inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0
-                      ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-600"}
-                    `}>
-                      {day}
-                    </span>
-
-                    {status ? (
-                      <>
-                        <StatusIcon status={status} />
-                        <span className={`text-xs font-medium
-                          ${status === "PRESENT" ? "text-green-700" : status === "ABSENT" ? "text-red-600" : "text-yellow-600"}
-                        `}>
-                          {statusLabel(status)}
-                        </span>
-                        {(att?.checkIn || att?.checkOut) && (
-                          <div className="absolute top-full left-0 mt-1 z-30 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl">
-                            <p className="font-semibold mb-0.5">{statusLabel(status)}</p>
-                            {att?.checkIn  && <p className="text-gray-300">Masuk: {fmtTime(att.checkIn)}</p>}
-                            {att?.checkOut && <p className="text-gray-300">Keluar: {fmtTime(att.checkOut)}</p>}
-                          </div>
-                        )}
-                      </>
-                    ) : weekend ? (
-                      <span className="text-xs text-orange-300">Weekend</span>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-};
-
 // ─── Attendance Summary Card ──────────────────────────────────────────────────
 
 const AttendanceSummary = ({ present, absent, late }) => {
@@ -305,9 +202,10 @@ const AttendanceSummary = ({ present, absent, late }) => {
         <h2 className="text-sm font-semibold text-gray-800">Attendance Summary</h2>
         <HiOutlineInformationCircle className="w-3.5 h-3.5 text-gray-400" />
       </div>
-      <div className="grid grid-cols-3 divide-x divide-gray-100">
+      {/* No extra padding — items fill the card flush */}
+      <div className="grid grid-cols-3 divide-x divide-gray-100 h-[calc(100%-41px)]">
         {items.map(({ label, value, bg, icon }) => (
-          <div key={label} className="flex flex-col items-center py-5 px-3">
+          <div key={label} className="flex flex-col items-center justify-center py-4 px-2">
             <div className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center mb-2`}>
               {icon}
             </div>
@@ -320,11 +218,9 @@ const AttendanceSummary = ({ present, absent, late }) => {
   );
 };
 
-// ─── Activity Heatmap — 6-month paged ────────────────────────────────────────
+// ─── Activity Heatmap — full year ─────────────────────────────────────────────
 
 const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, availableYears }) => {
-  const [halfPage, setHalfPage] = useState(0); // 0 = Jan–Jun, 1 = Jul–Dec
-
   const statusMap = useMemo(() => {
     const map = {};
     attendances.forEach((att) => {
@@ -334,41 +230,46 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
     return map;
   }, [attendances]);
 
-  const { weeks, visibleMonths } = useMemo(() => {
-    const startMonth = halfPage === 0 ? 0 : 6;
-    const endMonth   = halfPage === 0 ? 5 : 11;
-    const visibleMonths = monthLabels.slice(startMonth, endMonth + 1);
-
-    const cursor = new Date(selectedYear, startMonth, 1);
+  const { weeks, monthPositions } = useMemo(() => {
+    const cursor = new Date(selectedYear, 0, 1);
     const dow = cursor.getDay();
     cursor.setDate(cursor.getDate() + (dow === 0 ? -6 : 1 - dow));
 
-    const endDate = new Date(selectedYear, endMonth + 1, 0);
+    const endDate = new Date(selectedYear, 11, 31);
     const weeks = [];
     while (cursor <= endDate) {
       const week = [];
       for (let d = 0; d < 7; d++) {
         const dateStr = cursor.toISOString().split("T")[0];
-        const inRange = cursor.getMonth() >= startMonth && cursor.getMonth() <= endMonth && cursor.getFullYear() === selectedYear;
+        const inRange = cursor.getFullYear() === selectedYear;
         week.push({ dateStr, status: inRange ? (statusMap[dateStr] || null) : null, inRange });
         cursor.setDate(cursor.getDate() + 1);
       }
       weeks.push(week);
     }
-    return { weeks, visibleMonths };
-  }, [statusMap, selectedYear, halfPage]);
 
-  const halfLabel = halfPage === 0 ? `Jan – Jun ${selectedYear}` : `Jul – Des ${selectedYear}`;
+    const monthPositions = {};
+    weeks.forEach((wk, wi) => {
+      wk.forEach((day) => {
+        if (!day.inRange) return;
+        const mm = parseInt(day.dateStr.split("-")[1]) - 1;
+        if (monthPositions[mm] === undefined) monthPositions[mm] = wi;
+      });
+    });
+
+    return { weeks, monthPositions };
+  }, [statusMap, selectedYear]);
+
+  const totalWeeks = weeks.length;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-gray-800">Activity</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Hover untuk lihat tanggal & status</p>
+          <p className="text-xs text-gray-400 mt-0.5">Hover untuk lihat tanggal &amp; status</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Legend */}
           <div className="flex items-center gap-2 text-xs text-gray-400">
             {[
               { color: "bg-green-500",  label: "Hadir"     },
@@ -381,80 +282,284 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
               </div>
             ))}
           </div>
-          {/* Year select */}
           {availableYears.length > 0 && (
             <select
               value={selectedYear}
-              onChange={(e) => { setSelectedYear(+e.target.value); setHalfPage(0); }}
+              onChange={(e) => setSelectedYear(+e.target.value)}
               className="px-2 py-1 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
-          {/* Half-year nav */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setHalfPage(0)}
-              disabled={halfPage === 0}
-              className="p-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
-            >
-              <HiOutlineChevronLeft className="w-3.5 h-3.5 text-gray-600" />
-            </button>
-            <span className="text-xs text-gray-500 min-w-[96px] text-center">{halfLabel}</span>
-            <button
-              onClick={() => setHalfPage(1)}
-              disabled={halfPage === 1}
-              className="p-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
-            >
-              <HiOutlineChevronRight className="w-3.5 h-3.5 text-gray-600" />
-            </button>
-          </div>
         </div>
       </div>
 
-      <div className="p-4">
-        {/* Month labels */}
-        <div className="flex ml-7 mb-1.5">
-          {visibleMonths.map((m) => (
-            <div key={m} className="text-xs text-gray-400 flex-1">{m}</div>
-          ))}
+      <div className="p-4 overflow-x-auto">
+        {/* Month labels row — one label per week column, shown only at month start */}
+        <div className="flex" style={{ paddingLeft: "28px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${totalWeeks}, 1fr)`,
+              gap: "3px",
+              width: "100%",
+              minWidth: `${totalWeeks * 14}px`,
+            }}
+          >
+            {weeks.map((_, wi) => {
+              const entry = Object.entries(monthPositions).find(([, v]) => v === wi);
+              return (
+                <div key={wi} className="text-xs text-gray-400 overflow-visible whitespace-nowrap" style={{ fontSize: "10px" }}>
+                  {entry ? monthLabels[+entry[0]] : ""}
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex">
+
+        {/* Day labels + week grid */}
+        <div className="flex" style={{ minWidth: `${totalWeeks * 14 + 28}px` }}>
           {/* Day labels */}
-          <div className="flex flex-col mr-1.5 gap-[3px] pt-0.5 w-6 flex-shrink-0">
+          <div className="flex flex-col flex-shrink-0" style={{ width: "28px", gap: "3px", paddingTop: "2px" }}>
             {weekDays.map((d) => (
-              <div key={d} className="text-xs text-gray-400 h-3 leading-3">{d}</div>
+              <div key={d} className="text-gray-400 text-right pr-1" style={{ fontSize: "10px", height: "14px", lineHeight: "14px" }}>
+                {d}
+              </div>
             ))}
           </div>
+
           {/* Week columns */}
-          <div className="flex gap-[3px] flex-1">
+          <div
+            style={{
+              flex: 1,
+              display: "grid",
+              gridTemplateColumns: `repeat(${totalWeeks}, 1fr)`,
+              gap: "3px",
+            }}
+          >
             {weeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-[3px] flex-1">
-                {week.map((day, di) => (
-                  <div
-                    key={di}
-                    className={`w-full aspect-square rounded-sm cursor-pointer group relative transition-colors
-                      ${day.inRange ? getActivityColor(day.status) : "bg-transparent"}
-                    `}
-                  >
-                    {day.inRange && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
-                        {day.dateStr}
-                        {day.status && ` · ${
-                          day.status === "PRESENT" ? "Hadir" :
-                          day.status === "LATE"    ? "Terlambat" :
-                          day.status === "ABSENT"  ? "Tidak Hadir" : day.status
-                        }`}
-                        {!day.status && " · Tidak ada data"}
+              <div key={wi} className="flex flex-col" style={{ gap: "3px" }}>
+                {week.map((day, di) => {
+                  if (!day.inRange) {
+                    return <div key={di} style={{ height: "14px" }} />;
+                  }
+                  const colorClass = day.status === "PRESENT"
+                    ? "bg-green-500 hover:bg-green-600"
+                    : day.status === "LATE"
+                    ? "bg-yellow-400 hover:bg-yellow-500"
+                    : day.status === "ABSENT"
+                    ? "bg-red-400 hover:bg-red-500"
+                    : "bg-gray-100 hover:bg-gray-200";
+
+                  const sLabel = day.status === "PRESENT" ? "Hadir"
+                    : day.status === "LATE" ? "Terlambat"
+                    : day.status === "ABSENT" ? "Tidak Hadir"
+                    : "Tidak ada data";
+
+                  return (
+                    <div
+                      key={di}
+                      className={`rounded-sm cursor-pointer group relative transition-colors ${colorClass}`}
+                      style={{ height: "14px" }}
+                    >
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity" style={{ fontSize: "11px" }}>
+                        {day.dateStr} · {sLabel}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── Date Context Menu ────────────────────────────────────────────────────────
+
+const DateContextMenu = ({ dateStr, onClose }) => {
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
+    };
+    // slight delay so the toggle click doesn't immediately close
+    const t = setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
+  }, [onClose]);
+
+  const handleItem = (type) => {
+    onClose();
+    // TODO: navigate to route when ready
+    // type === "correction" -> navigate(`/attendance/correction?date=${dateStr}`)
+    // type === "overtime"   -> navigate(`/attendance/overtime?date=${dateStr}`)
+  };
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute top-7 right-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+      style={{ minWidth: "180px" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => handleItem("correction")}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+      >
+        <HiOutlineClipboardList className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        Attendance correction
+      </button>
+      <div className="border-t border-gray-100" />
+      <button
+        onClick={() => handleItem("overtime")}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+      >
+        <HiOutlineClock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        Overtime
+      </button>
+    </div>
+  );
+};
+
+// ─── Check-in/out Popover ─────────────────────────────────────────────────────
+
+const TimePopover = ({ att, status }) => {
+  if (!att?.checkIn && !att?.checkOut) return null;
+  return (
+    <div
+      className="absolute bottom-full left-0 mb-1.5 z-30 px-3 py-2 bg-gray-900 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity shadow-xl"
+      style={{ fontSize: "11px" }}
+    >
+      <p className="font-semibold mb-0.5" style={{ fontSize: "11px" }}>
+        {status === "PRESENT" ? "Attend" : status === "LATE" ? "Late" : status === "ABSENT" ? "Non Present" : ""}
+      </p>
+      {att?.checkIn  && <p className="text-gray-300">Masuk: {fmtTime(att.checkIn)}</p>}
+      {att?.checkOut && <p className="text-gray-300">Keluar: {fmtTime(att.checkOut)}</p>}
+    </div>
+  );
+};
+
+// ─── Monthly Calendar ─────────────────────────────────────────────────────────
+
+const MonthCalendar = ({ year, month, attendanceMap }) => {
+  const [openMenu, setOpenMenu] = useState(null);
+  const today       = new Date();
+  const firstDay    = new Date(year, month, 1);
+  const startDow    = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const getDayAtt  = (day) => {
+    if (!day) return null;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return attendanceMap[dateStr] || null;
+  };
+  const isToday    = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+  const isWeekend  = (idx) => idx % 7 === 5 || idx % 7 === 6;
+  const getDateStr = (day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
+      <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+        <p className="text-sm font-semibold text-gray-700">{monthFull[month]} {year}</p>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 border-b border-gray-100">
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
+          <div key={d} className={`text-left text-xs font-semibold px-3 py-2 border-r border-gray-100 last:border-r-0 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Date rows */}
+      {rows.map((row, ri) => (
+        <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
+          {row.map((day, ci) => {
+            const att     = getDayAtt(day);
+            const status  = att?.status?.toUpperCase();
+            const today_  = isToday(day);
+            const weekend = isWeekend(ci);
+            const dateStr = day ? getDateStr(day) : null;
+            const isMenuOpen = openMenu === dateStr;
+
+            return (
+              <div
+                key={ci}
+                className={`group/cell min-h-[68px] px-2 py-2 border-r border-gray-100 last:border-r-0 relative
+                  ${!day ? "bg-gray-50/50" : ""}
+                  ${weekend && day ? "bg-orange-50/30" : ""}
+                `}
+              >
+                {day && (
+                  <>
+                    {/* Date number + status badge */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className={`text-sm font-medium inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0
+                        ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-600"}
+                      `}>
+                        {day}
+                      </span>
+
+                      {status ? (
+                        <>
+                          <StatusIcon status={status} />
+                          <span className={`text-xs font-medium
+                            ${status === "PRESENT" ? "text-green-700" : status === "ABSENT" ? "text-red-600" : "text-yellow-600"}
+                          `}>
+                            {statusLabel(status)}
+                          </span>
+                        </>
+                      ) : weekend ? (
+                        <span className="text-xs text-orange-300">Weekend</span>
+                      ) : null}
+                    </div>
+
+                    {/* Check-in/out time popover — appears on hover */}
+                    {att && (att.checkIn || att.checkOut) && (
+                      <TimePopover att={att} status={status} />
+                    )}
+
+                    {/* 3-dot menu — always visible */}
+                    <div className="absolute top-1.5 right-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenu(isMenuOpen ? null : dateStr);
+                        }}
+                        className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors
+                          text-gray-400 hover:text-gray-600 hover:bg-gray-100
+                          ${isMenuOpen ? "bg-gray-100 text-gray-600" : ""}
+                        `}
+                      >
+                        <HiOutlineDotsVertical className="w-3.5 h-3.5" />
+                      </button>
+
+                      {isMenuOpen && (
+                        <DateContextMenu
+                          dateStr={dateStr}
+                          onClose={() => setOpenMenu(null)}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 };
@@ -537,7 +642,7 @@ const AttendanceDashboard = () => {
   );
 
   return (
-    <div className="w-full px-4 md:px-6 py-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="w-full px-4 md:px-6 py-6 space-y-5 bg-gray-50 min-h-screen">
 
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -597,8 +702,8 @@ const AttendanceDashboard = () => {
 
       {attendances.length > 0 && (
         <>
-          {/* Summary (kiri, kecil) + Activity (kanan, besar 2:1) */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4 items-start">
+          {/* Summary + Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4 items-stretch">
             <AttendanceSummary
               present={summary.present}
               absent={summary.absent}
@@ -612,12 +717,12 @@ const AttendanceDashboard = () => {
             />
           </div>
 
-          {/* Kalender Bulanan */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Monthly Calendar */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-gray-800">Absensi Bulanan</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Hover tanggal untuk lihat jam masuk & keluar</p>
+                <p className="text-xs text-gray-400 mt-0.5">Klik titik tiga pada tanggal untuk koreksi atau lembur</p>
               </div>
               {totalPages > 1 && (
                 <div className="flex items-center gap-2">

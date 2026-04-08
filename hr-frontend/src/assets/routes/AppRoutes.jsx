@@ -7,6 +7,8 @@ import AddEmployee from '../pages/employees/add';
 import EditEmployee from '../pages/employees/edit';
 import EmployeeDetail from '../pages/employees/detail';
 import Attendance from '../pages/Attendance';
+import AttendanceCorrection from '../pages/attendance/AttendanceCorrection';
+import Overtime from '../pages/attendance/Overtime';
 import DepartmentsList from '../pages/departments/index';
 import AddDepartment from '../pages/departments/add';
 import EditDepartment from '../pages/departments/edit';
@@ -31,9 +33,8 @@ import ApprovalPage              from '../pages/approvals/index';
 import ApprovalReimbursementPage from '../pages/approvals/reimbursement';
 import ApprovalTimeOffPage       from '../pages/approvals/timeoff';
 
-
 // Time Off
-import TimeOffIndex  from '../pages/timeoffs/index';   // wrapper dengan tab
+import TimeOffIndex  from '../pages/timeoffs/index';
 import TimeOffAdd    from '../pages/timeoffs/add';
 import TimeOffDetail from '../pages/timeoffs/detail';
 import TimeOffEdit   from '../pages/timeoffs/edit';
@@ -73,7 +74,6 @@ const AppRoutes = () => {
         <Route path="approvals"               element={<ApprovalPage />} />
         <Route path="approvals/reimbursement" element={<ApprovalReimbursementPage />} />
         <Route path="approvals/timeoff"       element={<ApprovalTimeOffPage />} />
-        <Route path="approvals/timeoff"       element={<ApprovalTimeOffPage />} />
 
         {/* Time Off */}
         <Route path="time-off"          element={<TimeOffIndex />} />
@@ -81,8 +81,12 @@ const AppRoutes = () => {
         <Route path="time-off/edit/:id" element={<TimeOffEdit />} />
         <Route path="time-off/:id"      element={<TimeOffDetail />} />
 
+        {/* Attendance */}
+        <Route path="attendance"            element={<Attendance />} />
+        <Route path="attendance/correction" element={<AttendanceCorrection />} />
+        <Route path="attendance/overtime"   element={<Overtime />} />
+
         {/* Other */}
-        <Route path="attendance" element={<Attendance />} />
         <Route path="payroll"    element={<Payroll />} />
         <Route path="settings"   element={<Settings />} />
         <Route path="profile"    element={<div className="p-6">Profile Page</div>} />

@@ -23,6 +23,8 @@ const ROUTE_TITLES = {
   '/companies':               { title: 'Company',                sub: 'Data & profil perusahaan' },
   '/companies/add':           { title: 'Add Company',            sub: 'Daftarkan perusahaan baru' },
   '/attendance':              { title: 'Attendance',             sub: 'Rekap kehadiran karyawan' },
+  '/attendance/correction':   { title: 'Attendance Correction',  sub: 'Koreksi data kehadiran karyawan' },
+  '/attendance/overtime':     { title: 'Overtime',               sub: 'Manajemen lembur karyawan' },
   '/time-off':                { title: 'Time Off',               sub: 'Pengajuan & persetujuan cuti' },
   '/time-off/add':            { title: 'New Time Off',           sub: 'Ajukan permintaan cuti baru' },
   '/payroll':                 { title: 'Payroll',                sub: 'Penggajian & slip gaji' },
@@ -43,6 +45,10 @@ const getRouteInfo = (pathname) => {
   if (/^\/departments\/[^/]+$/.test(pathname))              return { title: 'Department Detail',      sub: 'Detail informasi departemen' };
   if (/^\/companies\/[^/]+\/edit$/.test(pathname))          return { title: 'Edit Company',           sub: 'Ubah data perusahaan' };
   if (/^\/companies\/[^/]+$/.test(pathname))                return { title: 'Company Detail',         sub: 'Detail informasi perusahaan' };
+  if (/^\/attendance\/correction\/[^/]+\/edit$/.test(pathname)) return { title: 'Edit Correction',   sub: 'Ubah data koreksi kehadiran' };
+  if (/^\/attendance\/correction\/[^/]+$/.test(pathname))   return { title: 'Correction Detail',     sub: 'Detail koreksi kehadiran' };
+  if (/^\/attendance\/overtime\/[^/]+\/edit$/.test(pathname))   return { title: 'Edit Overtime',     sub: 'Ubah data lembur' };
+  if (/^\/attendance\/overtime\/[^/]+$/.test(pathname))     return { title: 'Overtime Detail',       sub: 'Detail lembur karyawan' };
   if (/^\/attendance\/[^/]+\/edit$/.test(pathname))         return { title: 'Edit Attendance',        sub: 'Koreksi data kehadiran' };
   if (/^\/attendance\/[^/]+$/.test(pathname))               return { title: 'Attendance Detail',      sub: 'Detail kehadiran karyawan' };
   if (/^\/time-off\/[^/]+\/edit$/.test(pathname))           return { title: 'Edit Time Off',          sub: 'Ubah pengajuan cuti' };
@@ -60,7 +66,6 @@ const getRouteInfo = (pathname) => {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// status dari API pakai UPPERCASE
 const NEEDS_REVIEW_STATUSES = ['SUBMITTED', 'PENDING'];
 
 const DAYS   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
@@ -75,14 +80,12 @@ const relativeTime = (isoString) => {
   return `${Math.floor(diff / 86400)} hari lalu`;
 };
 
-// ─── Mappers — field sesuai struktur API asli ─────────────────────────────────
+// ─── Mappers ─────────────────────────────────────────────────────────────────
 
-// REIMB: { employeeName, total, category, title, createdAt }
 const mapReimbursementToNotif = (item) => ({
   id:       `rb-${item.id}`,
   type:     'reimbursement',
   title:    'Pengajuan Reimbursement',
-  // "Hanif mengajukan klaim Rp 100.000 untuk Meals (Makan Siang)"
   message:  `${item.employeeName} mengajukan klaim Rp ${Number(item.total).toLocaleString('id-ID')} untuk ${item.category}${item.title ? ` — ${item.title}` : ''}.`,
   time:     item.createdAt ?? '',
   read:     false,
@@ -90,12 +93,10 @@ const mapReimbursementToNotif = (item) => ({
   _rawDate: new Date(item.createdAt ?? 0).getTime(),
 });
 
-// TIMEOFF: { employeeName, timeOffTypeName, requested, startDate, endDate, createdAt }
 const mapTimeOffToNotif = (item) => ({
   id:       `to-${item.id}`,
   type:     'timeoff',
   title:    'Pengajuan Cuti',
-  // "Hanif mengajukan Cuti Izin 5 hari (16 – 20 Mar 2026)"
   message:  `${item.employeeName} mengajukan ${item.timeOffTypeName} ${item.requested} hari mulai ${item.startDate}.`,
   time:     item.createdAt ?? '',
   read:     false,
@@ -138,7 +139,6 @@ const Navbar = ({ toggleSidebar }) => {
   const notifRef  = useRef(null);
   const buttonRef = useRef(null);
 
-  // ── Build notifications dari Redux state ──────────────────────────────────
   const notifications = useMemo(() => {
     const pending = [
       ...(reimbursements  || [])
@@ -156,13 +156,11 @@ const Navbar = ({ toggleSidebar }) => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // ── Date ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const now = new Date();
     setCurrentDate(`${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
   }, []);
 
-  // ── Route title animation ─────────────────────────────────────────────────
   useEffect(() => {
     setAnimateTitle(false);
     const t = setTimeout(() => {
@@ -172,14 +170,12 @@ const Navbar = ({ toggleSidebar }) => {
     return () => clearTimeout(t);
   }, [location.pathname]);
 
-  // ── Scroll shadow ─────────────────────────────────────────────────────────
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // ── Click-outside ─────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -191,7 +187,6 @@ const Navbar = ({ toggleSidebar }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
   const handleNotifClick = (notif) => {
     setReadIds(prev => new Set([...prev, notif.id]));
     if (notif._link) {
@@ -202,8 +197,6 @@ const Navbar = ({ toggleSidebar }) => {
 
   const markAllRead = () => setReadIds(new Set(notifications.map(n => n.id)));
   const clearAll    = () => setReadIds(new Set(notifications.map(n => n.id)));
-
-  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <nav className={`fixed top-0 right-0 lg:left-64 h-20 z-30 transition-all duration-500 ${
