@@ -375,7 +375,8 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
 
 // ─── Date Context Menu ────────────────────────────────────────────────────────
 
-const DateContextMenu = ({ dateStr, attendanceData, onClose, onNavigate }) => {
+// ✅ FIX: tambah prop `selectedEmployee`
+const DateContextMenu = ({ dateStr, attendanceData, selectedEmployee, onClose, onNavigate }) => {
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -392,6 +393,9 @@ const DateContextMenu = ({ dateStr, attendanceData, onClose, onNavigate }) => {
       state: {
         selectedDate: dateStr,
         attendanceData: attendanceData || null,
+        // ✅ FIX: kirim employeeId & employeeName dari selectedEmployee
+        employeeId: selectedEmployee?.id ?? null,
+        employeeName: selectedEmployee?.name ?? null,
         openModal: true,
         action: 'correction',
       }
@@ -404,6 +408,9 @@ const DateContextMenu = ({ dateStr, attendanceData, onClose, onNavigate }) => {
       state: {
         selectedDate: dateStr,
         attendanceData: attendanceData || null,
+        // ✅ FIX: kirim employeeId & employeeName dari selectedEmployee
+        employeeId: selectedEmployee?.id ?? null,
+        employeeName: selectedEmployee?.name ?? null,
         openModal: true,
         action: 'overtime',
       }
@@ -456,7 +463,8 @@ const TimePopover = ({ att, status }) => {
 
 // ─── Monthly Calendar ─────────────────────────────────────────────────────────
 
-const MonthCalendar = ({ year, month, attendanceMap, onNavigate }) => {
+// ✅ FIX: tambah prop `selectedEmployee` dan teruskan ke DateContextMenu
+const MonthCalendar = ({ year, month, attendanceMap, onNavigate, selectedEmployee }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const today       = new Date();
   const firstDay    = new Date(year, month, 1);
@@ -562,6 +570,8 @@ const MonthCalendar = ({ year, month, attendanceMap, onNavigate }) => {
                         <DateContextMenu
                           dateStr={dateStr}
                           attendanceData={att}
+                          // ✅ FIX: teruskan selectedEmployee ke DateContextMenu
+                          selectedEmployee={selectedEmployee}
                           onClose={() => setOpenMenu(null)}
                           onNavigate={onNavigate}
                         />
@@ -775,6 +785,8 @@ const AttendanceDashboard = () => {
                         month={m - 1}
                         attendanceMap={attendanceMap}
                         onNavigate={navigate}
+                        // ✅ FIX: teruskan selectedEmployee ke MonthCalendar
+                        selectedEmployee={selectedEmployee}
                       />
                     );
                   })}

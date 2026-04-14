@@ -233,7 +233,6 @@ const CreateCorrectionModal = ({
   // Update form when initial props change (from navigation)
   useEffect(() => {
     if (initialDate) {
-      // Format datetime-local value: YYYY-MM-DDTHH:mm
       let formattedCheckIn = "";
       let formattedCheckOut = "";
 
@@ -267,10 +266,7 @@ const CreateCorrectionModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.employeeId) {
-      // Error akan ditampilkan via actionError atau bisa tambah state lokal
-      return;
-    }
+    if (!form.employeeId) return;
     const payload = {
       employeeId: Number(form.employeeId),
       date: form.date,
@@ -282,9 +278,7 @@ const CreateCorrectionModal = ({
     try {
       await onSubmit(payload);
       if (onClearInitialData) onClearInitialData();
-    } catch (_) {
-      // error ditangani di slice / actionError
-    }
+    } catch (_) {}
   };
 
   const needsCI = form.type === "CHECKIN" || form.type === "BOTH";
@@ -301,10 +295,7 @@ const CreateCorrectionModal = ({
             <h2 className="text-lg font-bold text-gray-900">Buat Koreksi Kehadiran</h2>
             <p className="text-sm text-gray-500 mt-0.5">Isi detail koreksi yang ingin diajukan</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
             <HiOutlineX className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -471,10 +462,7 @@ const DetailModal = ({
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={correction.status} />
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-            >
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
               <HiOutlineX className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -518,7 +506,6 @@ const DetailModal = ({
           </div>
         </div>
 
-        {/* Admin approve/reject */}
         {isAdmin && correction.status === "PENDING" && (
           <div className="px-6 pb-6 flex gap-3">
             <button
@@ -579,20 +566,13 @@ const EmptyState = ({ onNew, isAdmin }) => (
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-/**
- * @param {'employee' | 'admin'} role
- * @param {number} [employeeId]   — required when role === 'employee'
- * @param {number} [adminId]      — required when role === 'admin'
- */
 const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
   const location = useLocation();
   const isAdmin = role === "admin";
 
-  // Fetch employees
   const { employees, loadingEmployees, fetchEmployees } = useEmployee();
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-  // State untuk auto-open modal dari navigation
   const [autoOpenModal, setAutoOpenModal] = useState(false);
   const [initialModalData, setInitialModalData] = useState({
     date: "",
@@ -625,7 +605,6 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
     handleRefresh,
   } = useAttendanceCorrection({ role, employeeId, adminId });
 
-  // Load employees on mount
   useEffect(() => {
     fetchEmployees();
   }, []);
@@ -638,24 +617,22 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
     }
   }, [employeeId, employees, selectedEmployee]);
 
-  // Check for navigation state (from calendar 3-dot menu)
+  // ✅ FIX: Baca employeeId dari navigation state dan auto-select employee
   useEffect(() => {
     const { state } = location;
     if (state?.openModal && state?.action === "correction") {
       setAutoOpenModal(true);
 
-      // Parse date and times from navigation state
       const selectedDate = state.selectedDate || "";
       const attendanceData = state.attendanceData || {};
-      const navEmployeeId = state.employeeId;
+      const navEmployeeId = state.employeeId; // ✅ sekarang tersedia dari Dashboard
 
-      // Set selected employee from navigation if provided
+      // ✅ FIX: Auto-select employee dari navigation state saat employees sudah loaded
       if (navEmployeeId && employees.length > 0) {
         const emp = employees.find((e) => e.id === Number(navEmployeeId));
         if (emp) setSelectedEmployee(emp);
       }
 
-      // Extract checkIn and checkOut times - format to HH:mm
       let checkInTime = "";
       let checkOutTime = "";
       let correctionType = "BOTH";
@@ -682,7 +659,6 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
         }
       }
 
-      // Determine type based on available data
       if (checkInTime && !checkOutTime) correctionType = "CHECKIN";
       else if (!checkInTime && checkOutTime) correctionType = "CHECKOUT";
       else if (checkInTime && checkOutTime) correctionType = "BOTH";
@@ -695,12 +671,21 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
         type: correctionType,
       });
 
-      // Clear the state to prevent re-opening on refresh
       window.history.replaceState({}, document.title);
     }
   }, [location, employees]);
 
-  // Auto open modal when autoOpenModal becomes true and modal is not already open
+  // ✅ FIX: Tambah useEffect terpisah untuk handle kasus employees belum loaded
+  // saat navigation state pertama kali dibaca
+  useEffect(() => {
+    const { state } = location;
+    if (!state?.employeeId || employees.length === 0) return;
+    if (selectedEmployee?.id === Number(state.employeeId)) return;
+
+    const emp = employees.find((e) => e.id === Number(state.employeeId));
+    if (emp) setSelectedEmployee(emp);
+  }, [employees]);
+
   useEffect(() => {
     if (autoOpenModal && !isModalOpen) {
       openCreateModal();
@@ -708,7 +693,6 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
     }
   }, [autoOpenModal, isModalOpen, openCreateModal]);
 
-  // Clear initial data after modal is closed
   const handleCloseModal = () => {
     closeCreateModal();
     setInitialModalData({
@@ -719,7 +703,6 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
     });
   };
 
-  // Handle employee change
   const handleEmployeeChange = (emp) => {
     setSelectedEmployee(emp);
   };
@@ -762,30 +745,10 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total"
-          value={stats.total}
-          Icon={HiOutlinePencilAlt}
-          accent="bg-indigo-50 text-indigo-500"
-        />
-        <StatCard
-          label="Pending"
-          value={stats.pending}
-          Icon={HiOutlineClock}
-          accent="bg-amber-50 text-amber-500"
-        />
-        <StatCard
-          label="Approved"
-          value={stats.approved}
-          Icon={HiOutlineCheckCircle}
-          accent="bg-emerald-50 text-emerald-500"
-        />
-        <StatCard
-          label="Rejected"
-          value={stats.rejected}
-          Icon={HiOutlineXCircle}
-          accent="bg-red-50 text-red-500"
-        />
+        <StatCard label="Total"    value={stats.total}    Icon={HiOutlinePencilAlt}   accent="bg-indigo-50 text-indigo-500" />
+        <StatCard label="Pending"  value={stats.pending}  Icon={HiOutlineClock}        accent="bg-amber-50 text-amber-500" />
+        <StatCard label="Approved" value={stats.approved} Icon={HiOutlineCheckCircle}  accent="bg-emerald-50 text-emerald-500" />
+        <StatCard label="Rejected" value={stats.rejected} Icon={HiOutlineXCircle}      accent="bg-red-50 text-red-500" />
       </div>
 
       {/* Table Card */}
@@ -827,27 +790,13 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Karyawan
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Tanggal
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Tipe
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Check-in
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Check-out
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Diajukan
-                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Karyawan</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipe</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Check-in</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Check-out</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Diajukan</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
@@ -878,15 +827,9 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
                         {TYPE_LABELS[c.type] ?? c.type}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-gray-600 text-sm">
-                      {fmtTime(c.newCheckIn)}
-                    </td>
-                    <td className="px-5 py-3.5 text-gray-600 text-sm">
-                      {fmtTime(c.newCheckOut)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <StatusBadge status={c.status} />
-                    </td>
+                    <td className="px-5 py-3.5 text-gray-600 text-sm">{fmtTime(c.newCheckIn)}</td>
+                    <td className="px-5 py-3.5 text-gray-600 text-sm">{fmtTime(c.newCheckOut)}</td>
+                    <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
                     <td className="px-5 py-3.5 text-gray-400 text-xs">{fmt(c.createdAt)}</td>
                     <td className="px-5 py-3.5">
                       <button
