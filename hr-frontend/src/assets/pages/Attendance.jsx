@@ -5,6 +5,7 @@ import {
   HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineInformationCircle,
   HiOutlineDotsVertical, HiOutlineClipboardList, HiOutlineClock,
 } from "react-icons/hi";
+import { useNavigate } from "react-router-dom";
 import { useAttendance } from "../../redux/hooks/useAttendance";
 
 const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -202,7 +203,6 @@ const AttendanceSummary = ({ present, absent, late }) => {
         <h2 className="text-sm font-semibold text-gray-800">Attendance Summary</h2>
         <HiOutlineInformationCircle className="w-3.5 h-3.5 text-gray-400" />
       </div>
-      {/* No extra padding — items fill the card flush */}
       <div className="grid grid-cols-3 divide-x divide-gray-100 h-[calc(100%-41px)]">
         {items.map(({ label, value, bg, icon }) => (
           <div key={label} className="flex flex-col items-center justify-center py-4 px-2">
@@ -295,7 +295,6 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
       </div>
 
       <div className="p-4 overflow-x-auto">
-        {/* Month labels row — one label per week column, shown only at month start */}
         <div className="flex" style={{ paddingLeft: "28px" }}>
           <div
             style={{
@@ -317,9 +316,7 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
           </div>
         </div>
 
-        {/* Day labels + week grid */}
         <div className="flex" style={{ minWidth: `${totalWeeks * 14 + 28}px` }}>
-          {/* Day labels */}
           <div className="flex flex-col flex-shrink-0" style={{ width: "28px", gap: "3px", paddingTop: "2px" }}>
             {weekDays.map((d) => (
               <div key={d} className="text-gray-400 text-right pr-1" style={{ fontSize: "10px", height: "14px", lineHeight: "14px" }}>
@@ -328,7 +325,6 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
             ))}
           </div>
 
-          {/* Week columns */}
           <div
             style={{
               flex: 1,
@@ -379,23 +375,39 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
 
 // ─── Date Context Menu ────────────────────────────────────────────────────────
 
-const DateContextMenu = ({ dateStr, onClose }) => {
+const DateContextMenu = ({ dateStr, attendanceData, onClose, onNavigate }) => {
   const menuRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
     };
-    // slight delay so the toggle click doesn't immediately close
     const t = setTimeout(() => document.addEventListener("mousedown", handler), 0);
     return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
   }, [onClose]);
 
-  const handleItem = (type) => {
+  const handleCorrection = () => {
     onClose();
-    // TODO: navigate to route when ready
-    // type === "correction" -> navigate(`/attendance/correction?date=${dateStr}`)
-    // type === "overtime"   -> navigate(`/attendance/overtime?date=${dateStr}`)
+    onNavigate('/attendance/correction', {
+      state: {
+        selectedDate: dateStr,
+        attendanceData: attendanceData || null,
+        openModal: true,
+        action: 'correction',
+      }
+    });
+  };
+
+  const handleOvertime = () => {
+    onClose();
+    onNavigate('/attendance/overtime', {
+      state: {
+        selectedDate: dateStr,
+        attendanceData: attendanceData || null,
+        openModal: true,
+        action: 'overtime',
+      }
+    });
   };
 
   return (
@@ -406,7 +418,7 @@ const DateContextMenu = ({ dateStr, onClose }) => {
       onClick={(e) => e.stopPropagation()}
     >
       <button
-        onClick={() => handleItem("correction")}
+        onClick={handleCorrection}
         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
       >
         <HiOutlineClipboardList className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -414,7 +426,7 @@ const DateContextMenu = ({ dateStr, onClose }) => {
       </button>
       <div className="border-t border-gray-100" />
       <button
-        onClick={() => handleItem("overtime")}
+        onClick={handleOvertime}
         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
       >
         <HiOutlineClock className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -444,7 +456,7 @@ const TimePopover = ({ att, status }) => {
 
 // ─── Monthly Calendar ─────────────────────────────────────────────────────────
 
-const MonthCalendar = ({ year, month, attendanceMap }) => {
+const MonthCalendar = ({ year, month, attendanceMap, onNavigate }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const today       = new Date();
   const firstDay    = new Date(year, month, 1);
@@ -549,7 +561,9 @@ const MonthCalendar = ({ year, month, attendanceMap }) => {
                       {isMenuOpen && (
                         <DateContextMenu
                           dateStr={dateStr}
+                          attendanceData={att}
                           onClose={() => setOpenMenu(null)}
+                          onNavigate={onNavigate}
                         />
                       )}
                     </div>
@@ -567,6 +581,7 @@ const MonthCalendar = ({ year, month, attendanceMap }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const AttendanceDashboard = () => {
+  const navigate = useNavigate();
   const {
     attendances, loading, error, employees, loadingEmployees,
     loadEmployees, loadAttendance, dismissError, resetAttendance,
@@ -759,6 +774,7 @@ const AttendanceDashboard = () => {
                         year={y}
                         month={m - 1}
                         attendanceMap={attendanceMap}
+                        onNavigate={navigate}
                       />
                     );
                   })}

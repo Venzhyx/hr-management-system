@@ -70,7 +70,7 @@ const Sidebar = () => {
     {
       name: 'Attendance',
       icon: <HiOutlineClock className="w-5 h-5" />,
-      path: '/attendance',
+      path: '/attendance',  // ← INDEX PAGE untuk Attendance
       hasSubmenu: true,
       submenu: attendanceSubItems,
     },
@@ -120,24 +120,41 @@ const Sidebar = () => {
           if (item.hasSubmenu) {
             return (
               <div key={item.name}>
-                {/* Attendance parent button */}
-                <button
-                  onClick={() => setIsAttendanceOpen(prev => !prev)}
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out transform hover:translate-x-1 ${
-                    isAttendanceActive
-                      ? 'bg-indigo-50 text-indigo-600 shadow-md'
-                      : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
-                  }`}
-                >
-                  <span className={`relative transition-all duration-300 flex-shrink-0 ${isAttendanceActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
-                    {item.icon}
-                  </span>
-                  <span className="text-sm font-medium flex-1 text-left">{item.name}</span>
-                  <span className={`transition-transform duration-300 ${isAttendanceOpen ? 'rotate-180' : 'rotate-0'} ${isAttendanceActive ? 'text-indigo-600' : 'text-gray-400'}`}>
-                    <HiOutlineChevronDown className="w-4 h-4" />
-                  </span>
-                </button>
+                {/* Attendance: NavLink + Dropdown button */}
+                <div className="relative flex items-center">
+                  {/* NavLink untuk halaman index Attendance */}
+                  <NavLink
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex-1 flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out transform hover:translate-x-1 ${
+                        isActive && location.pathname === item.path
+                          ? 'bg-indigo-50 text-indigo-600 shadow-md'
+                          : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span className={`relative transition-all duration-300 flex-shrink-0 ${isActive && location.pathname === item.path ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
+                          {item.icon}
+                        </span>
+                        <span className="text-sm font-medium flex-1 text-left">{item.name}</span>
+                      </>
+                    )}
+                  </NavLink>
+                  
+                  {/* Tombol dropdown terpisah */}
+                  <button
+                    onClick={() => setIsAttendanceOpen(prev => !prev)}
+                    className={`ml-1 p-2 rounded-lg transition-all duration-300 ${
+                      isAttendanceActive ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'
+                    }`}
+                  >
+                    <span className={`transition-transform duration-300 ${isAttendanceOpen ? 'rotate-180' : 'rotate-0'}`}>
+                      <HiOutlineChevronDown className="w-4 h-4" />
+                    </span>
+                  </button>
+                </div>
 
                 {/* Submenu items */}
                 <div
@@ -208,7 +225,7 @@ const Sidebar = () => {
         })}
       </nav>
 
-      {/* Bottom Menu */}
+      {/* Bottom Menu - sama seperti sebelumnya */}
       <div className="border-t border-gray-200 pt-4">
         <nav className="px-4 space-y-1">
           {bottomMenuItems.map((item, index) => (

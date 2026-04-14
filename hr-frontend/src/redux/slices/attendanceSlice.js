@@ -21,7 +21,6 @@ export const fetchAttendancesByEmployeeId = createAsyncThunk(
   async (employeeId, { rejectWithValue }) => {
     try {
       const res = await API.get(`/attendances/employee/${employeeId}`, {
-        // Naikkan limit response — default Axios kadang terpotong untuk response besar
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
       });
@@ -41,7 +40,37 @@ export const fetchAttendancesByEmployeeId = createAsyncThunk(
       }
 
       const list = Array.isArray(parsed?.data) ? parsed.data : [];
-      return { attendances: list };
+      return { attendances: list, employeeId };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Gagal memuat data absensi.");
+    }
+  }
+);
+
+// ✅ Tambahan: fetch attendance by employee (alias untuk fetchAttendancesByEmployeeId)
+export const fetchAttendanceByEmployee = createAsyncThunk(
+  "attendance/fetchByEmployee",
+  async (employeeId, { rejectWithValue }) => {
+    try {
+      const res = await API.get(`/attendances/employee/${employeeId}`, {
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
+
+      let parsed;
+      if (typeof res.data === "string") {
+        try {
+          parsed = JSON.parse(res.data);
+        } catch (parseErr) {
+          console.error("[Slice] JSON.parse gagal");
+          return rejectWithValue("Response dari server tidak valid (terpotong).");
+        }
+      } else {
+        parsed = res.data;
+      }
+
+      const list = Array.isArray(parsed?.data) ? parsed.data : [];
+      return { attendances: list, employeeId };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Gagal memuat data absensi.");
     }
@@ -58,6 +87,7 @@ const attendanceSlice = createSlice({
     error:            null,
     employees:        [],
     loadingEmployees: false,
+    lastFetchedEmployeeId: null, // Track employee yang terakhir di-fetch
   },
   reducers: {
     clearAttendanceError(state) {
@@ -66,45 +96,78 @@ const attendanceSlice = createSlice({
     clearAttendanceData(state) {
       state.attendances = [];
       state.error       = null;
+      state.lastFetchedEmployeeId = null;
+    },
+    resetAttendanceState(state) {
+      state.attendances = [];
+      state.loading = false;
+      state.error = null;
+      state.lastFetchedEmployeeId = null;
     },
   },
   extraReducers: (builder) => {
+    // Fetch employees for dropdown
     builder
       .addCase(fetchAllEmployeesForDropdown.pending, (state) => {
         state.loadingEmployees = true;
+        state.error = null;
       })
       .addCase(fetchAllEmployeesForDropdown.fulfilled, (state, action) => {
         state.loadingEmployees = false;
-        state.employees        = action.payload;
+        state.employees = action.payload;
       })
-      .addCase(fetchAllEmployeesForDropdown.rejected, (state) => {
+      .addCase(fetchAllEmployeesForDropdown.rejected, (state, action) => {
         state.loadingEmployees = false;
+        state.error = action.payload;
       });
 
+    // Fetch attendances by employee ID
     builder
       .addCase(fetchAttendancesByEmployeeId.pending, (state) => {
         state.loading = true;
-        state.error   = null;
+        state.error = null;
       })
       .addCase(fetchAttendancesByEmployeeId.fulfilled, (state, action) => {
-        state.loading     = false;
+        state.loading = false;
         state.attendances = action.payload.attendances;
+        state.lastFetchedEmployeeId = action.payload.employeeId;
       })
       .addCase(fetchAttendancesByEmployeeId.rejected, (state, action) => {
         state.loading = false;
-        state.error   = action.payload;
+        state.error = action.payload;
+      });
+
+    // Fetch attendance by employee (alias)
+    builder
+      .addCase(fetchAttendanceByEmployee.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAttendanceByEmployee.fulfilled, (state, action) => {
+        state.loading = false;
+        state.attendances = action.payload.attendances;
+        state.lastFetchedEmployeeId = action.payload.employeeId;
+      })
+      .addCase(fetchAttendanceByEmployee.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
 
-export const { clearAttendanceError, clearAttendanceData } = attendanceSlice.actions;
+export const { 
+  clearAttendanceError, 
+  clearAttendanceData, 
+  resetAttendanceState 
+} = attendanceSlice.actions;
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export const selectAttendances       = (s) => s.attendance.attendances;
-export const selectAttendanceLoading = (s) => s.attendance.loading;
-export const selectAttendanceError   = (s) => s.attendance.error;
-export const selectEmployees         = (s) => s.attendance.employees;
-export const selectLoadingEmployees  = (s) => s.attendance.loadingEmployees;
+export const selectAttendances = (state) => state.attendance.attendances;
+export const selectAttendanceLoading = (state) => state.attendance.loading;
+export const selectAttendanceError = (state) => state.attendance.error;
+export const selectEmployees = (state) => state.attendance.employees;
+export const selectLoadingEmployees = (state) => state.attendance.loadingEmployees;
+export const selectLastFetchedEmployeeId = (state) => state.attendance.lastFetchedEmployeeId;
 
 export default attendanceSlice.reducer;

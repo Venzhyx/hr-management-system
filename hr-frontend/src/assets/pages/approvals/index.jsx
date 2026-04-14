@@ -16,9 +16,11 @@ import { useApproval }      from "../../../redux/hooks/useApproval";
 import { useEmployee }      from "../../../redux/hooks/useEmployee";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 import { useTimeOff }       from "../../../redux/hooks/useTimeOff";
+import { useAttendanceCorrection } from "../../../redux/hooks/useAttendanceCorrection";
 
 // Status yang masih butuh review (belum selesai)
 const NEEDS_REVIEW_STATUSES = ["SUBMITTED", "PENDING"];
+const ATTENDANCE_NEEDS_REVIEW_STATUSES = ["PENDING"];
 
 // ─── Add Approver Modal ───────────────────────────────────────────────────────
 const AddApproverModal = ({ approvers, employees, onAdd, onClose }) => {
@@ -224,19 +226,20 @@ const ApprovalCard = ({ tab, pendingCount, onNavigate, onOpenSettings }) => {
             tab.available ? hasPending ? "text-red-500 group-hover:text-white" : "text-indigo-600 group-hover:text-white" : "text-gray-400"
           }`} />
         </div>
-        {hasPending && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />}
+        {hasPending && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+        )}
       </div>
 
       <h2 className="text-base font-bold text-gray-800 mb-1">{tab.label}</h2>
       <p className="text-xs text-gray-500 leading-relaxed">{tab.description}</p>
 
-      {/* Pending count row */}
       {tab.available && (
         <div className="flex items-center gap-2 mt-3">
-          <span className={`text-xs font-semibold ${hasPending ? "text-red-500" : "text-gray-400"}`}>Pending Review</span>
-          <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full leading-none ${hasPending ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"}`}>
-            {pendingCount > 99 ? "99+" : pendingCount}
+          <span className={`text-xs font-semibold ${hasPending ? "text-red-500" : "text-gray-400"}`}>
+            Pending Review
           </span>
+          <PendingBadge count={pendingCount} />
         </div>
       )}
 
@@ -244,7 +247,6 @@ const ApprovalCard = ({ tab, pendingCount, onNavigate, onOpenSettings }) => {
         <span className="absolute top-4 right-4 text-[10px] font-semibold bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Coming soon</span>
       )}
 
-      {/* Dots menu */}
       {tab.available && ["reimbursement", "timeoff"].includes(tab.key) && (
         <div ref={menuRef} className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setMenuOpen((v) => !v)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
@@ -294,7 +296,7 @@ const TABS = [
     description: "Review and approve attendance correction requests",
     icon:        HiOutlineShieldCheck,
     path:        "/approvals/attendance",
-    available:   false,
+    available:   true,
   },
 ];
 
@@ -302,9 +304,14 @@ const TABS = [
 const ApprovalPage = () => {
   const navigate = useNavigate();
   const { approvers, fetchApprovalApprovers, createApprovalApprover, deleteApprovalApprover } = useApproval();
-  const { employees, fetchEmployees }             = useEmployee();
-  const { reimbursements, fetchReimbursements }   = useReimbursement();
+  const { employees, fetchEmployees } = useEmployee();
+  const { reimbursements, fetchReimbursements } = useReimbursement();
   const { timeOffRequests, fetchTimeOffRequests } = useTimeOff();
+  
+  // Gunakan useAttendanceCorrection dengan role "admin" untuk mendapatkan semua data
+  const attendanceHook = useAttendanceCorrection({ role: "admin" });
+  const corrections = attendanceHook.corrections || [];
+  const handleRefreshAttendance = attendanceHook.handleRefresh;
 
   const [showSettings, setShowSettings] = useState(false);
 
@@ -313,11 +320,16 @@ const ApprovalPage = () => {
     fetchEmployees();
     fetchReimbursements();
     fetchTimeOffRequests();
+    // Refresh attendance data
+    if (handleRefreshAttendance) {
+      handleRefreshAttendance();
+    }
   }, []);
 
   const pendingCounts = {
-    reimbursement: (reimbursements  || []).filter((r) => NEEDS_REVIEW_STATUSES.includes(r.status)).length,
-    timeoff:       (timeOffRequests || []).filter((r) => NEEDS_REVIEW_STATUSES.includes(r.status)).length,
+    reimbursement: (reimbursements || []).filter((r) => NEEDS_REVIEW_STATUSES.includes(r.status)).length,
+    timeoff: (timeOffRequests || []).filter((t) => NEEDS_REVIEW_STATUSES.includes(t.status)).length,
+    attendance: (corrections || []).filter((c) => ATTENDANCE_NEEDS_REVIEW_STATUSES.includes(c.status)).length,
   };
 
   const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);

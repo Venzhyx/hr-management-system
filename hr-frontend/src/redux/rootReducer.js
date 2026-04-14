@@ -9,18 +9,20 @@ import timeOffTypeReducer        from './slices/timeOffTypeSlice';
 import timeOffReducer            from './slices/timeoffSlice';
 import reimbursementReducer      from './slices/reimbursementSlice';
 import approvalReducer           from './slices/approvalSlice';
+import attendanceCorrectionReducer from './slices/attendanceCorrectionSlice';
 
 const rootReducer = combineReducers({
-  employees:          employeeReducer,
-  departments:        departmentReducer,
-  companies:          companyReducer,
+  employees: employeeReducer,
+  departments: departmentReducer,
+  companies: companyReducer,
   attendanceSettings: attendanceSettingsReducer,
-  attendance:         attendanceReducer,         // ← tambah ini
-  calendarEvents:     calendarEventReducer,
-  timeOffTypes:       timeOffTypeReducer,
-  timeOff:            timeOffReducer,
-  reimbursements:     reimbursementReducer,
-  approval:           approvalReducer,
+  attendance: attendanceReducer,
+  attendanceCorrection: attendanceCorrectionReducer, // ✅ INI YANG KURANG
+  calendarEvents: calendarEventReducer,
+  timeOffTypes: timeOffTypeReducer,
+  timeOff: timeOffReducer,
+  reimbursements: reimbursementReducer,
+  approval: approvalReducer,
 });
 
 export default rootReducer;

@@ -32,6 +32,7 @@ import ReimbursementDetail from '../pages/reimbursements/detail';
 import ApprovalPage              from '../pages/approvals/index';
 import ApprovalReimbursementPage from '../pages/approvals/reimbursement';
 import ApprovalTimeOffPage       from '../pages/approvals/timeoff';
+import ApprovalAttendancePage    from '../pages/approvals/attendance'; // ← TAMBAHKAN IMPORT
 
 // Time Off
 import TimeOffIndex  from '../pages/timeoffs/index';
@@ -74,6 +75,7 @@ const AppRoutes = () => {
         <Route path="approvals"               element={<ApprovalPage />} />
         <Route path="approvals/reimbursement" element={<ApprovalReimbursementPage />} />
         <Route path="approvals/timeoff"       element={<ApprovalTimeOffPage />} />
+        <Route path="approvals/attendance"    element={<ApprovalAttendancePage />} /> {/* ← TAMBAHKAN ROUTE */}
 
         {/* Time Off */}
         <Route path="time-off"          element={<TimeOffIndex />} />
