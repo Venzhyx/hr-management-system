@@ -10,6 +10,7 @@ import timeOffReducer            from './slices/timeoffSlice';
 import reimbursementReducer      from './slices/reimbursementSlice';
 import approvalReducer           from './slices/approvalSlice';
 import attendanceCorrectionReducer from './slices/attendanceCorrectionSlice';
+import overtimeReducer from './slices/OvertimeSlice';
 
 const rootReducer = combineReducers({
   employees: employeeReducer,
@@ -23,6 +24,7 @@ const rootReducer = combineReducers({
   timeOff: timeOffReducer,
   reimbursements: reimbursementReducer,
   approval: approvalReducer,
+  overtime: overtimeReducer,
 });
 
 export default rootReducer;

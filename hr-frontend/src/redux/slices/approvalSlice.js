@@ -5,67 +5,126 @@ import {
   deleteApprovalApproverAPI,
 } from "../../api/approvalApi";
 
-export const fetchApprovalApprovers = createAsyncThunk(
-  "approval/fetchApprovers",
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await getApprovalApproversAPI();
-      return res.data.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
+// Helper: create thunks untuk setiap module dengan type parameter
+const createModuleThunks = (moduleType) => {
+  const fetchThunk = createAsyncThunk(
+    `approval/${moduleType}/fetch`,
+    async (_, { rejectWithValue }) => {
+      try {
+        const res = await getApprovalApproversAPI(moduleType);
+        return { module: moduleType, data: res.data.data };
+      } catch (err) {
+        return rejectWithValue(err.response?.data || err.message);
+      }
     }
-  }
-);
+  );
 
-export const createApprovalApprover = createAsyncThunk(
-  "approval/createApprover",
-  async (data, { rejectWithValue }) => {
-    try {
-      const res = await createApprovalApproverAPI(data);
-      return res.data.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
+  const createThunk = createAsyncThunk(
+    `approval/${moduleType}/create`,
+    async (data, { rejectWithValue }) => {
+      try {
+        const payload = { ...data, type: moduleType };
+        const res = await createApprovalApproverAPI(payload);
+        return { module: moduleType, data: res.data.data };
+      } catch (err) {
+        return rejectWithValue(err.response?.data || err.message);
+      }
     }
-  }
-);
+  );
 
-export const deleteApprovalApprover = createAsyncThunk(
-  "approval/deleteApprover",
-  async (id, { rejectWithValue }) => {
-    try {
-      await deleteApprovalApproverAPI(id);
-      return id;
-    } catch (err) {
-      return rejectWithValue(err.response?.data || err.message);
+  const deleteThunk = createAsyncThunk(
+    `approval/${moduleType}/delete`,
+    async (id, { rejectWithValue }) => {
+      try {
+        await deleteApprovalApproverAPI(id);
+        return { module: moduleType, id };
+      } catch (err) {
+        return rejectWithValue(err.response?.data || err.message);
+      }
     }
-  }
-);
+  );
+
+  return { fetch: fetchThunk, create: createThunk, delete: deleteThunk };
+};
+
+// Create thunks untuk semua module
+export const reimbursementThunks = createModuleThunks("reimbursement");
+export const timeoffThunks = createModuleThunks("timeoff");
+export const attendanceThunks = createModuleThunks("attendance");
+export const overtimeThunks = createModuleThunks("overtime");
+
+// Backward compatibility
+export const fetchApprovalApprovers = reimbursementThunks.fetch;
+export const createApprovalApprover = reimbursementThunks.create;
+export const deleteApprovalApprover = reimbursementThunks.delete;
+
+const initialState = {
+  reimbursement: { approvers: [], loading: false, error: null },
+  timeoff: { approvers: [], loading: false, error: null },
+  attendance: { approvers: [], loading: false, error: null },
+  overtime: { approvers: [], loading: false, error: null },
+};
 
 const approvalSlice = createSlice({
   name: "approval",
-  initialState: {
-    approvers: [],
-    loading:   false,
-    error:     null,
+  initialState,
+  reducers: {
+    clearModuleError: (state, action) => {
+      const { module } = action.payload;
+      if (state[module]) state[module].error = null;
+    },
   },
-  reducers: {},
   extraReducers: (builder) => {
-    const pending  = (s)    => { s.loading = true;  s.error = null; };
-    const rejected = (s, a) => { s.loading = false; s.error = a.payload; };
+    const addModuleCases = (thunks, moduleName) => {
+      builder
+        .addCase(thunks.fetch.pending, (state) => {
+          state[moduleName].loading = true;
+          state[moduleName].error = null;
+        })
+        .addCase(thunks.fetch.fulfilled, (state, action) => {
+          state[moduleName].loading = false;
+          state[moduleName].approvers = action.payload.data || [];
+        })
+        .addCase(thunks.fetch.rejected, (state, action) => {
+          state[moduleName].loading = false;
+          state[moduleName].error = action.payload;
+        })
+        .addCase(thunks.create.pending, (state) => {
+          state[moduleName].loading = true;
+          state[moduleName].error = null;
+        })
+        .addCase(thunks.create.fulfilled, (state, action) => {
+          state[moduleName].loading = false;
+          if (action.payload.data) {
+            state[moduleName].approvers.push(action.payload.data);
+          }
+        })
+        .addCase(thunks.create.rejected, (state, action) => {
+          state[moduleName].loading = false;
+          state[moduleName].error = action.payload;
+        })
+        .addCase(thunks.delete.pending, (state) => {
+          state[moduleName].loading = true;
+          state[moduleName].error = null;
+        })
+        .addCase(thunks.delete.fulfilled, (state, action) => {
+          state[moduleName].loading = false;
+          state[moduleName].approvers = state[moduleName].approvers.filter(
+            (x) => x.id !== action.payload.id
+          );
+        })
+        .addCase(thunks.delete.rejected, (state, action) => {
+          state[moduleName].loading = false;
+          state[moduleName].error = action.payload;
+        });
+    };
 
-    builder
-      .addCase(fetchApprovalApprovers.pending,   pending)
-      .addCase(fetchApprovalApprovers.fulfilled, (s, a) => { s.loading = false; s.approvers = a.payload || []; })
-      .addCase(fetchApprovalApprovers.rejected,  rejected)
-
-      .addCase(createApprovalApprover.pending,   pending)
-      .addCase(createApprovalApprover.fulfilled, (s, a) => { s.loading = false; if (a.payload) s.approvers.push(a.payload); })
-      .addCase(createApprovalApprover.rejected,  rejected)
-
-      .addCase(deleteApprovalApprover.pending,   pending)
-      .addCase(deleteApprovalApprover.fulfilled, (s, a) => { s.loading = false; s.approvers = s.approvers.filter(x => x.id !== a.payload); })
-      .addCase(deleteApprovalApprover.rejected,  rejected);
+    addModuleCases(reimbursementThunks, "reimbursement");
+    addModuleCases(timeoffThunks, "timeoff");
+    addModuleCases(attendanceThunks, "attendance");
+    addModuleCases(overtimeThunks, "overtime");
   },
 });
 
+export const { clearModuleError } = approvalSlice.actions;
 export default approvalSlice.reducer;
