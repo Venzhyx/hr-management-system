@@ -5,6 +5,8 @@ import {
   getMyCorrectionsByEmployeeAPI,
   approveCorrectionAPI,
   rejectCorrectionAPI,
+  updateCorrectionAPI,      // ✅ TAMBAH
+  deleteCorrectionAPI,      // ✅ TAMBAH
 } from "../../ApiService/attendanceCorrection";
 
 // Fetch all corrections (admin)
@@ -61,7 +63,7 @@ export const createCorrection = createAsyncThunk(
   }
 );
 
-// Approve correction - tanpa notes (backend tidak menerima notes)
+// Approve correction
 export const approveCorrection = createAsyncThunk(
   "attendanceCorrection/approve",
   async ({ id, adminId }, { rejectWithValue }) => {
@@ -81,7 +83,7 @@ export const approveCorrection = createAsyncThunk(
   }
 );
 
-// Reject correction - tanpa notes (backend tidak menerima notes)
+// Reject correction
 export const rejectCorrection = createAsyncThunk(
   "attendanceCorrection/reject",
   async ({ id, adminId }, { rejectWithValue }) => {
@@ -97,6 +99,42 @@ export const rejectCorrection = createAsyncThunk(
     } catch (err) {
       console.error("[rejectCorrection] Error:", err);
       return rejectWithValue(err.response?.data?.message || "Gagal menolak koreksi.");
+    }
+  }
+);
+
+// ✅ TAMBAH: Update Correction
+export const updateCorrection = createAsyncThunk(
+  "attendanceCorrection/update",
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      console.log("[updateCorrection] Calling API with:", { id, data });
+      const res = await updateCorrectionAPI(id, data);
+      let responseData = res.data;
+      if (typeof responseData === "string") {
+        responseData = JSON.parse(responseData);
+      }
+      console.log("[updateCorrection] Response:", responseData);
+      return responseData?.data ?? responseData;
+    } catch (err) {
+      console.error("[updateCorrection] Error:", err);
+      return rejectWithValue(err.response?.data?.message || "Gagal mengupdate koreksi.");
+    }
+  }
+);
+
+// ✅ TAMBAH: Delete Correction
+export const deleteCorrection = createAsyncThunk(
+  "attendanceCorrection/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      console.log("[deleteCorrection] Calling API for id:", id);
+      const res = await deleteCorrectionAPI(id);
+      console.log("[deleteCorrection] Response:", res.data);
+      return { id, data: res.data };
+    } catch (err) {
+      console.error("[deleteCorrection] Error:", err);
+      return rejectWithValue(err.response?.data?.message || "Gagal menghapus koreksi.");
     }
   }
 );
@@ -237,6 +275,45 @@ const attendanceCorrectionSlice = createSlice({
         state.selectedCorrection = null;
       })
       .addCase(rejectCorrection.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
+
+    // ✅ TAMBAH: update
+    builder
+      .addCase(updateCorrection.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
+      .addCase(updateCorrection.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        if (action.payload) {
+          const index = state.list.findIndex((c) => c.id === action.payload.id);
+          if (index !== -1) {
+            state.list[index] = action.payload;
+          }
+        }
+        state.isModalOpen = false;
+        state.selectedCorrection = null;
+        state.actionError = null;
+      })
+      .addCase(updateCorrection.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
+
+    // ✅ TAMBAH: delete
+    builder
+      .addCase(deleteCorrection.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
+      .addCase(deleteCorrection.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.list = state.list.filter((c) => c.id !== action.payload.id);
+        state.actionError = null;
+      })
+      .addCase(deleteCorrection.rejected, (state, action) => {
         state.actionLoading = false;
         state.actionError = action.payload;
       });

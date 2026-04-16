@@ -10,10 +10,14 @@ import {
   updateReimbursementApprovalAPI,
   getTimeOffApprovalsAPI,
   updateTimeOffApprovalAPI,
-  getAttendanceApprovalsAPI,
-  updateAttendanceApprovalAPI,
-  getOvertimeApprovalsAPI,
-  updateOvertimeApprovalAPI,
+  // ✅ HAPUS INI (sudah tidak dipakai)
+  // getOvertimeApprovalsAPI,
+  // updateOvertimeApprovalAPI,
+  approveAttendanceCorrectionAPI,
+  rejectAttendanceCorrectionAPI,
+  // ✅ TAMBAH INI
+  approveOvertimeAPI,
+  rejectOvertimeAPI,
 } from "../../ApiService/approvalApi";
 
 const THUNKS_MAP = {
@@ -24,10 +28,59 @@ const THUNKS_MAP = {
 };
 
 const APPROVAL_APIS = {
-  reimbursement: { get: getReimbursementApprovalsAPI, update: updateReimbursementApprovalAPI },
-  timeoff: { get: getTimeOffApprovalsAPI, update: updateTimeOffApprovalAPI },
-  attendance: { get: getAttendanceApprovalsAPI, update: updateAttendanceApprovalAPI },
-  overtime: { get: getOvertimeApprovalsAPI, update: updateOvertimeApprovalAPI },
+  reimbursement: { 
+    get: getReimbursementApprovalsAPI, 
+    update: updateReimbursementApprovalAPI 
+  },
+  timeoff: { 
+    get: getTimeOffApprovalsAPI, 
+    update: updateTimeOffApprovalAPI 
+  },
+  // ✅ FIXED Overtime - pakai system baru seperti Attendance
+  overtime: {
+    get: null, // Tidak perlu get lagi, approvals sudah di response
+    update: async (overtimeId, { action, notes }) => {
+      // ⚠️ TODO: Ambil approverId dari auth context/state nanti
+      const approverId = 1; // Sementara hardcode
+      
+      if (action === "APPROVED") {
+        return approveOvertimeAPI(overtimeId, approverId, notes);
+      } else if (action === "REJECTED") {
+        return rejectOvertimeAPI(overtimeId, approverId, notes);
+      }
+      
+      throw new Error(`Invalid action for overtime: ${action}`);
+    },
+  },
+  // Attendance langsung action-based, tidak pakai approval table
+  attendance: {
+    get: null,
+    update: async (correctionId, { action, notes }) => {
+      const approverId = 1; // Sementara hardcode
+      
+      if (action === "APPROVED") {
+        return approveAttendanceCorrectionAPI(correctionId, approverId, notes);
+      } else if (action === "REJECTED") {
+        return rejectAttendanceCorrectionAPI(correctionId, approverId, notes);
+      }
+      
+      throw new Error(`Invalid action for attendance: ${action}`);
+    },
+  },
+};
+
+/**
+ * Helper: normalise approval list from various response shapes.
+ * Backend AttendanceCorrectionApproval returns: { id, approverId, sequence, status, notes, approvedAt, createdAt }
+ */
+const parseList = (res) => {
+  const payload = res?.data;
+  if (!payload) return [];
+  if (Array.isArray(payload?.data))    return payload.data;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload))          return payload;
+  const firstArr = Object.values(payload).find((v) => Array.isArray(v));
+  return firstArr ?? [];
 };
 
 export const useApproval = ({ type = "reimbursement" } = {}) => {
@@ -40,12 +93,19 @@ export const useApproval = ({ type = "reimbursement" } = {}) => {
   );
 
   /**
-   * Process approval untuk suatu request (single level)
-   * Mencari record PENDING pertama dan meng-update-nya
+   * Single-level approval: finds first PENDING record and updates it.
+   * SPECIAL CASE: Attendance & Overtime - langsung panggil approve/reject endpoint
    */
   const processApproval = async (requestId, action, notes = null) => {
+    // 🔥 SPECIAL HANDLING UNTUK ATTENDANCE & OVERTIME
+    if (type === "attendance" || type === "overtime") {
+      await apis.update(requestId, { action, notes });
+      return;
+    }
+
+    // Normal flow untuk reimbursement, timeoff
     const res = await apis.get(requestId);
-    const list = res.data?.data ?? res.data ?? [];
+    const list = parseList(res);
 
     if (!Array.isArray(list) || list.length === 0) {
       throw new Error(`No approval records found for ${type}`);
@@ -58,27 +118,36 @@ export const useApproval = ({ type = "reimbursement" } = {}) => {
   };
 
   /**
-   * Process approval untuk level tertentu (multi-level)
-   * Mencari record dengan approvalOrder tertentu
+   * Multi-level approval: finds record by `sequence` (backend field).
+   * Backend model: AttendanceCorrectionApproval.sequence (Integer)
+   * Previously used `approvalOrder` — now corrected to `sequence`.
+   * 
+   * ⚠️ NOTE: Attendance & Overtime tidak support multi-level manual dari frontend
    */
   const processApprovalByLevel = async (requestId, level, action, notes = null) => {
+    // 🔥 Attendance & Overtime tidak support multi-level
+    if (type === "attendance" || type === "overtime") {
+      throw new Error(`${type} does not support manual multi-level approval from frontend`);
+    }
+
     const res = await apis.get(requestId);
-    const list = res.data?.data ?? res.data ?? [];
+    const list = parseList(res);
 
     if (!Array.isArray(list) || list.length === 0) {
       throw new Error(`No approval records found for ${type}`);
     }
 
-    const targetApproval = list.find((a) => a.approvalOrder === level);
-    if (!targetApproval) {
-      throw new Error(`Approval record for level ${level} not found`);
+    // Match by `sequence` — the backend field name
+    const target = list.find((a) => a.sequence === level);
+    if (!target) {
+      throw new Error(`Approval record for sequence ${level} not found`);
     }
 
-    if (targetApproval.status !== "PENDING") {
-      throw new Error(`Level ${level} is already ${targetApproval.status}`);
+    if (target.status !== "PENDING") {
+      throw new Error(`Level ${level} is already ${target.status}`);
     }
 
-    await apis.update(targetApproval.id, { action, notes: notes?.trim() || null });
+    await apis.update(target.id, { action, notes: notes?.trim() || null });
   };
 
   return {
@@ -86,23 +155,23 @@ export const useApproval = ({ type = "reimbursement" } = {}) => {
     approvers,
     loading,
     error,
-    
+
     // Approver management
     fetchApprovers: () => dispatch(thunks.fetch()),
     createApprover: (data) => dispatch(thunks.create(data)).unwrap(),
     deleteApprover: (id) => dispatch(thunks.delete(id)).unwrap(),
-    
-    // Single-level approval (otomatis cari PENDING pertama)
+
+    // Single-level approval (auto-find first PENDING)
     processApproval,
     approve: (id, notes) => processApproval(id, "APPROVED", notes),
     reject: (id, notes) => processApproval(id, "REJECTED", notes),
-    
-    // Multi-level approval (approve/reject berdasarkan level)
+
+    // Multi-level approval (by sequence)
     processApprovalByLevel,
     approveLevel: (id, level, notes) => processApprovalByLevel(id, level, "APPROVED", notes),
     rejectLevel: (id, level, notes) => processApprovalByLevel(id, level, "REJECTED", notes),
-    
-    // Backward compatibility (untuk reimbursement)
+
+    // Backward compatibility
     fetchApprovalApprovers: () => dispatch(thunks.fetch()),
     createApprovalApprover: (data) => dispatch(thunks.create(data)).unwrap(),
     deleteApprovalApprover: (id) => dispatch(thunks.delete(id)).unwrap(),

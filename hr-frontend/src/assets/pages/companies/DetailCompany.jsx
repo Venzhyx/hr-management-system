@@ -17,7 +17,7 @@ import {
   HiOutlineCalendar,
   HiOutlineClock
 } from 'react-icons/hi2';
-import API from "../../../api/api";
+import API from "../../../ApiService/api";
 
 // ==================== SUB COMPONENTS ====================
 const LoadingSpinner = () => (

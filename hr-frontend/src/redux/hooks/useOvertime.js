@@ -6,6 +6,8 @@ import {
   createOvertime,
   approveOvertime,
   rejectOvertime,
+  updateOvertime,        // ✅ TAMBAH
+  deleteOvertime,        // ✅ TAMBAH
   openCreateModal,
   closeCreateModal,
   openDetailModal,
@@ -74,17 +76,36 @@ export const useOvertime = ({ role = "employee", employeeId, adminId } = {}) => 
     if (createOvertime.rejected.match(result)) throw new Error(result.payload);
   }, [dispatch]);
 
-  const handleApprove = useCallback(async (id) => {
-    const effectiveAdminId = adminId ?? 1;
-    const result = await dispatch(approveOvertime({ id, adminId: effectiveAdminId }));
-    if (approveOvertime.rejected.match(result)) throw new Error(result.payload);
+  const handleApprove = useCallback(async (id, notes) => {
+    const approverId = adminId ?? 1;
+    console.log("HANDLE APPROVE", { id, approverId, notes });
+    const result = await dispatch(approveOvertime({ id, approverId, notes }));
+    if (approveOvertime.rejected.match(result)) {
+      throw new Error(result.payload);
+    }
   }, [dispatch, adminId]);
 
-  const handleReject = useCallback(async (id) => {
-    const effectiveAdminId = adminId ?? 1;
-    const result = await dispatch(rejectOvertime({ id, adminId: effectiveAdminId }));
+  const handleReject = useCallback(async (id, notes) => {
+    const approverId = adminId ?? 1;
+    const result = await dispatch(rejectOvertime({ id, approverId, notes }));
     if (rejectOvertime.rejected.match(result)) throw new Error(result.payload);
   }, [dispatch, adminId]);
+
+  // ✅ TAMBAH: handleUpdate
+  const handleUpdate = useCallback(async (id, payload) => {
+    const result = await dispatch(updateOvertime({ id, data: payload }));
+    if (updateOvertime.rejected.match(result)) {
+      throw new Error(result.payload);
+    }
+  }, [dispatch]);
+
+  // ✅ TAMBAH: handleDelete
+  const handleDelete = useCallback(async (id) => {
+    const result = await dispatch(deleteOvertime(id));
+    if (deleteOvertime.rejected.match(result)) {
+      throw new Error(result.payload);
+    }
+  }, [dispatch]);
 
   // ─── Modal Controls ───────────────────────────────────────────────────────────
 
@@ -120,6 +141,8 @@ export const useOvertime = ({ role = "employee", employeeId, adminId } = {}) => 
     fetchOvertimes,
     handleRefresh,
     handleCreate,
+    handleUpdate,      // ✅ TAMBAH
+    handleDelete,      // ✅ TAMBAH
     handleApprove,
     handleReject,
     clearError: handleClearError,

@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/overtimes")
@@ -53,16 +54,38 @@ public class OvertimeController {
     @PutMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<OvertimeResponse>> approveOvertime(
             @PathVariable Long id,
-            @RequestParam Long approverId) {
-        OvertimeResponse response = service.approveOvertime(id, approverId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Overtime approved successfully", response));
+            @RequestParam Long approverId,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        String notes = body != null ? body.get("notes") : null;
+        OvertimeResponse response = service.approveOvertime(id, approverId, notes);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Overtime approved", response));
     }
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<ApiResponse<OvertimeResponse>> rejectOvertime(
             @PathVariable Long id,
-            @RequestParam Long approverId) {
-        OvertimeResponse response = service.rejectOvertime(id, approverId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Overtime rejected successfully", response));
+            @RequestParam Long approverId,
+            @RequestBody Map<String, String> body) {
+
+        String notes = body.get("notes");
+        OvertimeResponse response = service.rejectOvertime(id, approverId, notes);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Overtime rejected", response));
+    }
+
+    // ✅ TAMBAHKAN INI - UPDATE Overtime
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<OvertimeResponse>> updateOvertime(
+            @PathVariable Long id,
+            @Valid @RequestBody OvertimeRequest request) {
+        OvertimeResponse response = service.updateOvertime(id, request);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Overtime updated successfully", response));
+    }
+
+    // ✅ TAMBAHKAN INI - DELETE Overtime
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteOvertime(@PathVariable Long id) {
+        service.deleteOvertime(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Overtime deleted successfully", null));
     }
 }

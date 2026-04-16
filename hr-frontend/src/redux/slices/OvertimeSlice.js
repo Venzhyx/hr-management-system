@@ -53,9 +53,9 @@ export const createOvertime = createAsyncThunk(
 
 export const approveOvertime = createAsyncThunk(
   "overtime/approve",
-  async ({ id, adminId }, { rejectWithValue }) => {
+  async ({ id, approverId, notes }, { rejectWithValue }) => {
     try {
-      const res = await overtimeApi.approveOvertime(id, adminId);
+      const res = await overtimeApi.approveOvertime(id, approverId, notes);
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message ?? "Gagal menyetujui lembur");
@@ -65,12 +65,38 @@ export const approveOvertime = createAsyncThunk(
 
 export const rejectOvertime = createAsyncThunk(
   "overtime/reject",
-  async ({ id, adminId }, { rejectWithValue }) => {
+  async ({ id, approverId, notes }, { rejectWithValue }) => {
     try {
-      const res = await overtimeApi.rejectOvertime(id, adminId);
+      const res = await overtimeApi.rejectOvertime(id, approverId, notes);
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message ?? "Gagal menolak lembur");
+    }
+  }
+);
+
+// ✅ TAMBAH: Update Overtime
+export const updateOvertime = createAsyncThunk(
+  "overtime/update",
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      const res = await overtimeApi.updateOvertime(id, data);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message ?? "Gagal mengupdate lembur");
+    }
+  }
+);
+
+// ✅ TAMBAH: Delete Overtime
+export const deleteOvertime = createAsyncThunk(
+  "overtime/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      await overtimeApi.deleteOvertime(id);
+      return { id };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message ?? "Gagal menghapus lembur");
     }
   }
 );
@@ -80,71 +106,105 @@ export const rejectOvertime = createAsyncThunk(
 const overtimeSlice = createSlice({
   name: "overtime",
   initialState: {
-    overtimes:          [],
-    totalHours:         null,
-    loading:            false,
-    error:              null,
-    actionLoading:      false,
-    actionError:        null,
-    isModalOpen:        false,
-    isDetailModalOpen:  false,
-    selectedOvertime:   null,
-    filterStatus:       "ALL",
-    filterType:         "ALL",
+    overtimes: [],
+    totalHours: null,
+    loading: false,
+    error: null,
+    actionLoading: false,
+    actionError: null,
+    isModalOpen: false,
+    isDetailModalOpen: false,
+    selectedOvertime: null,
+    filterStatus: "ALL",
+    filterType: "ALL",
   },
   reducers: {
     openCreateModal(state) {
-      state.isModalOpen  = true;
-      state.actionError  = null;
+      state.isModalOpen = true;
+      state.actionError = null;
     },
     closeCreateModal(state) {
-      state.isModalOpen  = false;
-      state.actionError  = null;
+      state.isModalOpen = false;
+      state.actionError = null;
     },
     openDetailModal(state, action) {
-      state.selectedOvertime    = action.payload;
-      state.isDetailModalOpen   = true;
-      state.actionError         = null;
+      state.selectedOvertime = action.payload;
+      state.isDetailModalOpen = true;
+      state.actionError = null;
     },
     closeDetailModal(state) {
-      state.isDetailModalOpen   = false;
-      state.selectedOvertime    = null;
-      state.actionError         = null;
+      state.isDetailModalOpen = false;
+      state.selectedOvertime = null;
+      state.actionError = null;
     },
-    setFilterStatus(state, action) { state.filterStatus = action.payload; },
-    setFilterType(state, action)   { state.filterType   = action.payload; },
-    clearActionError(state)        { state.actionError  = null; },
+    setFilterStatus(state, action) {
+      state.filterStatus = action.payload;
+    },
+    setFilterType(state, action) {
+      state.filterType = action.payload;
+    },
+    clearActionError(state) {
+      state.actionError = null;
+    },
   },
   extraReducers: (builder) => {
     // fetchAll
     builder
-      .addCase(fetchAllOvertimes.pending,   (state)         => { state.loading = true;  state.error = null; })
-      .addCase(fetchAllOvertimes.fulfilled, (state, action) => { state.loading = false; state.overtimes = action.payload ?? []; })
-      .addCase(fetchAllOvertimes.rejected,  (state, action) => { state.loading = false; state.error = action.payload; });
+      .addCase(fetchAllOvertimes.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllOvertimes.fulfilled, (state, action) => {
+        state.loading = false;
+        state.overtimes = action.payload ?? [];
+      })
+      .addCase(fetchAllOvertimes.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
 
     // fetchByEmployee
     builder
-      .addCase(fetchOvertimesByEmployee.pending,   (state)         => { state.loading = true;  state.error = null; })
-      .addCase(fetchOvertimesByEmployee.fulfilled, (state, action) => { state.loading = false; state.overtimes = action.payload ?? []; })
-      .addCase(fetchOvertimesByEmployee.rejected,  (state, action) => { state.loading = false; state.error = action.payload; });
+      .addCase(fetchOvertimesByEmployee.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOvertimesByEmployee.fulfilled, (state, action) => {
+        state.loading = false;
+        state.overtimes = action.payload ?? [];
+      })
+      .addCase(fetchOvertimesByEmployee.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
 
     // fetchTotal
-    builder
-      .addCase(fetchTotalOvertimeByEmployee.fulfilled, (state, action) => { state.totalHours = action.payload ?? 0; });
+    builder.addCase(fetchTotalOvertimeByEmployee.fulfilled, (state, action) => {
+      state.totalHours = action.payload ?? 0;
+    });
 
     // create
     builder
-      .addCase(createOvertime.pending,   (state)         => { state.actionLoading = true;  state.actionError = null; })
+      .addCase(createOvertime.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
       .addCase(createOvertime.fulfilled, (state, action) => {
         state.actionLoading = false;
         if (action.payload) state.overtimes.unshift(action.payload);
-        state.isModalOpen   = false;
+        state.isModalOpen = false;
       })
-      .addCase(createOvertime.rejected,  (state, action) => { state.actionLoading = false; state.actionError = action.payload; });
+      .addCase(createOvertime.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
 
     // approve
     builder
-      .addCase(approveOvertime.pending,   (state)         => { state.actionLoading = true;  state.actionError = null; })
+      .addCase(approveOvertime.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
       .addCase(approveOvertime.fulfilled, (state, action) => {
         state.actionLoading = false;
         if (action.payload) {
@@ -152,13 +212,19 @@ const overtimeSlice = createSlice({
           if (idx !== -1) state.overtimes[idx] = action.payload;
         }
         state.isDetailModalOpen = false;
-        state.selectedOvertime  = null;
+        state.selectedOvertime = null;
       })
-      .addCase(approveOvertime.rejected,  (state, action) => { state.actionLoading = false; state.actionError = action.payload; });
+      .addCase(approveOvertime.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
 
     // reject
     builder
-      .addCase(rejectOvertime.pending,   (state)         => { state.actionLoading = true;  state.actionError = null; })
+      .addCase(rejectOvertime.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
       .addCase(rejectOvertime.fulfilled, (state, action) => {
         state.actionLoading = false;
         if (action.payload) {
@@ -166,9 +232,49 @@ const overtimeSlice = createSlice({
           if (idx !== -1) state.overtimes[idx] = action.payload;
         }
         state.isDetailModalOpen = false;
-        state.selectedOvertime  = null;
+        state.selectedOvertime = null;
       })
-      .addCase(rejectOvertime.rejected,  (state, action) => { state.actionLoading = false; state.actionError = action.payload; });
+      .addCase(rejectOvertime.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
+
+    // ✅ TAMBAH: update
+    builder
+      .addCase(updateOvertime.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
+      .addCase(updateOvertime.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        if (action.payload) {
+          const idx = state.overtimes.findIndex((o) => o.id === action.payload.id);
+          if (idx !== -1) state.overtimes[idx] = action.payload;
+        }
+        state.isModalOpen = false;
+        state.selectedOvertime = null;
+        state.actionError = null;
+      })
+      .addCase(updateOvertime.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
+
+    // ✅ TAMBAH: delete
+    builder
+      .addCase(deleteOvertime.pending, (state) => {
+        state.actionLoading = true;
+        state.actionError = null;
+      })
+      .addCase(deleteOvertime.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.overtimes = state.overtimes.filter((o) => o.id !== action.payload.id);
+        state.actionError = null;
+      })
+      .addCase(deleteOvertime.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.actionError = action.payload;
+      });
   },
 });
 

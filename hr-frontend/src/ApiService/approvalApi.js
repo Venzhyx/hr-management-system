@@ -1,5 +1,6 @@
 import API from "./api";
 
+
 // ============================================
 // APPROVERS MANAGEMENT (Single unified endpoint)
 // ============================================
@@ -11,6 +12,34 @@ export const createApprovalApproverAPI = (data) =>
 
 export const deleteApprovalApproverAPI = (id) => 
   API.delete(`/approval-approvers/${id}`);
+
+// ============================================
+// ATTENDANCE CORRECTIONS (FIXED)
+// ============================================
+
+export const createAttendanceCorrectionAPI = (data) =>
+  API.post("/attendance-corrections", data);
+
+export const getAllAttendanceCorrectionsAPI = () =>
+  API.get("/attendance-corrections");
+
+export const getAttendanceApprovalsAPI = (id) =>
+  API.get(`/attendance-corrections/${id}`);
+
+export const getMyAttendanceCorrectionsAPI = (employeeId) =>
+  API.get(`/attendance-corrections/my/${employeeId}`);
+
+export const approveAttendanceCorrectionAPI = (id, approverId, notes) =>
+  API.put(
+    `/attendance-corrections/${id}/approve?approverId=${approverId}`,
+    { notes } // ✅ kirim ke backend
+  );
+
+export const rejectAttendanceCorrectionAPI = (id, approverId, notes) =>
+  API.put(
+    `/attendance-corrections/${id}/reject?approverId=${approverId}`,
+    { notes }
+  );
 
 // ============================================
 // REIMBURSEMENT APPROVALS
@@ -31,19 +60,20 @@ export const updateTimeOffApprovalAPI = (approvalId, data) =>
   API.patch(`/time-off-approvals/${approvalId}`, data);
 
 // ============================================
-// ATTENDANCE APPROVALS
-// ============================================
-export const getAttendanceApprovalsAPI = (correctionId) =>
-  API.get(`/attendance-approvals/correction/${correctionId}`);
-
-export const updateAttendanceApprovalAPI = (approvalId, data) =>
-  API.patch(`/attendance-approvals/${approvalId}`, data);
-
-// ============================================
 // OVERTIME APPROVALS
 // ============================================
-export const getOvertimeApprovalsAPI = (overtimeId) =>
-  API.get(`/overtime-approvals/overtime/${overtimeId}`);
+// ============================================
+// OVERTIME APPROVALS (FIXED)
+// ============================================
 
-export const updateOvertimeApprovalAPI = (approvalId, data) =>
-  API.patch(`/overtime-approvals/${approvalId}`, data);
+export const approveOvertimeAPI = (id, approverId, notes) =>
+  API.put(
+    `/overtimes/${id}/approve?approverId=${approverId}`,
+    { notes }
+  );
+
+export const rejectOvertimeAPI = (id, approverId, notes) =>
+  API.put(
+    `/overtimes/${id}/reject?approverId=${approverId}`,
+    { notes }
+  );

@@ -20,7 +20,7 @@ import {
 } from 'react-icons/hi';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
-import API from '../../../api/api';
+import API from '../../../ApiService/api';
 
 const EmployeesList = () => {
   const { 

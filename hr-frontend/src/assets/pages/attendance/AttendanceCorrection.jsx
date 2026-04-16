@@ -20,6 +20,7 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineLockClosed,
   HiOutlineDotsCircleHorizontal,
+  HiOutlineTrash,
 } from "react-icons/hi";
 import { useAttendanceCorrection } from "../../../redux/hooks/useAttendanceCorrection";
 import { useEmployee } from "../../../redux/hooks/useEmployee";
@@ -30,9 +31,10 @@ import { useLocation } from "react-router-dom";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
-  PENDING:  { label: "Pending",  className: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   Icon: HiOutlineClock },
-  APPROVED: { label: "Approved", className: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", Icon: HiOutlineCheckCircle },
-  REJECTED: { label: "Rejected", className: "bg-red-50 text-red-600 border border-red-200",             dot: "bg-red-400",     Icon: HiOutlineXCircle },
+  SUBMITTED: { label: "Submitted", className: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", Icon: HiOutlineClock },
+  PENDING:   { label: "Pending",   className: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", Icon: HiOutlineClock },
+  APPROVED:  { label: "Approved",  className: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", Icon: HiOutlineCheckCircle },
+  REJECTED:  { label: "Rejected",  className: "bg-red-50 text-red-600 border border-red-200", dot: "bg-red-400", Icon: HiOutlineXCircle },
 };
 
 const TYPE_LABELS = {
@@ -62,9 +64,106 @@ const fmtDateTime = (dt) => {
   catch { return "—"; }
 };
 
-// ─── Employee Dropdown Component ──────────────────────────────────────────────
+const getDisplayStatus = (correction) => {
+  if (correction.status === "REJECTED") return "REJECTED";
+  if (correction.status === "APPROVED") return "APPROVED";
+  
+  const approvals = correction.approvals || [];
+  const approvedCount = approvals.filter((a) => a.status === "APPROVED").length;
+  const totalLevels = 3;
+  
+  if (approvedCount === 0) return "SUBMITTED";
+  if (approvedCount > 0 && approvedCount < totalLevels) return "PENDING";
+  if (approvedCount === totalLevels) return "APPROVED";
+  
+  return correction.status || "SUBMITTED";
+};
 
-const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onChange, error }) => {
+// ─── Delete Modal ─────────────────────────────────────────────────────────────
+const DeleteModal = ({ item, onClose, onConfirm, isDeleting, deleteError, itemLabel = "koreksi kehadiran" }) => {
+  if (!item) return null;
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = "unset"; };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden animate-fadeIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 bg-gradient-to-r from-red-50 to-white border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+            <HiOutlineExclamationCircle className="w-5 h-5 text-red-500 mr-2" />
+            Konfirmasi Hapus
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <HiOutlineX className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+              <HiOutlineTrash className="w-6 h-6 text-red-600" />
+            </div>
+            <p className="text-gray-700">
+              Yakin ingin menghapus {itemLabel} dari{" "}
+              <span className="font-semibold text-gray-900">{item.employeeName}</span>?
+            </p>
+          </div>
+
+          {deleteError ? (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700 flex items-start">
+                <HiOutlineExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                <span>{deleteError}</span>
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+              <span className="font-medium">Peringatan:</span> Tindakan ini tidak dapat dibatalkan.
+              Data akan dihapus secara permanen.
+            </p>
+          )}
+        </div>
+
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!!deleteError || isDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isDeleting ? (
+              <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <HiOutlineTrash className="w-4 h-4 mr-2" />
+            )}
+            Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Employee Dropdown ────────────────────────────────────────────────────────
+
+const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onChange, error, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef(null);
@@ -92,10 +191,11 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
     <div className="relative w-full" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => !disabled && setOpen((p) => !p)}
         className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 border rounded-xl shadow-sm hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm ${
           error ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"
-        }`}
+        } ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+        disabled={disabled}
       >
         <div className="flex items-center gap-2 min-w-0">
           <HiOutlineUser className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -112,10 +212,10 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
             </span>
           )}
         </div>
-        <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        {!disabled && <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />}
       </button>
 
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-30 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           <div className="p-2 border-b border-gray-100">
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
@@ -169,8 +269,9 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const StatusBadge = ({ status }) => {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.PENDING;
+const StatusBadge = ({ correction }) => {
+  const displayStatus = getDisplayStatus(correction);
+  const cfg = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.SUBMITTED;
   const { Icon } = cfg;
   return (
     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.className}`}>
@@ -203,7 +304,6 @@ const FilterPill = ({ label, active, onClick }) => (
   </button>
 );
 
-// ─── Spinner ──────────────────────────────────────────────────────────────────
 const Spinner = ({ cls = "w-4 h-4" }) => (
   <svg className={`animate-spin ${cls}`} fill="none" viewBox="0 0 24 24">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -211,7 +311,6 @@ const Spinner = ({ cls = "w-4 h-4" }) => (
   </svg>
 );
 
-// ─── Section (collapsible) ────────────────────────────────────────────────────
 const Section = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -229,7 +328,6 @@ const Section = ({ title, children, defaultOpen = true }) => {
   );
 };
 
-// ─── InfoRow ──────────────────────────────────────────────────────────────────
 const InfoRowDetail = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3">
     <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -242,10 +340,9 @@ const InfoRowDetail = ({ icon: Icon, label, value }) => (
   </div>
 );
 
-// ─── Multi-Level Approval Timeline ────────────────────────────────────────────
 const ApprovalTimeline = ({ approvals = [] }) => {
   const levels = [1, 2, 3].map((level) => {
-    const record = approvals.find((a) => a.approvalOrder === level || a.level === level) || null;
+    const record = approvals.find((a) => a.approvalOrder === level || a.level === level || a.sequence === level) || null;
     return { level, record };
   });
 
@@ -329,16 +426,17 @@ const ApprovalTimeline = ({ approvals = [] }) => {
   );
 };
 
-// ─── Detail Modal (rich, dari approval page) ──────────────────────────────────
-const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, actionError, isAdmin }) => {
+// ─── Detail Modal ─────────────────────────────────────────────────────────────
+const DetailModal = ({ correction, onClose, onApprove, onReject, onEdit, onDelete, actionLoading, actionError, isAdmin }) => {
   if (!correction) return null;
 
-  const sCfg         = STATUS_CONFIG[correction.status] || STATUS_CONFIG.PENDING;
-  const canAct       = isAdmin && correction.status === "PENDING";
-  const initials     = correction.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
-  const approvals    = correction.approvals || [];
-  const approvedCount = approvals.filter((a) => a.status === "APPROVED").length;
-  const totalLevels  = 3;
+  const displayStatus = getDisplayStatus(correction);
+  const sCfg = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.SUBMITTED;
+  const canAct = isAdmin && (displayStatus === "SUBMITTED" || displayStatus === "PENDING");
+  const canEdit = displayStatus === "SUBMITTED";
+  const canDelete = displayStatus === "SUBMITTED";
+  const initials = correction.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+  const approvals = correction.approvals || [];
 
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -350,6 +448,16 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
     };
   }, [onClose]);
 
+  const handleEdit = () => {
+    if (onEdit) onEdit(correction);
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (onDelete) onDelete(correction);
+    onClose();
+  };
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
@@ -359,7 +467,6 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
         className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
           <div className="flex items-start justify-between gap-3">
@@ -372,25 +479,34 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
                 <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                   {TYPE_LABELS[correction.type] || correction.type}
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1">
-                  <HiOutlineShieldCheck className="w-3 h-3" />
-                  {approvedCount}/{totalLevels} Level
-                </span>
               </div>
               <h2 className="text-lg font-bold text-gray-900 leading-snug">Attendance Correction Request</h2>
               <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                 <HiOutlineClock className="w-3 h-3" /> Diajukan {fmtDateTime(correction.createdAt)}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
-            >
-              <HiOutlineX className="w-4 h-4 text-gray-500" />
-            </button>
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <button onClick={handleEdit}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-100 hover:bg-amber-200 transition-colors flex-shrink-0"
+                  title="Edit">
+                  <HiOutlinePencilAlt className="w-4 h-4 text-amber-600" />
+                </button>
+              )}
+              {canDelete && (
+                <button onClick={handleDelete}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-200 transition-colors flex-shrink-0"
+                  title="Hapus">
+                  <HiOutlineTrash className="w-4 h-4 text-red-500" />
+                </button>
+              )}
+              <button onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0">
+                <HiOutlineX className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
           </div>
 
-          {/* Hero card */}
           <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -413,7 +529,6 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
             </div>
           )}
 
-          {/* Error */}
           {actionError && (
             <div className="mt-3 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
               <HiOutlineExclamationCircle className="w-4 h-4 shrink-0" />
@@ -422,9 +537,7 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
           )}
         </div>
 
-        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
-          {/* Pengaju */}
           <Section title="Informasi Pengaju">
             <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl">
               <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm bg-amber-100 flex items-center justify-center">
@@ -442,7 +555,6 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
             </div>
           </Section>
 
-          {/* Detail Koreksi */}
           <Section title="Detail Koreksi">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRowDetail icon={HiOutlineCalendar}    label="Tanggal"         value={fmtDate(correction.date)} />
@@ -462,46 +574,30 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
             </div>
           </Section>
 
-          {/* Approval Timeline */}
-          <Section title={`Alur Approval (${approvedCount}/${totalLevels} Selesai)`}>
+          <Section title="Alur Approval">
             <ApprovalTimeline approvals={approvals} />
           </Section>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
           {canAct ? (
-            <div className="space-y-2">
-              {/* Level progress bar */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                    style={{ width: `${(approvedCount / totalLevels) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                  Level {approvedCount + 1} dari {totalLevels}
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => onReject(correction.id)}
-                  disabled={actionLoading}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-colors shadow-sm disabled:opacity-50"
-                >
-                  {actionLoading ? <Spinner /> : <HiOutlineX className="w-4 h-4" />}
-                  Reject
-                </button>
-                <button
-                  onClick={() => onApprove(correction.id)}
-                  disabled={actionLoading}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm disabled:opacity-50"
-                >
-                  {actionLoading ? <Spinner /> : <HiOutlineCheck className="w-4 h-4" />}
-                  {approvedCount < totalLevels - 1 ? `Approve Level ${approvedCount + 1}` : "Final Approve"}
-                </button>
-              </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => onReject(correction.id)}
+                disabled={actionLoading}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+              >
+                {actionLoading ? <Spinner /> : <HiOutlineX className="w-4 h-4" />}
+                Reject
+              </button>
+              <button
+                onClick={() => onApprove(correction.id)}
+                disabled={actionLoading}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+              >
+                {actionLoading ? <Spinner /> : <HiOutlineCheck className="w-4 h-4" />}
+                Approve
+              </button>
             </div>
           ) : (
             <div className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border ${sCfg.className}`}>
@@ -515,9 +611,11 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, actionLoading, 
   );
 };
 
-// ─── Create Modal ─────────────────────────────────────────────────────────────
+// ─── Create/Edit Modal ────────────────────────────────────────────────────────
 
-const CreateCorrectionModal = ({
+const CorrectionModal = ({
+  mode = "create",
+  initialData,
   onClose,
   onSubmit,
   isLoading,
@@ -542,7 +640,22 @@ const CreateCorrectionModal = ({
   });
 
   useEffect(() => {
-    if (initialDate) {
+    if (mode === "edit" && initialData) {
+      const newCheckInValue = initialData.newCheckIn ? format(new Date(initialData.newCheckIn), "yyyy-MM-dd'T'HH:mm") : "";
+      const newCheckOutValue = initialData.newCheckOut ? format(new Date(initialData.newCheckOut), "yyyy-MM-dd'T'HH:mm") : "";
+      setForm({
+        employeeId: initialData.employeeId,
+        date: initialData.date,
+        type: initialData.type || "BOTH",
+        newCheckIn: newCheckInValue,
+        newCheckOut: newCheckOutValue,
+        description: initialData.description || "",
+      });
+      if (onEmployeeChange) {
+        const emp = employees.find(e => e.id === initialData.employeeId);
+        if (emp) onEmployeeChange(emp);
+      }
+    } else if (initialDate) {
       let formattedCheckIn = "";
       let formattedCheckOut = "";
       if (initialCheckIn && initialCheckIn !== "—") formattedCheckIn = `${initialDate}T${initialCheckIn}`;
@@ -555,11 +668,13 @@ const CreateCorrectionModal = ({
         type: initialType ?? prev.type,
       }));
     }
-  }, [initialDate, initialCheckIn, initialCheckOut, initialType]);
+  }, [initialDate, initialCheckIn, initialCheckOut, initialType, mode, initialData, employees, onEmployeeChange]);
 
   useEffect(() => {
-    setForm((prev) => ({ ...prev, employeeId: selectedEmployee?.id ?? "" }));
-  }, [selectedEmployee]);
+    if (mode !== "edit") {
+      setForm((prev) => ({ ...prev, employeeId: selectedEmployee?.id ?? "" }));
+    }
+  }, [selectedEmployee, mode]);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -577,6 +692,7 @@ const CreateCorrectionModal = ({
     try {
       await onSubmit(payload);
       if (onClearInitialData) onClearInitialData();
+      onClose();
     } catch (_) {}
   };
 
@@ -584,14 +700,15 @@ const CreateCorrectionModal = ({
   const needsCO = form.type === "CHECKOUT" || form.type === "BOTH";
   const today = new Date().toISOString().split("T")[0];
   const hasEmployeeError = !form.employeeId && !selectedEmployee;
+  const isEdit = mode === "edit";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Buat Koreksi Kehadiran</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Isi detail koreksi yang ingin diajukan</p>
+            <h2 className="text-lg font-bold text-gray-900">{isEdit ? "Edit Koreksi Kehadiran" : "Buat Koreksi Kehadiran"}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{isEdit ? "Ubah detail koreksi yang ingin diajukan" : "Isi detail koreksi yang ingin diajukan"}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
             <HiOutlineX className="w-5 h-5 text-gray-500" />
@@ -616,6 +733,7 @@ const CreateCorrectionModal = ({
               selectedEmployee={selectedEmployee}
               onChange={onEmployeeChange}
               error={hasEmployeeError}
+              disabled={isEdit}
             />
           </div>
 
@@ -655,7 +773,7 @@ const CreateCorrectionModal = ({
                 onChange={(e) => set("newCheckIn", e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
               />
-              {initialCheckIn && initialCheckIn !== "—" && (
+              {initialCheckIn && initialCheckIn !== "—" && !isEdit && (
                 <p className="text-xs text-gray-400 mt-1">Data lama: {initialCheckIn}</p>
               )}
             </div>
@@ -671,7 +789,7 @@ const CreateCorrectionModal = ({
                 onChange={(e) => set("newCheckOut", e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
               />
-              {initialCheckOut && initialCheckOut !== "—" && (
+              {initialCheckOut && initialCheckOut !== "—" && !isEdit && (
                 <p className="text-xs text-gray-400 mt-1">Data lama: {initialCheckOut}</p>
               )}
             </div>
@@ -695,7 +813,7 @@ const CreateCorrectionModal = ({
             <button type="submit" disabled={isLoading || !form.employeeId}
               className="flex-1 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
               {isLoading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {isLoading ? "Mengirim..." : "Ajukan Koreksi"}
+              {isLoading ? "Menyimpan..." : (isEdit ? "Simpan Perubahan" : "Ajukan Koreksi")}
             </button>
           </div>
         </form>
@@ -703,8 +821,6 @@ const CreateCorrectionModal = ({
     </div>
   );
 };
-
-// ─── Empty State ──────────────────────────────────────────────────────────────
 
 const EmptyState = ({ onNew, isAdmin }) => (
   <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
@@ -725,39 +841,60 @@ const EmptyState = ({ onNew, isAdmin }) => (
   </div>
 );
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
-const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
+ const AttendanceCorrection = ({ role = "admin", employeeId = null, adminId }) => {
   const location = useLocation();
   const isAdmin = role === "admin";
 
   const { employees, loadingEmployees, fetchEmployees } = useEmployee();
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-
+  const [editMode, setEditMode] = useState(false);
+  const [editingCorrection, setEditingCorrection] = useState(null);
   const [autoOpenModal, setAutoOpenModal] = useState(false);
   const [initialModalData, setInitialModalData] = useState({
     date: "", checkIn: "", checkOut: "", type: "BOTH",
   });
 
+  // Delete Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingItem, setDeletingItem] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+
   const {
-    corrections, stats, loading, error, actionLoading, actionError,
+    corrections, loading, error, actionLoading, actionError,
     isModalOpen, isDetailModalOpen, selectedCorrection, filterStatus, filterType,
     openCreateModal, closeCreateModal, openDetailModal, closeDetailModal,
     setFilterStatus, setFilterType, handleCreate, handleApprove, handleReject, handleRefresh,
+    handleUpdate, handleDelete,
   } = useAttendanceCorrection({ role, employeeId, adminId });
 
-  useEffect(() => { fetchEmployees(); }, []);
+  useEffect(() => {
+  fetchEmployees();
+  handleRefresh(); // 🔥 ini cukup
+}, [employeeId, role]);
+
+  
 
   useEffect(() => {
-    if (employeeId && employees.length > 0 && !selectedEmployee) {
-      const emp = employees.find((e) => e.id === Number(employeeId));
-      if (emp) setSelectedEmployee(emp);
-    }
-  }, [employeeId, employees, selectedEmployee]);
+  fetchEmployees();
+}, []);
+
+useEffect(() => {
+  if (!employeeId && role !== "admin") return;
+
+  console.log("FETCH JALAN 🔥", { role, employeeId });
+
+  handleRefresh();
+}, [role, employeeId]);
+
+  const hasProcessedRef = useRef(false);
 
   useEffect(() => {
     const { state } = location;
-    if (state?.openModal && state?.action === "correction") {
+    if (state?.openModal && state?.action === "correction" && !hasProcessedRef.current) {
+      hasProcessedRef.current = true;
       setAutoOpenModal(true);
       const selectedDate   = state.selectedDate || "";
       const attendanceData = state.attendanceData || {};
@@ -785,25 +922,94 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
   }, [location, employees]);
 
   useEffect(() => {
-    const { state } = location;
-    if (!state?.employeeId || employees.length === 0) return;
-    if (selectedEmployee?.id === Number(state.employeeId)) return;
-    const emp = employees.find((e) => e.id === Number(state.employeeId));
-    if (emp) setSelectedEmployee(emp);
-  }, [employees]);
+    if (!isModalOpen && !autoOpenModal) {
+      hasProcessedRef.current = false;
+    }
+  }, [isModalOpen, autoOpenModal]);
 
   useEffect(() => {
-    if (autoOpenModal && !isModalOpen) { openCreateModal(); setAutoOpenModal(false); }
+    if (autoOpenModal && !isModalOpen) { 
+      openCreateModal(); 
+      setAutoOpenModal(false); 
+    }
   }, [autoOpenModal, isModalOpen, openCreateModal]);
 
   const handleCloseModal = () => {
     closeCreateModal();
+    setEditMode(false);
+    setEditingCorrection(null);
     setInitialModalData({ date: "", checkIn: "", checkOut: "", type: "BOTH" });
   };
 
+  const handleEdit = (correction) => {
+    setEditingCorrection(correction);
+    setSelectedEmployee(employees.find(e => e.id === correction.employeeId));
+    setEditMode(true);
+    openCreateModal();
+  };
+
+  const handleUpdateSubmit = async (payload) => {
+    if (handleUpdate) {
+      await handleUpdate(editingCorrection.id, payload);
+    }
+  };
+
+  // Delete handlers
+  const handleDeleteClick = (correction) => {
+    setDeletingItem(correction);
+    setDeleteError("");
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return;
+    setDeletingId(deletingItem.id);
+    try {
+      await handleDelete(deletingItem.id);
+      handleRefresh();
+      setShowDeleteModal(false);
+      setDeletingItem(null);
+      setDeleteError("");
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Gagal menghapus.";
+      setDeleteError(msg);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeletingItem(null);
+    setDeleteError("");
+  };
+
+  const displayStats = useMemo(() => {
+    const counts = { total: 0, submitted: 0, pending: 0, approved: 0, rejected: 0 };
+    (corrections || []).forEach((c) => {
+      const status = getDisplayStatus(c);
+      counts.total++;
+      if (status === "SUBMITTED") counts.submitted++;
+      if (status === "PENDING") counts.pending++;
+      if (status === "APPROVED") counts.approved++;
+      if (status === "REJECTED") counts.rejected++;
+    });
+    return counts;
+  }, [corrections]);
+
+  const filteredCorrections = useMemo(() => {
+    let filtered = corrections || [];
+    if (filterStatus !== "ALL") {
+      filtered = filtered.filter((c) => getDisplayStatus(c) === filterStatus);
+    }
+    if (filterType !== "ALL") {
+      filtered = filtered.filter((c) => c.type === filterType);
+    }
+    return filtered;
+  }, [corrections, filterStatus, filterType]);
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance Correction</h1>
@@ -829,20 +1035,19 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
         </div>
       )}
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total"    value={stats.total}    Icon={HiOutlinePencilAlt}  accent="bg-indigo-50 text-indigo-500" />
-        <StatCard label="Pending"  value={stats.pending}  Icon={HiOutlineClock}       accent="bg-amber-50 text-amber-500" />
-        <StatCard label="Approved" value={stats.approved} Icon={HiOutlineCheckCircle} accent="bg-emerald-50 text-emerald-500" />
-        <StatCard label="Rejected" value={stats.rejected} Icon={HiOutlineXCircle}     accent="bg-red-50 text-red-500" />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard label="Total"     value={displayStats.total}     Icon={HiOutlinePencilAlt}  accent="bg-indigo-50 text-indigo-500" />
+        <StatCard label="Submitted" value={displayStats.submitted} Icon={HiOutlineClock}       accent="bg-amber-50 text-amber-500" />
+        <StatCard label="Pending"   value={displayStats.pending}   Icon={HiOutlineClock}       accent="bg-amber-50 text-amber-500" />
+        <StatCard label="Approved"  value={displayStats.approved}  Icon={HiOutlineCheckCircle} accent="bg-emerald-50 text-emerald-500" />
+        <StatCard label="Rejected"  value={displayStats.rejected}  Icon={HiOutlineXCircle}     accent="bg-red-50 text-red-500" />
       </div>
 
-      {/* Table Card */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-wrap">
             <HiOutlineFilter className="w-4 h-4 text-gray-400 shrink-0" />
-            {["ALL", "PENDING", "APPROVED", "REJECTED"].map((s) => (
+            {["ALL", "SUBMITTED", "PENDING", "APPROVED", "REJECTED"].map((s) => (
               <FilterPill key={s} label={s === "ALL" ? "Semua" : STATUS_CONFIG[s]?.label ?? s}
                 active={filterStatus === s} onClick={() => setFilterStatus(s)} />
             ))}
@@ -872,52 +1077,72 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {corrections.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-indigo-600">{c.employeeName?.charAt(0)?.toUpperCase() ?? "?"}</span>
+                {filteredCorrections.map((c) => {
+                  const displayStatus = getDisplayStatus(c);
+                  const canEditDelete = displayStatus === "SUBMITTED";
+                  
+                  return (
+                    <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-bold text-indigo-600">{c.employeeName?.charAt(0)?.toUpperCase() ?? "?"}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 text-sm">{c.employeeName}</p>
+                            <p className="text-xs text-gray-400">#{c.employeeId}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 text-sm">{c.employeeName}</p>
-                          <p className="text-xs text-gray-400">#{c.employeeId}</p>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5 text-gray-700 text-sm">
+                          <HiOutlineCalendar className="w-3.5 h-3.5 text-gray-400" />{fmtDate(c.date)}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-1.5 text-gray-700 text-sm">
-                        <HiOutlineCalendar className="w-3.5 h-3.5 text-gray-400" />{fmtDate(c.date)}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">
-                        {TYPE_LABELS[c.type] ?? c.type}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-gray-600 text-sm">{fmtTime(c.newCheckIn)}</td>
-                    <td className="px-5 py-3.5 text-gray-600 text-sm">{fmtTime(c.newCheckOut)}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                    <td className="px-5 py-3.5 text-gray-400 text-xs">{fmt(c.createdAt)}</td>
-                    <td className="px-5 py-3.5">
-                      <button onClick={() => openDetailModal(c)}
-                        className="p-1.5 hover:bg-indigo-50 rounded-lg transition-colors text-gray-400 hover:text-indigo-600" title="Lihat detail">
-                        <HiOutlineEye className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">
+                          {TYPE_LABELS[c.type] ?? c.type}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-600 text-sm">{fmtTime(c.newCheckIn)}</td>
+                      <td className="px-5 py-3.5 text-gray-600 text-sm">{fmtTime(c.newCheckOut)}</td>
+                      <td className="px-5 py-3.5"><StatusBadge correction={c} /></td>
+                      <td className="px-5 py-3.5 text-gray-400 text-xs">{fmt(c.createdAt)}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openDetailModal(c)}
+                            className="p-1.5 hover:bg-indigo-50 rounded-lg transition-colors text-gray-400 hover:text-indigo-600" title="Lihat detail">
+                            <HiOutlineEye className="w-4 h-4" />
+                          </button>
+                          {canEditDelete && !isAdmin && (
+                            <>
+                              <button onClick={() => handleEdit(c)}
+                                className="p-1.5 hover:bg-amber-50 rounded-lg transition-colors text-gray-400 hover:text-amber-600" title="Edit">
+                                <HiOutlinePencilAlt className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDeleteClick(c)}
+                                className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-gray-400 hover:text-red-600" title="Hapus">
+                                <HiOutlineTrash className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                       </td>
+                     </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Create Modal */}
       {(isModalOpen || autoOpenModal) && (
-        <CreateCorrectionModal
+        <CorrectionModal
+          mode={editMode ? "edit" : "create"}
+          initialData={editingCorrection}
           onClose={handleCloseModal}
-          onSubmit={handleCreate}
+          onSubmit={editMode ? handleUpdateSubmit : handleCreate}
           isLoading={actionLoading}
           actionError={actionError}
           employees={employees}
@@ -932,20 +1157,32 @@ const AttendanceCorrection = ({ role = "employee", employeeId, adminId }) => {
         />
       )}
 
-      {/* Detail Modal — rich version dari approval page */}
       {isDetailModalOpen && (
         <DetailModal
           correction={selectedCorrection}
           onClose={closeDetailModal}
           onApprove={handleApprove}
           onReject={handleReject}
+          onEdit={handleEdit}
+          onDelete={handleDeleteClick}
           actionLoading={actionLoading}
           actionError={actionError}
           isAdmin={isAdmin}
         />
       )}
+
+      {showDeleteModal && (
+        <DeleteModal
+          item={deletingItem}
+          onClose={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+          isDeleting={deletingId === deletingItem?.id}
+          deleteError={deleteError}
+          itemLabel="koreksi kehadiran"
+        />
+      )}
     </div>
-  );
+  );f
 };
 
 export default AttendanceCorrection;

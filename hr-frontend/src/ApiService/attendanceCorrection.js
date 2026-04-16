@@ -23,3 +23,13 @@ export const approveCorrectionAPI = (id, adminId) => {
 export const rejectCorrectionAPI = (id, adminId) => {
   return API.put(`/attendance-corrections/${id}/reject?adminId=${adminId}`);
 };
+
+// ✅ TAMBAH: Update Correction
+export const updateCorrectionAPI = (id, data) => {
+  return API.put(`/attendance-corrections/${id}`, data);
+};
+
+// ✅ TAMBAH: Delete Correction
+export const deleteCorrectionAPI = (id) => {
+  return API.delete(`/attendance-corrections/${id}`);
+};

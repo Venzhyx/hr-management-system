@@ -61,7 +61,7 @@ const getRouteInfo = (pathname) => {
   if (/^\/approvals\/timeoff\/[^/]+$/.test(pathname))       return { title: 'Time Off Approval',      sub: 'Review pengajuan cuti karyawan' };
   if (/^\/approvals\/attendance\/[^/]+$/.test(pathname))    return { title: 'Attendance Approval',    sub: 'Review koreksi kehadiran' };
 
-  return { title: 'PeopleFlow', sub: '' };
+  return { title: 'HR Management', sub: '' };
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -251,17 +251,19 @@ const Navbar = ({ toggleSidebar }) => {
               style={{ animation: 'slideDown 0.2s ease' }}
             >
               {/* Header */}
-              <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white">Notifikasi</h3>
-                  <p className="text-[10px] text-indigo-200 mt-0.5">Approval menunggu review</p>
-                </div>
-                {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 bg-white/20 text-white text-[10px] font-semibold rounded-full">
-                    {unreadCount} baru
-                  </span>
-                )}
+              <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-800">Notifikasi</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Approval menunggu review
+                </p>
               </div>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-semibold rounded-full">
+                  {unreadCount} baru
+                </span>
+              )}
+</div>
 
               {/* Bulk actions */}
               {notifications.length > 0 && (

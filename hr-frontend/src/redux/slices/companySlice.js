@@ -4,7 +4,7 @@ import {
   createCompanyAPI,
   updateCompanyAPI,
   deleteCompanyAPI,
-} from "../../api/companyApi";
+} from "../../ApiService/companyApi";
 
 /* ================= FETCH ================= */
 

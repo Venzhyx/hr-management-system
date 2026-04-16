@@ -4,15 +4,16 @@ import {
   HiOutlinePlus, HiOutlineSearch, HiOutlineEye,
   HiOutlinePencil, HiOutlineTrash, HiOutlineCurrencyDollar,
   HiOutlineChevronLeft, HiOutlineChevronRight,
-  HiOutlineFilter, HiOutlineChevronDown,
+  HiOutlineFilter, HiOutlineChevronDown, HiOutlineX,
+  HiOutlineExclamationCircle,
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 
 const STATUS_CFG = {
-  SUBMITTED: { label: "Submitted", cls: "bg-amber-50 text-amber-700 border-amber-200",     dot: "bg-amber-400"   },
-  PENDING:   { label: "Pending",   cls: "bg-amber-50 text-amber-700 border-amber-200",   dot: "bg-amber-400"   },
+  SUBMITTED: { label: "Submitted", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
+  PENDING:   { label: "Pending",   cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
   APPROVED:  { label: "Approved",  cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
-  REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200",           dot: "bg-red-400"     },
+  REJECTED:  { label: "Rejected",  cls: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-400" },
 };
 
 const ALL_STATUSES = ["SUBMITTED", "PENDING", "APPROVED", "REJECTED"];
@@ -30,6 +31,88 @@ const Badge = ({ status }) => {
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
+  );
+};
+
+// ─── Delete Modal (konsisten dengan TimeOff) ────────────────────────────────────
+const DeleteModal = ({ item, onClose, onConfirm, isDeleting, deleteError }) => {
+  if (!item) return null;
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = "unset"; };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 bg-gradient-to-r from-red-50 to-white border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+            <HiOutlineExclamationCircle className="w-5 h-5 text-red-500 mr-2" />
+            Konfirmasi Hapus
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <HiOutlineX className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+              <HiOutlineTrash className="w-6 h-6 text-red-600" />
+            </div>
+            <p className="text-gray-700">
+              Yakin ingin menghapus reimbursement{" "}
+              <span className="font-semibold text-gray-900">"{item.title}"</span>?
+            </p>
+          </div>
+
+          {deleteError ? (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700 flex items-start">
+                <HiOutlineExclamationCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                <span>{deleteError}</span>
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+              <span className="font-medium">Peringatan:</span> Tindakan ini tidak dapat dibatalkan.
+              Data akan dihapus secara permanen.
+            </p>
+          )}
+        </div>
+
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium"
+          >
+            Batal
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!!deleteError || isDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isDeleting ? (
+              <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <HiOutlineTrash className="w-4 h-4 mr-2" />
+            )}
+            Hapus
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -239,16 +322,20 @@ const FilterDropdown = ({ activeFilters, onChange, counts }) => {
   );
 };
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 const ReimbursementIndex = () => {
   const navigate = useNavigate();
   const { reimbursements, fetchReimbursements, deleteReimbursement, loading } = useReimbursement();
 
   const [search,        setSearch]        = useState("");
-  const [activeFilters, setActiveFilters] = useState([...ALL_STATUSES]);
+  const [activeFilters, setActiveFilters] = useState(["SUBMITTED", "PENDING"]);
   const [currentPage,   setCurrentPage]   = useState(1);
-  const [pageSize,      setPageSize]      = useState(10); // Options: 10, 25, 50, 100
+  const [pageSize,      setPageSize]      = useState(10);
   const [toast,         setToast]         = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingItem,  setDeletingItem]  = useState(null);
+  const [deletingId,    setDeletingId]    = useState(null);
+  const [deleteError,   setDeleteError]   = useState("");
 
   useEffect(() => { fetchReimbursements(); }, []);
 
@@ -260,7 +347,6 @@ const ReimbursementIndex = () => {
     }
   }, []);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, activeFilters]);
@@ -270,7 +356,6 @@ const ReimbursementIndex = () => {
     return acc;
   }, {});
 
-  // Filter data with useMemo for performance
   const filteredData = useMemo(() => {
     return (reimbursements || []).filter(r => {
       const q = search.toLowerCase();
@@ -283,7 +368,6 @@ const ReimbursementIndex = () => {
     });
   }, [reimbursements, search, activeFilters]);
 
-  // Pagination logic
   const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
@@ -295,24 +379,42 @@ const ReimbursementIndex = () => {
 
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
-    setCurrentPage(1); // Reset to first page when changing page size
+    setCurrentPage(1);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this reimbursement?")) return;
+  const handleDeleteClick = (r) => {
+    setDeletingItem(r);
+    setDeleteError("");
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return;
+    setDeletingId(deletingItem.id);
     try {
-      await deleteReimbursement(id);
-      setToast({ type: "success", message: "Reimbursement deleted." });
+      await deleteReimbursement(deletingItem.id);
+      setToast({ type: "success", message: "Reimbursement berhasil dihapus." });
       setTimeout(() => setToast(null), 3000);
-      
-      // Adjust current page if last item on page is deleted
+      setShowDeleteModal(false);
+      setDeletingItem(null);
+      setDeleteError("");
       if (paginatedData.length === 1 && currentPage > 1) {
-        setCurrentPage(currentPage - 1);
+        setCurrentPage((p) => p - 1);
       }
-    } catch {
-      setToast({ type: "error", message: "Failed to delete." });
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Gagal menghapus.";
+      setDeleteError(msg);
+      setToast({ type: "error", message: msg });
       setTimeout(() => setToast(null), 3000);
+    } finally {
+      setDeletingId(null);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeletingItem(null);
+    setDeleteError("");
   };
 
   return (
@@ -363,7 +465,6 @@ const ReimbursementIndex = () => {
           counts={counts}
         />
         
-        {/* Page Size Selector */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 hidden sm:inline">Tampilkan</span>
           <select
@@ -408,7 +509,7 @@ const ReimbursementIndex = () => {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Employee</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-600">Actions</th>
-               </tr>
+              </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
@@ -457,7 +558,7 @@ const ReimbursementIndex = () => {
                         className="p-1.5 hover:bg-indigo-50 rounded-lg transition-colors text-indigo-600" title="View">
                         <HiOutlineEye className="w-4 h-4" />
                       </button>
-                      {r.status === "SUBMITTED" && (
+                      {(r.status === "SUBMITTED" || r.status === "PENDING") && (
                         <button
                           onClick={() => navigate(`/reimbursements/edit/${r.id}`)}
                           className="p-1.5 hover:bg-amber-50 rounded-lg transition-colors text-amber-600" title="Edit">
@@ -465,7 +566,7 @@ const ReimbursementIndex = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => handleDelete(r.id)}
+                        onClick={() => handleDeleteClick(r)}
                         className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-500" title="Delete">
                         <HiOutlineTrash className="w-4 h-4" />
                       </button>
@@ -477,7 +578,6 @@ const ReimbursementIndex = () => {
           </table>
         </div>
 
-        {/* Pagination Component */}
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -486,6 +586,17 @@ const ReimbursementIndex = () => {
           pageSize={pageSize}
         />
       </div>
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <DeleteModal
+          item={deletingItem}
+          onClose={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+          isDeleting={deletingId === deletingItem?.id}
+          deleteError={deleteError}
+        />
+      )}
     </div>
   );
 };

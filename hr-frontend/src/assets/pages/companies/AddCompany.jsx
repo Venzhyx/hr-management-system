@@ -16,7 +16,7 @@ import {
   HiOutlineIdentification,
   HiOutlineCreditCard
 } from 'react-icons/hi2';
-import API from "../../../api/api";
+import API from "../../../ApiService/api";
 
 // ==================== FIELD VALIDATORS ====================
 const fieldValidators = {

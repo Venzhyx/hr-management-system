@@ -5,7 +5,7 @@ import {
   createDepartmentAPI,
   updateDepartmentAPI,
   deleteDepartmentAPI,
-} from "../../api/departmentApi";
+} from "../../ApiService/departmentApi";
 
 /* ================= FETCH ================= */
 

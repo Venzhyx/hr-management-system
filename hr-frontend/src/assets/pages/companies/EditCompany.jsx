@@ -18,7 +18,7 @@ import {
   HiOutlineTag,
   HiOutlineCreditCard
 } from 'react-icons/hi2';
-import API from "../../../api/api";
+import API from "../../../ApiService/api";
 
 // ==================== SUB COMPONENTS ====================
 const Toast = ({ toast, onClose }) => {

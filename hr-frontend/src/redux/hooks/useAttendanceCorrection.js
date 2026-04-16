@@ -4,6 +4,8 @@ import {
   fetchAllCorrections,
   fetchCorrectionsByEmployee,
   createCorrection,
+  updateCorrection,        // ✅ TAMBAH
+  deleteCorrection,        // ✅ TAMBAH
   openCreateModal,
   closeCreateModal,
   openDetailModal,
@@ -23,62 +25,36 @@ import {
   selectFilterType,
 } from "../slices/attendanceCorrectionSlice";
 import {
-  getAttendanceApprovalsAPI,
-  updateAttendanceApprovalAPI,
+  approveAttendanceCorrectionAPI,
+  rejectAttendanceCorrectionAPI,
 } from "../../ApiService/approvalApi";
 import { useMemo } from "react";
 
-// ── Core approval processor — same pattern as useTimeOff ──────────────────────
+// ── Core approval processor
 const processAttendanceApproval = async (id, action, notes = null, dispatch) => {
-  let res;
   try {
-    res = await getAttendanceApprovalsAPI(id);
-  } catch (apiErr) {
-    throw new Error(
-      "Gagal mengambil approval records: " +
-        (apiErr?.response?.data?.message || apiErr.message)
-    );
-  }
-
-  const payload = res?.data;
-  let records = [];
-  if      (Array.isArray(payload?.data))      records = payload.data;
-  else if (Array.isArray(payload))            records = payload;
-  else if (Array.isArray(payload?.content))   records = payload.content;
-  else if (Array.isArray(payload?.approvals)) records = payload.approvals;
-  else {
-    const firstArr = payload
-      ? Object.values(payload).find((v) => Array.isArray(v))
-      : null;
-    if (firstArr) records = firstArr;
-  }
-
-  if (records.length === 0) {
-    throw new Error(
-      "Tidak ada approval record untuk request ini. " +
-        "Pastikan approver sudah dikonfigurasi sebelum request dibuat."
-    );
-  }
-
-  const pending = records.find((a) =>
-    ["PENDING", "SUBMITTED", "WAITING"].includes(a.status?.toUpperCase())
-  );
-
-  if (!pending) {
-    throw new Error("Semua approval record sudah diproses.");
-  }
-
-  await updateAttendanceApprovalAPI(pending.id, {
-    action,
-    notes: notes?.trim() || null,
-  });
-
-  if (dispatch) {
-    try {
-      await dispatch(fetchAllCorrections(id)).unwrap();
-    } catch {
-      // tidak fatal
+    const approverId = 1;
+    
+    if (action === "APPROVED") {
+      await approveAttendanceCorrectionAPI(id, approverId, notes);
+    } else if (action === "REJECTED") {
+      await rejectAttendanceCorrectionAPI(id, approverId, notes);
+    } else {
+      throw new Error(`Invalid action: ${action}`);
     }
+
+    if (dispatch) {
+      try {
+        await dispatch(fetchAllCorrections()).unwrap();
+      } catch {
+        // Silent fail
+      }
+    }
+  } catch (err) {
+    throw new Error(
+      "Gagal memproses approval: " +
+        (err?.response?.data?.message || err.message)
+    );
   }
 };
 
@@ -117,7 +93,7 @@ export const useAttendanceCorrection = ({ role = "employee", employeeId } = {}) 
     [rawList]
   );
 
-  // ── Fetch helpers ──────────────────────────────────────────────────────────
+  // ── Fetch helpers
   const fetchAllCorrectionsFn = useCallback(
     () => dispatch(fetchAllCorrections()).unwrap(),
     [dispatch]
@@ -128,14 +104,19 @@ export const useAttendanceCorrection = ({ role = "employee", employeeId } = {}) 
     [dispatch]
   );
 
-  const getAttendanceApprovals = useCallback(
-    (id) => getAttendanceApprovalsAPI(id),
-    []
-  );
-
-  // ── Action handlers — mirroring useTimeOff pattern ────────────────────────
+  // ── Action handlers
   const handleCreate = async (formData) => {
     return dispatch(createCorrection(formData)).unwrap();
+  };
+
+  // ✅ TAMBAH: handleUpdate
+  const handleUpdate = async (id, formData) => {
+    return dispatch(updateCorrection({ id, data: formData })).unwrap();
+  };
+
+  // ✅ TAMBAH: handleDelete
+  const handleDelete = async (id) => {
+    return dispatch(deleteCorrection(id)).unwrap();
   };
 
   const handleApprove = async (id, notes) =>
@@ -179,11 +160,12 @@ export const useAttendanceCorrection = ({ role = "employee", employeeId } = {}) 
 
     // Async actions
     handleCreate,
+    handleUpdate,      // ✅ TAMBAH
+    handleDelete,      // ✅ TAMBAH
     handleApprove,
     handleReject,
     handleRefresh,
     fetchAllCorrections:        fetchAllCorrectionsFn,
     fetchCorrectionsByEmployee: fetchCorrectionsByEmployeeFn,
-    getAttendanceApprovals,
   };
 };

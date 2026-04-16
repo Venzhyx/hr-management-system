@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/attendance-corrections")
@@ -42,18 +43,43 @@ public class AttendanceCorrectionController {
     }
 
     @PutMapping("/{id}/approve")
-    public ResponseEntity<ApiResponse<AttendanceCorrectionResponse>> approveCorrection(
+    public ResponseEntity<AttendanceCorrectionResponse> approveCorrection(
             @PathVariable Long id,
-            @RequestParam Long approverId) {
-        AttendanceCorrectionResponse response = service.approveCorrection(id, approverId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Correction approved successfully", response));
+            @RequestParam Long approverId,
+            @RequestBody(required = false) Map<String, String> body) {
+        
+        String notes = body != null ? body.get("notes") : null;
+        AttendanceCorrectionResponse response = service.approveCorrection(id, approverId, notes);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<AttendanceCorrectionResponse>> rejectCorrection(
+    public ResponseEntity<AttendanceCorrectionResponse> rejectCorrection(
             @PathVariable Long id,
-            @RequestParam Long approverId) {
-        AttendanceCorrectionResponse response = service.rejectCorrection(id, approverId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Correction rejected successfully", response));
+            @RequestParam Long approverId,
+            @RequestBody Map<String, String> body) {
+        
+        String notes = body.get("notes");
+        if (notes == null || notes.isEmpty()) {
+            throw new IllegalArgumentException("Notes are required for rejection");
+        }
+        AttendanceCorrectionResponse response = service.rejectCorrection(id, approverId, notes);
+        return ResponseEntity.ok(response);
+    }
+
+    // ✅ TAMBAH: Update Correction (hanya untuk status SUBMITTED)
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<AttendanceCorrectionResponse>> updateCorrection(
+            @PathVariable Long id,
+            @Valid @RequestBody AttendanceCorrectionRequest request) {
+        AttendanceCorrectionResponse response = service.updateCorrection(id, request);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Correction updated successfully", response));
+    }
+
+    // ✅ TAMBAH: Delete Correction (hanya untuk status SUBMITTED)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteCorrection(@PathVariable Long id) {
+        service.deleteCorrection(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Correction deleted successfully", null));
     }
 }

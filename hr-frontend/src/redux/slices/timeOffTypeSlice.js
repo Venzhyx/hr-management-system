@@ -4,7 +4,7 @@ import {
   createTimeOffTypeAPI,
   updateTimeOffTypeAPI,
   deleteTimeOffTypeAPI,
-} from '../../api/settingsApi';
+} from '../../ApiService/settingsApi';
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
 

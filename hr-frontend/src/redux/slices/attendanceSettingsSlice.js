@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getAttendanceSettingsAPI, updateAttendanceSettingsAPI } from '../../api/settingsApi';
+import { getAttendanceSettingsAPI, updateAttendanceSettingsAPI } from '../../ApiService/settingsApi';
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
 

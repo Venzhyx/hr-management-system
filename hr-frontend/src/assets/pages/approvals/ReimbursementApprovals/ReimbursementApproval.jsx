@@ -9,36 +9,25 @@ import {
   HiOutlineX,
   HiOutlineEye,
 } from "react-icons/hi";
-import { useAttendanceCorrection } from "../../../../redux/hooks/useAttendanceCorrection";
+import { useReimbursement } from "../../../../redux/hooks/useReimbursement";
 import { useEmployee } from "../../../../redux/hooks/useEmployee";
-import AttendanceCorrectionDetailModal from "./AttendanceApprovalModal";
+import ReimbursementDetailModal from "./ReimbursementApprovalModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtDateShort = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
-const fmtDateTime = (dt) => {
-  if (!dt) return "—";
-  try {
-    return new Date(dt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "—";
-  }
-};
+const fmt = (n) =>
+  n != null ? `Rp ${Number(n).toLocaleString("id-ID")}` : "—";
 
 const STATUS_CFG = {
-  PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },
-  APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
-  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected" },
+  SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Submitted" },
+  PENDING:   { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending"   },
+  APPROVED:  { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved"  },
+  REJECTED:  { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected"  },
 };
 
-const TYPE_LABELS = {
-  CHECKIN: "Check-in",
-  CHECKOUT: "Check-out",
-  BOTH: "Check-in & Out",
-};
-
-const ALL_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+const ALL_STATUSES = ["SUBMITTED", "PENDING", "APPROVED", "REJECTED"];
 
 // ── Sub Components ────────────────────────────────────────────────────────────
 const Spinner = ({ cls = "w-4 h-4" }) => (
@@ -116,7 +105,7 @@ const FilterDropdown = ({ activeFilters, onChange, counts }) => {
           </div>
           <div className="py-1.5">
             <button
-              onClick={() => onChange(isAll ? ["PENDING"] : [...ALL_STATUSES])}
+              onClick={() => onChange(isAll ? ["SUBMITTED"] : [...ALL_STATUSES])}
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 border-b border-gray-100 mb-1"
             >
               <span className={`w-4 h-4 rounded flex items-center justify-center border-2 flex-shrink-0 ${isAll ? "bg-indigo-600 border-indigo-600" : "border-gray-300"}`}>
@@ -164,8 +153,8 @@ const FilterDropdown = ({ activeFilters, onChange, counts }) => {
 };
 
 // ══ Main Page ═════════════════════════════════════════════════════════════════
-const ApprovalAttendancePage = () => {
-  const { corrections, loading, fetchAllCorrections } = useAttendanceCorrection({ role: "admin" });
+const ApprovalReimbursementPage = () => {
+  const { reimbursements, loading, fetchReimbursements } = useReimbursement();
   const { employees, fetchEmployees } = useEmployee();
 
   const empMap = React.useMemo(() => {
@@ -177,7 +166,7 @@ const ApprovalAttendancePage = () => {
   }, [employees]);
 
   const [search, setSearch] = useState("");
-  const [activeFilters, setActiveFilters] = useState(["PENDING"]);
+  const [activeFilters, setActiveFilters] = useState(["SUBMITTED", "PENDING"]);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -187,8 +176,8 @@ const ApprovalAttendancePage = () => {
   };
 
   const loadData = useCallback(async () => {
-    if (fetchAllCorrections) await fetchAllCorrections();
-  }, [fetchAllCorrections]);
+    if (fetchReimbursements) await fetchReimbursements();
+  }, [fetchReimbursements]);
 
   useEffect(() => {
     loadData();
@@ -196,41 +185,42 @@ const ApprovalAttendancePage = () => {
   }, []);
 
   useEffect(() => {
-    if (selected && corrections) {
-      const updated = corrections.find((c) => c.id === selected.id);
+    if (selected && reimbursements) {
+      const updated = reimbursements.find((r) => r.id === selected.id);
       if (updated && (updated.status !== selected.status || updated.updatedAt !== selected.updatedAt)) {
         setSelected(updated);
       }
     }
-  }, [corrections, selected]);
+  }, [reimbursements, selected]);
 
-  const stats = (corrections || []).reduce(
-    (acc, c) => {
+  const stats = (reimbursements || []).reduce(
+    (acc, r) => {
       acc.total++;
-      if (c.status === "PENDING") acc.pending++;
-      if (c.status === "APPROVED") acc.approved++;
-      if (c.status === "REJECTED") acc.rejected++;
+      if (r.status === "SUBMITTED") acc.submitted++;
+      if (r.status === "PENDING") acc.pending++;
+      if (r.status === "APPROVED") acc.approved++;
+      if (r.status === "REJECTED") acc.rejected++;
       return acc;
     },
-    { total: 0, pending: 0, approved: 0, rejected: 0 }
+    { total: 0, submitted: 0, pending: 0, approved: 0, rejected: 0 }
   );
 
-  const counts = (corrections || []).reduce((acc, c) => {
-    acc[c.status] = (acc[c.status] || 0) + 1;
+  const counts = (reimbursements || []).reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {});
 
-  // PENDING di atas, lainnya di bawah
+  // SUBMITTED & PENDING di atas, lainnya di bawah
   const sorted = [
-    ...(corrections || []).filter((c) => c.status === "PENDING"),
-    ...(corrections || []).filter((c) => c.status !== "PENDING"),
+    ...(reimbursements || []).filter((r) => r.status === "SUBMITTED" || r.status === "PENDING"),
+    ...(reimbursements || []).filter((r) => r.status !== "SUBMITTED" && r.status !== "PENDING"),
   ];
 
-  const filtered = sorted.filter((c) => {
-    if (!activeFilters.includes(c.status)) return false;
+  const filtered = sorted.filter((r) => {
+    if (!activeFilters.includes(r.status)) return false;
     if (search) {
       const q = search.toLowerCase();
-      return c.employeeName?.toLowerCase().includes(q);
+      return r.employeeName?.toLowerCase().includes(q) || r.title?.toLowerCase().includes(q);
     }
     return true;
   });
@@ -247,10 +237,10 @@ const ApprovalAttendancePage = () => {
 
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Approval Attendance Correction</h1>
-        {stats.pending > 0 && (
+        <h1 className="text-2xl font-bold text-gray-800">Approval Reimbursement</h1>
+        {(stats.submitted + stats.pending) > 0 && (
           <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-            {stats.pending} perlu tindakan
+            {stats.submitted + stats.pending} perlu tindakan
           </span>
         )}
       </div>
@@ -263,10 +253,11 @@ const ApprovalAttendancePage = () => {
           </div>
           <span className="text-sm font-semibold text-gray-700">Status Overview</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 divide-x divide-gray-100">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-6 divide-x divide-gray-100">
           {[
             { label: "Total", value: stats.total, color: "text-gray-800" },
-            { label: "Pending", value: stats.pending, color: "text-amber-600" },
+            { label: "Submitted", value: stats.submitted, color: "text-amber-600" },
+            { label: "Pending", value: stats.pending, color: "text-amber-500" },
             { label: "Approved", value: stats.approved, color: "text-emerald-600" },
             { label: "Rejected", value: stats.rejected, color: "text-red-500" },
           ].map((s, i) => (
@@ -285,7 +276,7 @@ const ApprovalAttendancePage = () => {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama karyawan..."
+            placeholder="Cari nama karyawan / judul..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
           />
         </div>
@@ -316,7 +307,7 @@ const ApprovalAttendancePage = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["Employee", "Tanggal", "Tipe", "Check-in Baru", "Check-out Baru", "Status", "Aksi"].map((h) => (
+                {["Employee", "Title", "Total", "Status", "Tanggal", "Aksi"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">
                     {h}
                   </th>
@@ -324,24 +315,24 @@ const ApprovalAttendancePage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((c) => {
-                const sCfg = STATUS_CFG[c.status] || STATUS_CFG.PENDING;
-                const emp = empMap[String(c.employeeId)];
-                const initials = c.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
-                const isActive = selected?.id === c.id;
-                const canAct = c.status === "PENDING";
+              {filtered.map((r) => {
+                const sCfg = STATUS_CFG[r.status] || STATUS_CFG.SUBMITTED;
+                const emp = empMap[String(r.employeeId)];
+                const initials = r.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+                const isActive = selected?.id === r.id;
+                const canAct = r.status === "SUBMITTED" || r.status === "PENDING";
 
                 return (
                   <tr
-                    key={c.id}
-                    onClick={() => setSelected(c)}
+                    key={r.id}
+                    onClick={() => setSelected(r)}
                     className={`transition-colors cursor-pointer ${isActive ? "bg-indigo-50" : "hover:bg-gray-50"}`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
                           {emp?.photo ? (
-                            <img src={emp.photo} alt={c.employeeName} className="w-full h-full object-cover" />
+                            <img src={emp.photo} alt={r.employeeName} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-[10px]">
                               {initials}
@@ -349,22 +340,24 @@ const ApprovalAttendancePage = () => {
                           )}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-800 whitespace-nowrap">{c.employeeName}</p>
+                          <p className="font-medium text-gray-800 whitespace-nowrap">{r.employeeName}</p>
                           {emp?.departmentName && <p className="text-xs text-gray-400">{emp.departmentName}</p>}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDateShort(c.date)}</td>
                     <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">
-                        {TYPE_LABELS[c.type] || c.type}
-                      </span>
+                      <p className="font-medium text-gray-800 truncate max-w-[200px]">{r.title || "—"}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{r.category}</p>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{c.newCheckIn ? fmtDateTime(c.newCheckIn) : "—"}</td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{c.newCheckOut ? fmtDateTime(c.newCheckOut) : "—"}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-gray-800 whitespace-nowrap">{fmt(r.total)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${sCfg.cls}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} /> {sCfg.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <span className="flex items-center gap-1">
+                        <HiOutlineClock className="w-3 h-3" />{fmtDateShort(r.expenseDate)}
                       </span>
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -372,7 +365,7 @@ const ApprovalAttendancePage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelected(c);
+                            setSelected(r);
                           }}
                           className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 whitespace-nowrap"
                         >
@@ -383,7 +376,7 @@ const ApprovalAttendancePage = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelected(c);
+                                setSelected(r);
                               }}
                               className="flex items-center gap-1 px-2.5 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 whitespace-nowrap"
                             >
@@ -392,7 +385,7 @@ const ApprovalAttendancePage = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelected(c);
+                                setSelected(r);
                               }}
                               className="flex items-center gap-1 px-2.5 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 whitespace-nowrap"
                             >
@@ -402,7 +395,9 @@ const ApprovalAttendancePage = () => {
                         )}
                       </div>
                     </td>
+                    
                   </tr>
+                  
                 );
               })}
             </tbody>
@@ -412,16 +407,15 @@ const ApprovalAttendancePage = () => {
 
       {/* Detail Modal */}
       {selected && (
-        <AttendanceCorrectionDetailModal
-          correction={selected}
+        <ReimbursementDetailModal
+          reimbursement={selected}
           emp={empMap[String(selected.employeeId)]}
           onClose={() => setSelected(null)}
           onSuccess={handleActionSuccess}
-          onRefresh={loadData}
         />
       )}
     </div>
   );
 };
 
-export default ApprovalAttendancePage;
+export default ApprovalReimbursementPage;

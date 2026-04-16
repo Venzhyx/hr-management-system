@@ -22,7 +22,7 @@ import {
   HiOutlineSortDescending
 } from "react-icons/hi";
 import { useCompany } from '../../../redux/hooks/useCompany';
-import CompanyDetailModal from './detail';
+import CompanyDetailModal from './DetailCompany';
 import { fetchCompanies } from '../../../redux/slices/companySlice';
 
 const CompaniesList = () => {

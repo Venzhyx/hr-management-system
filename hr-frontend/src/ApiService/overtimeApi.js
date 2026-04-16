@@ -1,13 +1,9 @@
-import API from "./api"; // 🔥 ganti ini
+import API from "./api";
 
-const BASE_URL = "/overtimes"; // ⚠️ TANPA /api
+const BASE_URL = "/overtimes";
 
 export const overtimeApi = {
-  createOvertime: async (payload) => {
-    const response = await API.post(BASE_URL, payload);
-    return response.data;
-  },
-
+  // GET
   getAllOvertimes: async () => {
     const response = await API.get(BASE_URL);
     return response.data;
@@ -25,17 +21,45 @@ export const overtimeApi = {
     return response.data;
   },
 
-  approveOvertime: async (id, adminId) => {
-    const response = await API.put(`${BASE_URL}/${id}/approve`, null, {
-      params: { adminId },
-    });
+  // POST
+  createOvertime: async (payload) => {
+    const response = await API.post(BASE_URL, payload);
     return response.data;
   },
 
-  rejectOvertime: async (id, adminId) => {
-    const response = await API.put(`${BASE_URL}/${id}/reject`, null, {
-      params: { adminId },
-    });
+  // ✅ FIXED: approve dengan notes
+  approveOvertime: async (id, approverId, notes) => {
+    const response = await API.put(
+      `${BASE_URL}/${id}/approve`,
+      { notes },
+      {
+        params: { approverId },
+      }
+    );
+    return response.data;
+  },
+
+  // ✅ FIXED: reject dengan notes
+  rejectOvertime: async (id, approverId, notes) => {
+    const response = await API.put(
+      `${BASE_URL}/${id}/reject`,
+      { notes },
+      {
+        params: { approverId },
+      }
+    );
+    return response.data;
+  },
+
+  // ✅ TAMBAH: Update Overtime
+  updateOvertime: async (id, payload) => {
+    const response = await API.put(`${BASE_URL}/${id}`, payload);
+    return response.data;
+  },
+
+  // ✅ TAMBAH: Delete Overtime
+  deleteOvertime: async (id) => {
+    const response = await API.delete(`${BASE_URL}/${id}`);
     return response.data;
   },
 };

@@ -2,44 +2,50 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import Dashboard from '../pages/Dashboard';
-import EmployeesList from '../pages/employees/index';
-import AddEmployee from '../pages/employees/add';
-import EditEmployee from '../pages/employees/edit';
-import EmployeeDetail from '../pages/employees/detail';
+// Employees
+import EmployeesList from '../pages/employees/IndexEmployee';
+import AddEmployee from '../pages/employees/AddEmployee';
+import EditEmployee from '../pages/employees/EditEmployee';
+import EmployeeDetail from '../pages/employees/DetailEmployee';
+
+// Attendances
 import Attendance from '../pages/Attendance';
 import AttendanceCorrection from '../pages/attendance/AttendanceCorrection';
 import Overtime from '../pages/attendance/Overtime';
-import DepartmentsList from '../pages/departments/index';
-import AddDepartment from '../pages/departments/add';
-import EditDepartment from '../pages/departments/edit';
-import DepartmentDetailModal from '../pages/departments/detail';
+
+// Departments
+import DepartmentsList from '../pages/departments/IndexDepartments';
+import AddDepartment from '../pages/departments/AddDepartments';
+import EditDepartment from '../pages/departments/EditDepartments';
+import DepartmentDetailModal from '../pages/departments/DetailDepartments';
+
 import Payroll from '../pages/Payroll';
 import Settings from '../pages/Settings';
 
 // Companies
-import CompanyList   from '../pages/companies/index';
-import AddCompany    from '../pages/companies/add';
-import EditCompany   from '../pages/companies/edit';
-import CompanyDetail from '../pages/companies/detail';
+import CompanyList from '../pages/companies/IndexCompany';
+import AddCompany from '../pages/companies/AddCompany';
+import EditCompany from '../pages/companies/EditCompany';
+import CompanyDetail from '../pages/companies/DetailCompany';
 
 // Reimbursements
-import ReimbursementIndex  from '../pages/reimbursements/index';
-import CreateReimbursement from '../pages/reimbursements/add';
-import EditReimbursement   from '../pages/reimbursements/edit';
-import ReimbursementDetail from '../pages/reimbursements/detail';
+import ReimbursementIndex from '../pages/reimbursements/IndexReimbursement';
+import CreateReimbursement from '../pages/reimbursements/AddReimbursement';
+import EditReimbursement from '../pages/reimbursements/EditReimbursement';
+import ReimbursementDetail from '../pages/reimbursements/DetailReimbursement';
 
 // Approvals
-import ApprovalPage              from '../pages/approvals/index';
-import ApprovalReimbursementPage from '../pages/approvals/reimbursement';
-import ApprovalTimeOffPage       from '../pages/approvals/timeoff';
-import ApprovalAttendancePage    from '../pages/approvals/attendance';
-import ApprovalOvertimePage      from '../pages/approvals/overtime'; // ← TAMBAH
+import ApprovalPage              from '../pages/approvals/ApprovalsIndex';
+import ApprovalReimbursementPage from '../pages/approvals/ReimbursementApprovals/ReimbursementApproval';
+import ApprovalTimeOffPage       from '../pages/approvals/TimeoffApprovals/TimeoffApproval';
+import ApprovalAttendancePage    from '../pages/approvals/AttendanceApprovals/AttendanceApproval';
+import ApprovalOvertimePage      from '../pages/approvals/OvertimeApprovals/OvertimeApproval'; 
 
 // Time Off
-import TimeOffIndex  from '../pages/timeoffs/index';
-import TimeOffAdd    from '../pages/timeoffs/add';
-import TimeOffDetail from '../pages/timeoffs/detail';
-import TimeOffEdit   from '../pages/timeoffs/edit';
+import TimeOffIndex from '../pages/timeoffs/IndexPages';
+import TimeOffAdd from '../pages/timeoffs/AddTimeoff';
+import TimeOffDetail from '../pages/timeoffs/DetailTimeoff';
+import TimeOffEdit from '../pages/timeoffs/EditTimeoff';
 
 const AppRoutes = () => {
   return (

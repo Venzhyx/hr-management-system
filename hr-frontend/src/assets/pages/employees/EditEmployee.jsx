@@ -11,7 +11,7 @@ import {
 import { useEmployee } from '../../../redux/hooks/useEmployee';
 import { useDepartment } from '../../../redux/hooks/useDepartment';
 import { useCompany } from '../../../redux/hooks/useCompany';
-import API from '../../../api/api';
+import API from '../../../ApiService/api';
 import { SingleFileUpload, MultiFileUpload } from '../../components/FileComponents';
 
 // ── Constants ─────────────────────────────────────────────────────────────────

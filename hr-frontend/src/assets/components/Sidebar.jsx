@@ -22,6 +22,8 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import companyLogo from '../images/ABE.png';
 import { useReimbursement } from '../../redux/hooks/useReimbursement';
 import { useTimeOff } from '../../redux/hooks/useTimeOff';
+import { useAttendanceCorrection } from '../../redux/hooks/useAttendanceCorrection';
+import { useOvertime } from '../../redux/hooks/useOvertime';
 
 const NEEDS_REVIEW_STATUSES = ['submitted', 'pending'];
 
@@ -33,10 +35,14 @@ const Sidebar = () => {
 
   const { reimbursements, fetchReimbursements } = useReimbursement();
   const { timeOffRequests, fetchTimeOffRequests } = useTimeOff();
+  const { corrections, handleRefresh: fetchCorrections } = useAttendanceCorrection({ role: "admin" });
+  const { overtimes, fetchOvertimes } = useOvertime({ role: "admin" });
 
   useEffect(() => {
     fetchReimbursements();
     fetchTimeOffRequests();
+    fetchCorrections();     
+    fetchOvertimes();
   }, []);
 
   // Auto-expand Attendance submenu when on attendance-related routes
@@ -55,7 +61,19 @@ const Sidebar = () => {
     (t) => NEEDS_REVIEW_STATUSES.includes(t.status?.toLowerCase())
   ).length;
 
-  const totalApprovalPending = pendingReimbursements + pendingTimeOff;
+  const pendingCorrections = (corrections || []).filter(
+    (c) => NEEDS_REVIEW_STATUSES.includes(c.status?.toLowerCase())
+  ).length;
+
+  const pendingOvertimes = (overtimes || []).filter(
+    (o) => NEEDS_REVIEW_STATUSES.includes(o.status?.toLowerCase())
+  ).length;
+
+  const totalApprovalPending = 
+  pendingReimbursements + 
+  pendingTimeOff +
+  pendingCorrections +
+  pendingOvertimes;
 
   const attendanceSubItems = [
     { name: 'Attendance Correction', icon: <HiOutlinePencilAlt className="w-4 h-4" />, path: '/attendance/correction' },

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { HiOutlineTable, HiOutlineViewGrid } from "react-icons/hi";
-import TimeOffTablePage    from "./index-table";
-import TimeOffCalendarPage from "./index-calendar";
+import TimeOffTablePage    from "./IndexTableMode";
+import TimeOffCalendarPage from "./IndexCalendarMode";
 
 const TimeOffIndexPage = () => {
   const [tab, setTab] = useState("table");

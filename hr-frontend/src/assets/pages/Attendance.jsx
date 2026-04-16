@@ -7,6 +7,7 @@ import {
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import { useAttendance } from "../../redux/hooks/useAttendance";
+import { useOvertime } from "../../redux/hooks/useOvertime"; // ✅ TAMBAH
 
 const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const monthFull   = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -375,7 +376,6 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
 
 // ─── Date Context Menu ────────────────────────────────────────────────────────
 
-// ✅ FIX: tambah prop `selectedEmployee`
 const DateContextMenu = ({ dateStr, attendanceData, selectedEmployee, onClose, onNavigate }) => {
   const menuRef = useRef(null);
 
@@ -393,7 +393,6 @@ const DateContextMenu = ({ dateStr, attendanceData, selectedEmployee, onClose, o
       state: {
         selectedDate: dateStr,
         attendanceData: attendanceData || null,
-        // ✅ FIX: kirim employeeId & employeeName dari selectedEmployee
         employeeId: selectedEmployee?.id ?? null,
         employeeName: selectedEmployee?.name ?? null,
         openModal: true,
@@ -408,7 +407,6 @@ const DateContextMenu = ({ dateStr, attendanceData, selectedEmployee, onClose, o
       state: {
         selectedDate: dateStr,
         attendanceData: attendanceData || null,
-        // ✅ FIX: kirim employeeId & employeeName dari selectedEmployee
         employeeId: selectedEmployee?.id ?? null,
         employeeName: selectedEmployee?.name ?? null,
         openModal: true,
@@ -461,10 +459,10 @@ const TimePopover = ({ att, status }) => {
   );
 };
 
-// ─── Monthly Calendar ─────────────────────────────────────────────────────────
+// ─── Monthly Calendar (DENGAN OVERTIME) ────────────────────────────────────────
 
-// ✅ FIX: tambah prop `selectedEmployee` dan teruskan ke DateContextMenu
-const MonthCalendar = ({ year, month, attendanceMap, onNavigate, selectedEmployee }) => {
+// ✅ FIX: tambah prop overtimeMap
+const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, selectedEmployee }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const today       = new Date();
   const firstDay    = new Date(year, month, 1);
@@ -476,11 +474,19 @@ const MonthCalendar = ({ year, month, attendanceMap, onNavigate, selectedEmploye
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const getDayAtt  = (day) => {
+  const getDayAtt = (day) => {
     if (!day) return null;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return attendanceMap[dateStr] || null;
   };
+
+  // ✅ TAMBAH: getDayOvertime
+  const getDayOvertime = (day) => {
+    if (!day) return null;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return overtimeMap?.[dateStr] || null;
+  };
+
   const isToday    = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
   const isWeekend  = (idx) => idx % 7 === 5 || idx % 7 === 6;
   const getDateStr = (day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -507,11 +513,12 @@ const MonthCalendar = ({ year, month, attendanceMap, onNavigate, selectedEmploye
       {rows.map((row, ri) => (
         <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
           {row.map((day, ci) => {
-            const att     = getDayAtt(day);
-            const status  = att?.status?.toUpperCase();
-            const today_  = isToday(day);
-            const weekend = isWeekend(ci);
-            const dateStr = day ? getDateStr(day) : null;
+            const att       = getDayAtt(day);
+            const overtime  = getDayOvertime(day); // ✅ TAMBAH
+            const status    = att?.status?.toUpperCase();
+            const today_    = isToday(day);
+            const weekend   = isWeekend(ci);
+            const dateStr   = day ? getDateStr(day) : null;
             const isMenuOpen = openMenu === dateStr;
 
             return (
@@ -544,14 +551,22 @@ const MonthCalendar = ({ year, month, attendanceMap, onNavigate, selectedEmploye
                       ) : weekend ? (
                         <span className="text-xs text-orange-300">Weekend</span>
                       ) : null}
+
+                      {/* ✅ TAMBAH: Overtime badge */}
+                      {overtime && overtime.status === "APPROVED" && (
+                        <div className="flex items-center gap-1 ml-1">
+                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                          <span className="text-xs text-blue-600 font-medium">Overtime</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Check-in/out time popover — appears on hover */}
+                    {/* Check-in/out time popover */}
                     {att && (att.checkIn || att.checkOut) && (
                       <TimePopover att={att} status={status} />
                     )}
 
-                    {/* 3-dot menu — always visible */}
+                    {/* 3-dot menu */}
                     <div className="absolute top-1.5 right-1.5">
                       <button
                         onClick={(e) => {
@@ -570,7 +585,6 @@ const MonthCalendar = ({ year, month, attendanceMap, onNavigate, selectedEmploye
                         <DateContextMenu
                           dateStr={dateStr}
                           attendanceData={att}
-                          // ✅ FIX: teruskan selectedEmployee ke DateContextMenu
                           selectedEmployee={selectedEmployee}
                           onClose={() => setOpenMenu(null)}
                           onNavigate={onNavigate}
@@ -597,6 +611,9 @@ const AttendanceDashboard = () => {
     loadEmployees, loadAttendance, dismissError, resetAttendance,
   } = useAttendance();
 
+  // ✅ TAMBAH: hook overtime
+  const { overtimes, fetchOvertimes } = useOvertime({ role: "admin" });
+
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedYear, setSelectedYear]         = useState(new Date().getFullYear());
   const [calPage, setCalPage]                   = useState(0);
@@ -604,8 +621,12 @@ const AttendanceDashboard = () => {
   useEffect(() => { loadEmployees(); }, []);
 
   useEffect(() => {
-    if (selectedEmployee?.id) loadAttendance(selectedEmployee.id);
-    else resetAttendance();
+    if (selectedEmployee?.id) {
+      loadAttendance(selectedEmployee.id);
+      fetchOvertimes(); // ✅ TAMBAH: fetch overtime
+    } else {
+      resetAttendance();
+    }
   }, [selectedEmployee]);
 
   useEffect(() => { setCalPage(0); }, [selectedEmployee]);
@@ -618,6 +639,17 @@ const AttendanceDashboard = () => {
     });
     return map;
   }, [attendances]);
+
+  // ✅ TAMBAH: overtimeMap (hanya APPROVED)
+  const overtimeMap = useMemo(() => {
+    const map = {};
+    (overtimes || []).forEach((ot) => {
+      if (ot.status === "APPROVED" && ot.date) {
+        map[ot.date] = ot;
+      }
+    });
+    return map;
+  }, [overtimes]);
 
   const availableMonths = useMemo(() => {
     if (!attendances.length) return [];
@@ -784,8 +816,8 @@ const AttendanceDashboard = () => {
                         year={y}
                         month={m - 1}
                         attendanceMap={attendanceMap}
+                        overtimeMap={overtimeMap} // ✅ TAMBAH
                         onNavigate={navigate}
-                        // ✅ FIX: teruskan selectedEmployee ke MonthCalendar
                         selectedEmployee={selectedEmployee}
                       />
                     );
