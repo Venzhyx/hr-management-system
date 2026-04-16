@@ -12,4 +12,5 @@ public interface ReimbursementApprovalRepository extends JpaRepository<Reimburse
     List<ReimbursementApproval> findByReimbursementId(Long reimbursementId);
     long countByReimbursementIdAndStatus(Long reimbursementId, ApprovalStatus status);
     List<ReimbursementApproval> findByApproverId(Long approverId);
+    void deleteByReimbursementId(Long reimbursementId);
 }

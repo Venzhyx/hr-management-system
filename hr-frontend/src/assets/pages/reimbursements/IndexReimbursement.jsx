@@ -393,7 +393,7 @@ const ReimbursementIndex = () => {
     setDeletingId(deletingItem.id);
     try {
       await deleteReimbursement(deletingItem.id);
-      setToast({ type: "success", message: "Reimbursement berhasil dihapus." });
+      setToast({ type: "success", message: "Reimbursement berhasil dibatalkan." });
       setTimeout(() => setToast(null), 3000);
       setShowDeleteModal(false);
       setDeletingItem(null);
@@ -558,7 +558,7 @@ const ReimbursementIndex = () => {
                         className="p-1.5 hover:bg-indigo-50 rounded-lg transition-colors text-indigo-600" title="View">
                         <HiOutlineEye className="w-4 h-4" />
                       </button>
-                      {(r.status === "SUBMITTED" || r.status === "PENDING") && (
+                      {(r.status === "SUBMITTED") && (
                         <button
                           onClick={() => navigate(`/reimbursements/edit/${r.id}`)}
                           className="p-1.5 hover:bg-amber-50 rounded-lg transition-colors text-amber-600" title="Edit">

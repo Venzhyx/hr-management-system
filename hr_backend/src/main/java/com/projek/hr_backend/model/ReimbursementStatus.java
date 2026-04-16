@@ -4,5 +4,6 @@ public enum ReimbursementStatus {
     SUBMITTED,
     PENDING,
     APPROVED,
-    REJECTED
+    REJECTED,
+    CANCELLED
 }

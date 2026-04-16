@@ -25,9 +25,14 @@ const STATUS_CFG = {
   PENDING:   { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending"   },
   APPROVED:  { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved"  },
   REJECTED:  { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected"  },
+  CANCELLED: {
+    cls: "bg-gray-100 text-gray-600 border border-gray-200",
+    dot: "bg-gray-400",
+    label: "Cancelled"
+  },
 };
 
-const ALL_STATUSES = ["SUBMITTED", "PENDING", "APPROVED", "REJECTED"];
+const ALL_STATUSES = ["SUBMITTED", "PENDING", "APPROVED", "REJECTED","CANCELLED"];
 
 // ── Sub Components ────────────────────────────────────────────────────────────
 const Spinner = ({ cls = "w-4 h-4" }) => (
@@ -320,12 +325,16 @@ const ApprovalReimbursementPage = () => {
                 const emp = empMap[String(r.employeeId)];
                 const initials = r.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
                 const isActive = selected?.id === r.id;
-                const canAct = r.status === "SUBMITTED";
+                const canAct = r.status === "SUBMITTED" || r.status === "PENDING";
 
                 return (
                   <tr
                     key={r.id}
-                    onClick={() => setSelected(r)}
+                    onClick={(e) => {
+                    e.stopPropagation();
+                    setSelected(r);
+
+                  }}
                     className={`transition-colors cursor-pointer ${isActive ? "bg-indigo-50" : "hover:bg-gray-50"}`}
                   >
                     <td className="px-4 py-3">
@@ -364,9 +373,9 @@ const ApprovalReimbursementPage = () => {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={(e) => {
-                            e.stopPropagation();
-                            setSelected(r);
-                          }}
+                          e.stopPropagation();
+                          setSelected(r);
+                        }}
                           className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 whitespace-nowrap"
                         >
                           <HiOutlineEye className="w-3.5 h-3.5" /> Detail

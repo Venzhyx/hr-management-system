@@ -92,12 +92,17 @@ public class ReimbursementService {
     }
     
     @Transactional
-    public void deleteReimbursement(Long id) {
-        if (!reimbursementRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Reimbursement not found");
-        }
-        reimbursementRepository.deleteById(id);
+public void deleteReimbursement(Long id) {
+    if (!reimbursementRepository.existsById(id)) {
+        throw new ResourceNotFoundException("Reimbursement not found");
     }
+
+    // 🔥 HAPUS SEMUA APPROVAL TERKAIT DULU
+    reimbursementApprovalRepository.deleteByReimbursementId(id);
+
+    // 🔥 BARU HAPUS REIMBURSEMENT
+    reimbursementRepository.deleteById(id);
+}
     
     private ReimbursementResponse mapToResponse(Reimbursement reimbursement) {
         ReimbursementResponse response = new ReimbursementResponse();
