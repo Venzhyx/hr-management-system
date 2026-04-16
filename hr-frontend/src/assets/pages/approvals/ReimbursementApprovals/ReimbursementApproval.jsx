@@ -320,7 +320,7 @@ const ApprovalReimbursementPage = () => {
                 const emp = empMap[String(r.employeeId)];
                 const initials = r.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
                 const isActive = selected?.id === r.id;
-                const canAct = r.status === "SUBMITTED" || r.status === "PENDING";
+                const canAct = r.status === "SUBMITTED";
 
                 return (
                   <tr
