@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
-  HiOutlineArrowLeft, HiOutlinePaperClip, HiOutlineX,
-  HiOutlineDocumentText, HiOutlineZoomIn, HiOutlineAnnotation,
-  HiOutlineCheck, HiOutlineLockClosed
+  HiOutlineArrowLeft, HiOutlineCurrencyDollar, HiOutlinePaperClip,
+  HiOutlineX, HiOutlineDocumentText, HiOutlineZoomIn
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
 import { useEmployee } from "../../../redux/hooks/useEmployee";
-import API from "../../../api/api";
+import API from "../../../ApiService/api";
 
 const chevronBg   = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`;
 const selectStyle = { backgroundImage: chevronBg, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25rem' };
@@ -24,9 +23,10 @@ const fmtRupiah = (val) => {
 const uploadFile = async (file) => {
   const fd = new FormData();
   fd.append("file", file);
-  const res = await API.post("/files/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
-  const json = res.data;
-  return json.data?.fileUrl || json.data?.url || json.data;
+  const res = await API.post("/files/upload", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data.data?.fileUrl || res.data.data?.url || res.data.data;
 };
 
 const fieldValidators = {
@@ -39,7 +39,7 @@ const fieldValidators = {
 
 // ==================== RECEIPT MODAL ====================
 const ReceiptModal = ({ url, onClose }) => {
-  const isImage = url && (/\.(jpg|jpeg|png)(\?|$)/i.test(url) || url.startsWith("blob:"));
+  const isImage = url && /\.(jpg|jpeg|png)(\?|$)/i.test(url);
 
   const handleBackdrop = useCallback((e) => {
     if (e.target === e.currentTarget) onClose();
@@ -55,131 +55,76 @@ const ReceiptModal = ({ url, onClose }) => {
     };
   }, [onClose]);
 
+  // For local object URLs (images), isImage check won't match the blob: prefix,
+  // so we also check if url starts with "blob:"
+  const showAsImage = isImage || (url && url.startsWith("blob:"));
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={handleBackdrop}
     >
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2">
             <HiOutlineDocumentText className="w-5 h-5 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Receipt Preview</span>
           </div>
-          <button type="button" onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+          >
             <HiOutlineX className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Modal Body */}
         <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-gray-50 min-h-0">
-          {isImage
-            ? <img src={url} alt="Receipt" className="max-w-full max-h-full object-contain rounded-lg shadow" />
-            : <iframe src={url} title="Receipt PDF" className="w-full rounded-lg border border-gray-200 bg-white" style={{ height: "65vh" }} />
-          }
+          {showAsImage ? (
+            <img
+              src={url}
+              alt="Receipt"
+              className="max-w-full max-h-full object-contain rounded-lg shadow"
+            />
+          ) : (
+            <iframe
+              src={url}
+              title="Receipt PDF"
+              className="w-full rounded-lg border border-gray-200 bg-white"
+              style={{ height: "65vh" }}
+            />
+          )}
         </div>
       </div>
-    </div>
-  );
-};
-
-// ==================== APPROVAL NOTES READ-ONLY ====================
-// Ditampilkan di Edit page (karyawan) — tidak bisa diubah
-const ApprovalNotesReadOnly = ({ notes, status }) => {
-  if (!notes) return null;
-
-  const isApproved = status === "APPROVED";
-  const wrapCls    = isApproved ? "border-green-200 bg-green-50"  : "border-red-200 bg-red-50";
-  const labelCls   = isApproved ? "text-green-800"                 : "text-red-800";
-  const badgeCls   = isApproved ? "bg-green-100 text-green-700"   : "bg-red-100 text-red-700";
-  const textCls    = isApproved ? "text-green-900 bg-green-100/60 border-green-200" : "text-red-900 bg-red-100/60 border-red-200";
-
-  return (
-    <div className={`rounded-xl border p-5 ${wrapCls}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <HiOutlineAnnotation className={`w-4 h-4 ${labelCls}`} />
-        <p className={`text-sm font-semibold ${labelCls}`}>
-          {isApproved ? "Approval Notes" : "Rejection Notes"}
-        </p>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeCls}`}>
-          {isApproved ? "Approved" : "Rejected"}
-        </span>
-        {/* Read-only badge */}
-        <span className="ml-auto flex items-center gap-1 text-xs text-gray-400">
-          <HiOutlineLockClosed className="w-3 h-3" /> Read-only
-        </span>
-      </div>
-      <p className={`text-sm rounded-lg px-3 py-2.5 border leading-relaxed ${textCls}`}>
-        {notes}
-      </p>
-      <p className={`mt-2 text-xs ${labelCls} opacity-70`}>
-        Note ini diberikan oleh atasan dan tidak dapat diubah dari halaman ini.
-      </p>
     </div>
   );
 };
 
 // ==================== MAIN COMPONENT ====================
-const EditReimbursement = () => {
+const CreateReimbursement = () => {
   const navigate = useNavigate();
-  const { id }   = useParams();
   const fileRef  = useRef();
 
-  const { getReimbursementById, updateReimbursement } = useReimbursement();
-  const { employees, fetchEmployees }                 = useEmployee();
+  const { createReimbursement }       = useReimbursement();
+  const { employees, fetchEmployees } = useEmployee();
 
   const [formData, setFormData] = useState({
     title: "", expenseDate: "", category: "", total: "",
     employeeId: "", paidBy: "EMPLOYEE", notes: "",
   });
-  const [approvalNotes,    setApprovalNotes]    = useState(null);
-  const [reimbStatus,      setReimbStatus]      = useState(null);
-  const [existingReceipt,  setExistingReceipt]  = useState(null);
-  const [errors,           setErrors]           = useState({});
-  const [touched,          setTouched]          = useState({});
-  const [loading,          setLoading]          = useState(true);
-  const [isSubmitting,     setIsSubmitting]     = useState(false);
-  const [uploading,        setUploading]        = useState(false);
-  const [file,             setFile]             = useState(null);
-  const [filePreview,      setFilePreview]      = useState(null);
-  const [fileError,        setFileError]        = useState(null);
-  const [dragOver,         setDragOver]         = useState(false);
+  const [errors,          setErrors]          = useState({});
+  const [touched,         setTouched]         = useState({});
+  const [isSubmitting,    setIsSubmitting]    = useState(false);
+  const [uploading,       setUploading]       = useState(false);
+  const [file,            setFile]            = useState(null);
+  const [filePreview,     setFilePreview]     = useState(null);
+  const [fileError,       setFileError]       = useState(null);
+  const [dragOver,        setDragOver]        = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  const previewUrl      = filePreview || (file ? null : existingReceipt);
-  const isExistingImage = existingReceipt && /\.(jpg|jpeg|png)(\?|$)/i.test(existingReceipt);
-  const isFilePdf       = file && file.type === "application/pdf";
-  const isReviewed      = reimbStatus === "APPROVED" || reimbStatus === "REJECTED";
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const res  = await getReimbursementById(id);
-        const data = res?.data ?? res;
-        if (data) {
-          setFormData({
-            title:       data.title       || "",
-            expenseDate: data.expenseDate ? String(data.expenseDate).split("T")[0] : "",
-            category:    data.category    || "",
-            total:       fmtRupiah(data.total || 0),
-            employeeId:  data.employeeId  ? String(data.employeeId) : "",
-            paidBy:      data.paidBy      || "EMPLOYEE",
-            notes:       data.notes       || "",
-          });
-          if (data.receiptFile)   setExistingReceipt(data.receiptFile);
-          if (data.approvalNotes) setApprovalNotes(data.approvalNotes);
-          if (data.status)        setReimbStatus(data.status);
-        }
-        fetchEmployees();
-      } catch (err) {
-        console.error("Failed to load:", err);
-        setErrors({ submit: "Failed to load reimbursement data." });
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  useEffect(() => { fetchEmployees(); }, []);
 
   const validateField = (name, value) => fieldValidators[name]?.(value) ?? null;
   const validateAll   = () => {
@@ -208,14 +153,15 @@ const EditReimbursement = () => {
     setErrors(p => ({ ...p, [name]: err || undefined }));
   };
 
+  // ── File ──────────────────────────────────────────────────────────────────
   const processFile = (f) => {
     if (!f) return;
     if (!ALLOWED.includes(f.type))     { setFileError("Only JPG, PNG, or PDF allowed."); return; }
     if (f.size > MAX_MB * 1024 * 1024) { setFileError(`Max file size is ${MAX_MB}MB.`);  return; }
     setFileError(null);
     setFile(f);
+    // For images: object URL; for PDF: also create object URL so modal can iframe it
     setFilePreview(URL.createObjectURL(f));
-    setExistingReceipt(null);
   };
 
   const removeFile = () => {
@@ -224,6 +170,7 @@ const EditReimbursement = () => {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     const allTouched = Object.keys(fieldValidators).reduce((a, k) => ({ ...a, [k]: true }), {});
@@ -233,11 +180,14 @@ const EditReimbursement = () => {
 
     setIsSubmitting(true);
     try {
-      let receiptFile = existingReceipt || null;
-      if (file) { setUploading(true); receiptFile = await uploadFile(file); setUploading(false); }
+      let receiptFile = null;
+      if (file) {
+        setUploading(true);
+        receiptFile = await uploadFile(file);
+        setUploading(false);
+      }
 
-      await updateReimbursement({
-        id:          parseInt(id),
+      await createReimbursement({
         title:       formData.title.trim(),
         expenseDate: formData.expenseDate,
         category:    formData.category,
@@ -247,31 +197,30 @@ const EditReimbursement = () => {
         notes:       formData.notes.trim() || null,
         receiptFile: receiptFile,
       });
-      navigate("/reimbursements");
+
+      navigate("/reimbursements", {
+        state: { toast: { show: true, message: "Reimbursement submitted successfully.", type: "success" } }
+      });
     } catch (err) {
       console.error(err);
-      setErrors({ submit: err?.response?.data?.message || err?.message || "Failed to update reimbursement." });
+      setErrors({ submit: err?.response?.data?.message || err?.message || "Failed to submit reimbursement." });
     } finally {
-      setIsSubmitting(false); setUploading(false);
+      setIsSubmitting(false);
+      setUploading(false);
     }
   };
 
   const busy            = isSubmitting || uploading;
+  const isFilePdf       = file && file.type === "application/pdf";
   const activeEmployees = employees?.filter(e => e.status === "ACTIVE") || [];
   const inputCls  = (f) => `w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors[f] ? "border-red-300 bg-red-50" : "border-gray-300"}`;
   const selectCls = (f) => `w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white transition-colors ${errors[f] ? "border-red-300 bg-red-50" : "border-gray-300"}`;
   const ErrorMsg  = ({ field }) => errors[field] ? <p className="mt-1 text-xs text-red-500">{errors[field]}</p> : null;
 
-  if (loading) return (
-    <div className="w-full px-4 md:px-6 py-6 flex justify-center items-center h-64">
-      <div className="text-gray-400">Loading reimbursement data…</div>
-    </div>
-  );
-
   return (
     <>
-      {showReceiptModal && previewUrl && (
-        <ReceiptModal url={previewUrl} onClose={() => setShowReceiptModal(false)} />
+      {showReceiptModal && filePreview && (
+        <ReceiptModal url={filePreview} onClose={() => setShowReceiptModal(false)} />
       )}
 
       <div className="w-full px-4 md:px-6 py-6">
@@ -281,17 +230,12 @@ const EditReimbursement = () => {
             <HiOutlineArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Edit Reimbursement</h1>
-            <p className="text-sm text-gray-500">Only <span className="font-medium text-yellow-600">Submitted</span> reimbursements can be edited</p>
+            <h1 className="text-2xl font-bold text-gray-800">New Reimbursement</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Status will be set to <span className="font-medium text-yellow-600">Submitted</span> automatically
+            </p>
           </div>
         </div>
-
-        {/* Approval notes read-only — tampil di atas form jika sudah direview */}
-        {isReviewed && (
-          <div className="mb-4">
-            <ApprovalNotesReadOnly notes={approvalNotes} status={reimbStatus} />
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} noValidate className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
 
@@ -398,79 +342,46 @@ const EditReimbursement = () => {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
               <textarea name="notes" value={formData.notes} onChange={handleChange}
-                disabled={busy} rows={3} placeholder="Additional notes…"
+                disabled={busy} rows={3} placeholder="Additional notes or description…"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none" />
             </div>
 
-            {/* Receipt */}
+            {/* Receipt Upload */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Attach Receipt
                 <span className="ml-1 text-xs text-gray-400 font-normal">(JPG, PNG, PDF · max 10MB)</span>
               </label>
 
-              {/* Existing receipt */}
-              {existingReceipt && !file && (
-                <div className="mb-2 border border-green-200 rounded-xl overflow-hidden">
-                  {isExistingImage && (
-                    <button type="button" onClick={() => setShowReceiptModal(true)}
-                      className="block w-full relative group focus:outline-none">
-                      <img src={existingReceipt} alt="Current receipt"
-                        className="w-full max-h-48 object-contain bg-gray-50 transition-opacity group-hover:opacity-80" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                          <HiOutlineZoomIn className="w-4 h-4" /> Click to preview
-                        </span>
-                      </div>
-                    </button>
-                  )}
-                  <div className="flex items-center gap-3 px-4 py-3 bg-green-50">
-                    {!isExistingImage && <HiOutlineDocumentText className="w-5 h-5 text-green-600 flex-shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-green-800">
-                        {isExistingImage ? "Current receipt image" : "Receipt attached"}
-                      </p>
-                      {!isExistingImage && (
-                        <button type="button" onClick={() => setShowReceiptModal(true)}
-                          className="text-xs text-indigo-600 hover:underline truncate block text-left">
-                          Click to preview PDF
-                        </button>
-                      )}
-                    </div>
-                    <button type="button" onClick={() => fileRef.current?.click()}
-                      className="text-xs text-indigo-600 hover:underline flex-shrink-0 font-medium">
-                      Replace
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Drop zone */}
-              {!file && !existingReceipt && (
+              {!file ? (
                 <div
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={e => { e.preventDefault(); setDragOver(false); processFile(e.dataTransfer.files[0]); }}
                   onClick={() => fileRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                    dragOver  ? "border-indigo-400 bg-indigo-50" :
-                    fileError ? "border-red-300 bg-red-50"       :
-                                "border-gray-200 hover:border-indigo-300 hover:bg-gray-50"
+                    dragOver   ? "border-indigo-400 bg-indigo-50" :
+                    fileError  ? "border-red-300 bg-red-50"       :
+                                 "border-gray-200 hover:border-indigo-300 hover:bg-gray-50"
                   }`}>
                   <HiOutlinePaperClip className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-600">Drop file here or <span className="text-indigo-600">browse</span></p>
                   <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF up to 10MB</p>
                 </div>
-              )}
-
-              {/* New file */}
-              {file && (
+              ) : (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  {/* Image thumbnail with preview click */}
                   {!isFilePdf && filePreview && (
-                    <button type="button" onClick={() => setShowReceiptModal(true)}
-                      className="block w-full relative group focus:outline-none">
-                      <img src={filePreview} alt="New receipt preview"
-                        className="w-full max-h-48 object-contain bg-gray-50 transition-opacity group-hover:opacity-80" />
+                    <button
+                      type="button"
+                      onClick={() => setShowReceiptModal(true)}
+                      className="block w-full relative group focus:outline-none"
+                    >
+                      <img
+                        src={filePreview}
+                        alt="preview"
+                        className="w-full max-h-48 object-contain bg-gray-50 transition-opacity group-hover:opacity-80"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
                           <HiOutlineZoomIn className="w-4 h-4" /> Click to preview
@@ -478,6 +389,7 @@ const EditReimbursement = () => {
                       </div>
                     </button>
                   )}
+
                   <div className="p-4 flex items-center gap-4 bg-gray-50">
                     {isFilePdf && (
                       <div className="w-16 h-16 bg-red-50 rounded-lg border border-red-100 flex items-center justify-center flex-shrink-0">
@@ -511,6 +423,15 @@ const EditReimbursement = () => {
               {fileError && <p className="mt-1 text-xs text-red-500">{fileError}</p>}
             </div>
 
+            {/* Status banner */}
+            <div className="md:col-span-2 bg-yellow-50 rounded-lg px-4 py-3 border border-yellow-100 flex items-center gap-3">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" />
+              <p className="text-sm text-yellow-800">
+                This reimbursement will be submitted with status{" "}
+                <span className="font-semibold">Submitted</span> and will go through the approval workflow.
+              </p>
+            </div>
+
           </div>
 
           {/* Actions */}
@@ -527,17 +448,15 @@ const EditReimbursement = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  {uploading ? "Uploading…" : "Updating…"}
+                  {uploading ? "Uploading…" : "Submitting…"}
                 </>
-              ) : "Update Reimbursement"}
+              ) : "Submit Reimbursement"}
             </button>
           </div>
-
-          <p className="mt-3 text-xs text-gray-400 text-right">Reimbursement ID: {id}</p>
         </form>
       </div>
     </>
   );
 };
 
-export default EditReimbursement;
+export default CreateReimbursement;

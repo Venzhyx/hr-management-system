@@ -4,7 +4,7 @@ import {
   createCalendarEventAPI,
   updateCalendarEventAPI,
   deleteCalendarEventAPI,
-} from '../../api/settingsApi';
+} from '../../ApiService/settingsApi';
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
 

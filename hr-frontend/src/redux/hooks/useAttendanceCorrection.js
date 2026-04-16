@@ -25,7 +25,7 @@ import {
 import {
   getAttendanceApprovalsAPI,
   updateAttendanceApprovalAPI,
-} from "../../api/approvalApi";
+} from "../../ApiService/approvalApi";
 import { useMemo } from "react";
 
 // ── Core approval processor — same pattern as useTimeOff ──────────────────────

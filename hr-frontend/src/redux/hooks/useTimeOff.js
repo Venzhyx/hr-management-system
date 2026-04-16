@@ -10,7 +10,7 @@ import {
 import {
   getTimeOffApprovalsAPI,
   updateTimeOffApprovalAPI,
-} from "../../api/approvalApi";
+} from "../../ApiService/approvalApi";
 
 export const useTimeOff = () => {
   const dispatch = useDispatch();

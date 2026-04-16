@@ -3,7 +3,7 @@ import {
   getApprovalApproversAPI,
   createApprovalApproverAPI,
   deleteApprovalApproverAPI,
-} from "../../api/approvalApi";
+} from "../../ApiService/approvalApi";
 
 // Helper: create thunks untuk setiap module dengan type parameter
 const createModuleThunks = (moduleType) => {

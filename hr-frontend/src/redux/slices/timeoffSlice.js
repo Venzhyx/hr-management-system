@@ -5,7 +5,7 @@ import {
   createTimeOffRequestAPI,
   updateTimeOffRequestAPI,
   deleteTimeOffRequestAPI,
-} from "../../api/timeoffApi";
+} from "../../ApiService/timeoffApi";
 
 export const fetchTimeOffRequests = createAsyncThunk(
   "timeOff/fetchAll",

@@ -5,7 +5,7 @@ import {
   getMyCorrectionsByEmployeeAPI,
   approveCorrectionAPI,
   rejectCorrectionAPI,
-} from "../../api/attendanceCorrection";
+} from "../../ApiService/attendanceCorrection";
 
 // Fetch all corrections (admin)
 export const fetchAllCorrections = createAsyncThunk(

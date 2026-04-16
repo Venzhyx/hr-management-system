@@ -9,9 +9,9 @@ import {
   HiOutlineX,
   HiOutlineEye,
 } from "react-icons/hi";
-import { useAttendanceCorrection } from "../../../redux/hooks/useAttendanceCorrection";
-import { useEmployee } from "../../../redux/hooks/useEmployee";
-import AttendanceCorrectionDetailModal from "./attendancemodal";
+import { useAttendanceCorrection } from "../../../../redux/hooks/useAttendanceCorrection";
+import { useEmployee } from "../../../../redux/hooks/useEmployee";
+import AttendanceCorrectionDetailModal from "./AttendanceApprovalModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtDateShort = (d) =>

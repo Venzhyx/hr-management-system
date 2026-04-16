@@ -18,8 +18,8 @@ import {
   HiOutlineXCircle,
   HiOutlineDotsCircleHorizontal,
 } from "react-icons/hi";
-import { useOvertime } from "../../../redux/hooks/useOvertime";
-import { useApproval } from "../../../redux/hooks/useApproval";
+import { useOvertime } from "../../../../redux/hooks/useOvertime";
+import { useApproval } from "../../../../redux/hooks/useApproval";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 

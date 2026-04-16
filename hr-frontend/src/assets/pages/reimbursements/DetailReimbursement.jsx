@@ -8,7 +8,7 @@ import {
   HiOutlineChevronDown,
 } from "react-icons/hi";
 import { useReimbursement } from "../../../redux/hooks/useReimbursement";
-import { getReimbursementApprovalsAPI } from "../../../api/approvalApi";
+import { getReimbursementApprovalsAPI } from "../../../ApiService/approvalApi";
 
 // ==================== HELPERS ====================
 const fmt = (n) =>

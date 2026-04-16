@@ -14,7 +14,7 @@ import {
   updateAttendanceApprovalAPI,
   getOvertimeApprovalsAPI,
   updateOvertimeApprovalAPI,
-} from "../../api/approvalApi";
+} from "../../ApiService/approvalApi";
 
 const THUNKS_MAP = {
   reimbursement: reimbursementThunks,

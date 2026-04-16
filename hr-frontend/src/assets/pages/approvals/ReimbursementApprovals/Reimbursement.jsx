@@ -5,8 +5,8 @@ import {
   HiOutlineEye, HiOutlineArrowLeft, HiOutlineClock,
   HiOutlineRefresh, HiOutlineFilter, HiOutlineChevronDown,
 } from "react-icons/hi";
-import { useReimbursement } from "../../../redux/hooks/useReimbursement";
-import ReimbursementDetailModal from "./reimbursmentdetaimodal";
+import { useReimbursement } from "../../../../redux/hooks/useReimbursement";
+import ReimbursementDetailModal from "./ReimbursementApprovalModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const STATUS_CFG = {

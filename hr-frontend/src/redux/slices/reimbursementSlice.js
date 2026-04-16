@@ -7,7 +7,7 @@ import {
   deleteReimbursementAPI,
   approveReimbursementAPI,
   rejectReimbursementAPI,
-} from "../../api/reimbursementApi";
+} from "../../ApiService/reimbursementApi";
 
 export const fetchReimbursements = createAsyncThunk(
   "reimbursements/fetchAll",

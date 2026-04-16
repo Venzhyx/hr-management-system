@@ -7,9 +7,9 @@ import {
   HiOutlineExclamation, HiOutlineCloudUpload, HiOutlineZoomIn,
 } from "react-icons/hi";
 import { useTimeOff } from "../../../redux/hooks/useTimeOff";
-import { getTimeOffTypesAPI } from "../../../api/settingsApi";
-import { getEmployeesAPI } from "../../../api/employeeApi";
-import { uploadAttachmentAPI } from "../../../api/timeoffApi";
+import { getTimeOffTypesAPI } from "../../../ApiService/settingsApi";
+import { getEmployeesAPI } from "../../../ApiService/employeeApi";
+import { uploadAttachmentAPI } from "../../../ApiService/timeoffApi";
 
 const inputCls    = "w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const inputErrCls = "w-full px-3.5 py-2.5 text-sm bg-amber-50 border border-amber-300 rounded-xl focus:outline-none focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all";

@@ -4,9 +4,9 @@
     HiOutlineChevronDown, HiOutlineClock, HiOutlineCheck,
     HiOutlineX, HiOutlineEye,
   } from "react-icons/hi";
-  import { useTimeOff }  from "../../../redux/hooks/useTimeOff";
-  import { useEmployee } from "../../../redux/hooks/useEmployee";
-  import TimeOffDetailModal from "./timeoffdetailmodal";
+  import { useTimeOff }  from "../../../../redux/hooks/useTimeOff";
+  import { useEmployee } from "../../../../redux/hooks/useEmployee";
+  import TimeOffDetailModal from "./TimeoffApprovalModal";
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
   const fmtDateShort = (d) =>

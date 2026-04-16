@@ -13,7 +13,7 @@ import {
   setFilterStatus,
   setFilterType,
   clearActionError,
-} from "../slices/OvertimeSlice";
+} from "../slices/overtimeSlice";
 
 /**
  * useOvertime

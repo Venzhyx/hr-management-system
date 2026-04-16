@@ -5,7 +5,7 @@ import {
   createEmployeeAPI,
   updateEmployeeAPI,
   deleteEmployeeAPI,
-} from "../../api/employeeApi";
+} from "../../ApiService/employeeApi";
 
 /* ================= FETCH ALL EMPLOYEES ================= */
 export const fetchEmployees = createAsyncThunk(
