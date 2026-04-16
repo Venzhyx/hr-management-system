@@ -3,12 +3,8 @@ package com.projek.hr_backend.service;
 import com.projek.hr_backend.dto.AttendanceCorrectionRequest;
 import com.projek.hr_backend.dto.AttendanceCorrectionResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
-import com.projek.hr_backend.model.Attendance;
-import com.projek.hr_backend.model.AttendanceCorrection;
-import com.projek.hr_backend.model.Employee;
-import com.projek.hr_backend.repository.AttendanceCorrectionRepository;
-import com.projek.hr_backend.repository.AttendanceRepository;
-import com.projek.hr_backend.repository.EmployeeRepository;
+import com.projek.hr_backend.model.*;
+import com.projek.hr_backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +21,10 @@ import java.util.stream.Collectors;
 public class AttendanceCorrectionService {
 
     private final AttendanceCorrectionRepository correctionRepository;
+    private final AttendanceCorrectionApprovalRepository approvalRepository;
     private final AttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
+    private final ApprovalApproverRepository approverRepository;
 
     @Transactional
     public AttendanceCorrectionResponse createCorrection(AttendanceCorrectionRequest request) {
@@ -53,9 +51,25 @@ public class AttendanceCorrectionService {
         correction.setStatus("PENDING");
 
         AttendanceCorrection saved = correctionRepository.save(correction);
+
+        createApprovalRecords(saved);
+
         System.out.println("[CORRECTION CREATED] Employee: " + request.getEmployeeId() + " Date: " + request.getDate());
 
         return mapToResponse(saved);
+    }
+
+    private void createApprovalRecords(AttendanceCorrection correction) {
+        List<ApprovalApprover> approvers = approverRepository.findAllByOrderByApprovalOrderAsc();
+
+        for (int i = 0; i < approvers.size(); i++) {
+            AttendanceCorrectionApproval approval = new AttendanceCorrectionApproval();
+            approval.setCorrection(correction);
+            approval.setApproverId(approvers.get(i).getEmployee().getId());
+            approval.setSequence(i + 1);
+            approval.setStatus(ApprovalStatus.PENDING);
+            approvalRepository.save(approval);
+        }
     }
 
     public List<AttendanceCorrectionResponse> getAllCorrections() {
@@ -71,57 +85,114 @@ public class AttendanceCorrectionService {
     }
 
     @Transactional
-    public AttendanceCorrectionResponse approveCorrection(Long id, Long adminId) {
-        AttendanceCorrection correction = correctionRepository.findById(id)
+    public AttendanceCorrectionResponse approveCorrection(Long correctionId, Long approverId) {
+        AttendanceCorrection correction = correctionRepository.findById(correctionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Correction not found"));
 
         if (!correction.getStatus().equals("PENDING")) {
             throw new IllegalStateException("Correction sudah diproses");
         }
 
-        Attendance attendance = attendanceRepository
-                .findByEmployeeIdAndDate(correction.getEmployee().getId(), correction.getDate())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Attendance tidak ditemukan untuk tanggal: " + correction.getDate()));
+        List<AttendanceCorrectionApproval> approvals =
+                approvalRepository.findByCorrectionIdOrderBySequenceAsc(correctionId);
 
-        String type = correction.getType();
-        if (type.equals("CHECKIN") || type.equals("BOTH")) {
-            attendance.setCheckIn(correction.getNewCheckIn());
+        // Cari approval milik approver ini
+        AttendanceCorrectionApproval myApproval = approvals.stream()
+                .filter(a -> a.getApproverId().equals(approverId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Approver tidak terdaftar untuk correction ini"));
+
+        if (!myApproval.getStatus().equals(ApprovalStatus.PENDING)) {
+            throw new IllegalStateException("Kamu sudah memproses correction ini");
         }
-        if (type.equals("CHECKOUT") || type.equals("BOTH")) {
-            attendance.setCheckOut(correction.getNewCheckOut());
+
+        // Validasi urutan: hanya boleh approve jika semua sequence sebelumnya sudah APPROVED
+        int currentSequence = myApproval.getSequence();
+        boolean previousApproved = approvals.stream()
+                .filter(a -> a.getSequence() < currentSequence)
+                .allMatch(a -> a.getStatus().equals(ApprovalStatus.APPROVED));
+
+        if (!previousApproved) {
+            throw new IllegalStateException("Belum giliran kamu untuk approve. Tunggu approver sebelumnya");
         }
 
-        attendance.setStatus(determineStatus(attendance));
-        attendanceRepository.save(attendance);
+        myApproval.setStatus(ApprovalStatus.APPROVED);
+        myApproval.setApprovedAt(LocalDateTime.now());
+        approvalRepository.save(myApproval);
 
-        correction.setStatus("APPROVED");
-        correction.setApprovedBy(adminId);
-        correction.setApprovedAt(LocalDateTime.now());
-        AttendanceCorrection saved = correctionRepository.save(correction);
+        System.out.println("[APPROVED] Correction: " + correctionId + " by Approver: " + approverId + " Sequence: " + currentSequence);
 
-        System.out.println("[APPROVED] Employee: " + correction.getEmployee().getId() + " Date: " + correction.getDate());
+        // Cek apakah semua approval sudah APPROVED
+        boolean allApproved = approvals.stream()
+                .filter(a -> !a.getId().equals(myApproval.getId()))
+                .allMatch(a -> a.getStatus().equals(ApprovalStatus.APPROVED));
 
-        return mapToResponse(saved);
+        if (allApproved) {
+            // Update attendance
+            Attendance attendance = attendanceRepository
+                    .findByEmployeeIdAndDate(correction.getEmployee().getId(), correction.getDate())
+                    .orElseThrow(() -> new ResourceNotFoundException("Attendance tidak ditemukan"));
+
+            String type = correction.getType();
+            if (type.equals("CHECKIN") || type.equals("BOTH")) {
+                attendance.setCheckIn(correction.getNewCheckIn());
+            }
+            if (type.equals("CHECKOUT") || type.equals("BOTH")) {
+                attendance.setCheckOut(correction.getNewCheckOut());
+            }
+
+            attendance.setStatus(determineStatus(attendance));
+            attendanceRepository.save(attendance);
+
+            correction.setStatus("APPROVED");
+            correctionRepository.save(correction);
+
+            System.out.println("[FINAL APPROVED] Correction: " + correctionId + " - Attendance updated");
+        }
+
+        return mapToResponse(correction);
     }
 
     @Transactional
-    public AttendanceCorrectionResponse rejectCorrection(Long id, Long adminId) {
-        AttendanceCorrection correction = correctionRepository.findById(id)
+    public AttendanceCorrectionResponse rejectCorrection(Long correctionId, Long approverId) {
+        AttendanceCorrection correction = correctionRepository.findById(correctionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Correction not found"));
 
         if (!correction.getStatus().equals("PENDING")) {
             throw new IllegalStateException("Correction sudah diproses");
         }
 
+        List<AttendanceCorrectionApproval> approvals =
+                approvalRepository.findByCorrectionIdOrderBySequenceAsc(correctionId);
+
+        AttendanceCorrectionApproval myApproval = approvals.stream()
+                .filter(a -> a.getApproverId().equals(approverId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Approver tidak terdaftar untuk correction ini"));
+
+        if (!myApproval.getStatus().equals(ApprovalStatus.PENDING)) {
+            throw new IllegalStateException("Kamu sudah memproses correction ini");
+        }
+
+        int currentSequence = myApproval.getSequence();
+        boolean previousApproved = approvals.stream()
+                .filter(a -> a.getSequence() < currentSequence)
+                .allMatch(a -> a.getStatus().equals(ApprovalStatus.APPROVED));
+
+        if (!previousApproved) {
+            throw new IllegalStateException("Belum giliran kamu untuk reject. Tunggu approver sebelumnya");
+        }
+
+        myApproval.setStatus(ApprovalStatus.REJECTED);
+        myApproval.setApprovedAt(LocalDateTime.now());
+        approvalRepository.save(myApproval);
+
         correction.setStatus("REJECTED");
-        correction.setApprovedBy(adminId);
-        correction.setApprovedAt(LocalDateTime.now());
-        AttendanceCorrection saved = correctionRepository.save(correction);
+        correctionRepository.save(correction);
 
-        System.out.println("[REJECTED] Employee: " + correction.getEmployee().getId() + " Date: " + correction.getDate());
+        System.out.println("[REJECTED] Correction: " + correctionId + " by Approver: " + approverId);
 
-        return mapToResponse(saved);
+        return mapToResponse(correction);
     }
 
     private String determineStatus(Attendance attendance) {
@@ -156,10 +227,23 @@ public class AttendanceCorrectionService {
         response.setType(correction.getType());
         response.setDescription(correction.getDescription());
         response.setStatus(correction.getStatus());
-        response.setApprovedBy(correction.getApprovedBy());
-        response.setApprovedAt(correction.getApprovedAt());
         response.setCreatedAt(correction.getCreatedAt());
         response.setUpdatedAt(correction.getUpdatedAt());
+
+        List<AttendanceCorrectionApproval> approvals =
+                approvalRepository.findByCorrectionIdOrderBySequenceAsc(correction.getId());
+
+        response.setApprovals(approvals.stream()
+                .map(a -> new AttendanceCorrectionResponse.ApprovalDetail(
+                        a.getId(),
+                        a.getApproverId(),
+                        a.getSequence(),
+                        a.getStatus(),
+                        a.getNotes(),
+                        a.getApprovedAt()
+                ))
+                .collect(Collectors.toList()));
+
         return response;
     }
 }

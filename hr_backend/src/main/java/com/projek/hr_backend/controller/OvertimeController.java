@@ -53,16 +53,16 @@ public class OvertimeController {
     @PutMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<OvertimeResponse>> approveOvertime(
             @PathVariable Long id,
-            @RequestParam Long adminId) {
-        OvertimeResponse response = service.approveOvertime(id, adminId);
+            @RequestParam Long approverId) {
+        OvertimeResponse response = service.approveOvertime(id, approverId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Overtime approved successfully", response));
     }
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<ApiResponse<OvertimeResponse>> rejectOvertime(
             @PathVariable Long id,
-            @RequestParam Long adminId) {
-        OvertimeResponse response = service.rejectOvertime(id, adminId);
+            @RequestParam Long approverId) {
+        OvertimeResponse response = service.rejectOvertime(id, approverId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Overtime rejected successfully", response));
     }
 }

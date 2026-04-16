@@ -43,12 +43,6 @@ public class AttendanceCorrection {
     @Column(nullable = false, length = 20)
     private String status = "PENDING";
 
-    @Column(name = "approved_by")
-    private Long approvedBy;
-
-    @Column(name = "approved_at")
-    private LocalDateTime approvedAt;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

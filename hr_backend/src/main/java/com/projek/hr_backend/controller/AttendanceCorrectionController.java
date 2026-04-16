@@ -28,32 +28,32 @@ public class AttendanceCorrectionController {
                 .body(new ApiResponse<>(true, "Correction request created successfully", response));
     }
 
-    @GetMapping("/my/{employeeId}")
-    public ResponseEntity<ApiResponse<List<AttendanceCorrectionResponse>>> getMyCorrestions(
-            @PathVariable Long employeeId) {
-        List<AttendanceCorrectionResponse> responses = service.getCorrectionsByEmployee(employeeId);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Corrections retrieved successfully", responses));
-    }
-
     @GetMapping
     public ResponseEntity<ApiResponse<List<AttendanceCorrectionResponse>>> getAllCorrections() {
         List<AttendanceCorrectionResponse> responses = service.getAllCorrections();
         return ResponseEntity.ok(new ApiResponse<>(true, "Corrections retrieved successfully", responses));
     }
 
+    @GetMapping("/my/{employeeId}")
+    public ResponseEntity<ApiResponse<List<AttendanceCorrectionResponse>>> getMyCorrections(
+            @PathVariable Long employeeId) {
+        List<AttendanceCorrectionResponse> responses = service.getCorrectionsByEmployee(employeeId);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Corrections retrieved successfully", responses));
+    }
+
     @PutMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<AttendanceCorrectionResponse>> approveCorrection(
             @PathVariable Long id,
-            @RequestParam Long adminId) {
-        AttendanceCorrectionResponse response = service.approveCorrection(id, adminId);
+            @RequestParam Long approverId) {
+        AttendanceCorrectionResponse response = service.approveCorrection(id, approverId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Correction approved successfully", response));
     }
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<ApiResponse<AttendanceCorrectionResponse>> rejectCorrection(
             @PathVariable Long id,
-            @RequestParam Long adminId) {
-        AttendanceCorrectionResponse response = service.rejectCorrection(id, adminId);
+            @RequestParam Long approverId) {
+        AttendanceCorrectionResponse response = service.rejectCorrection(id, approverId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Correction rejected successfully", response));
     }
 }
