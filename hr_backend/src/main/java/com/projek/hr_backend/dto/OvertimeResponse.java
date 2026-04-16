@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -23,8 +24,19 @@ public class OvertimeResponse {
     private Double totalHours;
     private String description;
     private ApprovalStatus status;
-    private Long approvedBy;
-    private LocalDateTime approvedAt;
+    private List<ApprovalDetail> approvals;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ApprovalDetail {
+        private Long id;
+        private Long approverId;
+        private Integer sequence;
+        private ApprovalStatus status;
+        private String notes;
+        private LocalDateTime approvedAt;
+    }
 }

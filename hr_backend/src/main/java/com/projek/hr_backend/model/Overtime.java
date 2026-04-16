@@ -48,12 +48,6 @@ public class Overtime {
     @Column(nullable = false, length = 20)
     private ApprovalStatus status = ApprovalStatus.PENDING;
 
-    @Column(name = "approved_by")
-    private Long approvedBy;
-
-    @Column(name = "approved_at")
-    private LocalDateTime approvedAt;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
