@@ -75,7 +75,7 @@ export const rejectOvertime = createAsyncThunk(
   }
 );
 
-// ✅ TAMBAH: Update Overtime
+// TAMBAH: Update Overtime
 export const updateOvertime = createAsyncThunk(
   "overtime/update",
   async ({ id, data }, { rejectWithValue }) => {
@@ -88,7 +88,7 @@ export const updateOvertime = createAsyncThunk(
   }
 );
 
-// ✅ TAMBAH: Delete Overtime
+// TAMBAH: Delete Overtime
 export const deleteOvertime = createAsyncThunk(
   "overtime/delete",
   async (id, { rejectWithValue }) => {
@@ -239,7 +239,7 @@ const overtimeSlice = createSlice({
         state.actionError = action.payload;
       });
 
-    // ✅ TAMBAH: update
+    // TAMBAH: update
     builder
       .addCase(updateOvertime.pending, (state) => {
         state.actionLoading = true;
@@ -260,7 +260,7 @@ const overtimeSlice = createSlice({
         state.actionError = action.payload;
       });
 
-    // ✅ TAMBAH: delete
+    // TAMBAH: delete
     builder
       .addCase(deleteOvertime.pending, (state) => {
         state.actionLoading = true;

@@ -7,7 +7,7 @@ import {
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import { useAttendance } from "../../redux/hooks/useAttendance";
-import { useOvertime } from "../../redux/hooks/useOvertime"; // ✅ TAMBAH
+import { useOvertime } from "../../redux/hooks/useOvertime"; // TAMBAH
 
 const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const monthFull   = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -461,7 +461,7 @@ const TimePopover = ({ att, status }) => {
 
 // ─── Monthly Calendar (DENGAN OVERTIME) ────────────────────────────────────────
 
-// ✅ FIX: tambah prop overtimeMap
+// FIX: tambah prop overtimeMap
 const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, selectedEmployee }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const today       = new Date();
@@ -480,7 +480,7 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
     return attendanceMap[dateStr] || null;
   };
 
-  // ✅ TAMBAH: getDayOvertime
+  // TAMBAH: getDayOvertime
   const getDayOvertime = (day) => {
     if (!day) return null;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -514,7 +514,7 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
         <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
           {row.map((day, ci) => {
             const att       = getDayAtt(day);
-            const overtime  = getDayOvertime(day); // ✅ TAMBAH
+            const overtime  = getDayOvertime(day); // TAMBAH
             const status    = att?.status?.toUpperCase();
             const today_    = isToday(day);
             const weekend   = isWeekend(ci);
@@ -552,13 +552,20 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
                         <span className="text-xs text-orange-300">Weekend</span>
                       ) : null}
 
-                      {/* ✅ TAMBAH: Overtime badge */}
+                      {/* TAMBAH: Overtime badge */}
                       {overtime && overtime.status === "APPROVED" && (
-                        <div className="flex items-center gap-1 ml-1">
-                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                          <span className="text-xs text-blue-600 font-medium">Overtime</span>
+                      <div className="relative group flex items-center gap-1 ml-1">
+                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                        <span className="text-xs text-blue-600 font-medium">Overtime</span>
+
+                        {/* TOOLTIP */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-20 transition-opacity text-[11px]">
+                          {overtime.startTime && overtime.endTime
+                            ? `${fmtTime(overtime.startTime)} - ${fmtTime(overtime.endTime)}`
+                            : `${overtime.duration || 0} jam`}
                         </div>
-                      )}
+                      </div>
+                    )}
                     </div>
 
                     {/* Check-in/out time popover */}
@@ -611,7 +618,7 @@ const AttendanceDashboard = () => {
     loadEmployees, loadAttendance, dismissError, resetAttendance,
   } = useAttendance();
 
-  // ✅ TAMBAH: hook overtime
+  // TAMBAH: hook overtime
   const { overtimes, fetchOvertimes } = useOvertime({ role: "admin" });
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -623,7 +630,7 @@ const AttendanceDashboard = () => {
   useEffect(() => {
     if (selectedEmployee?.id) {
       loadAttendance(selectedEmployee.id);
-      fetchOvertimes(); // ✅ TAMBAH: fetch overtime
+      fetchOvertimes(); // TAMBAH: fetch overtime
     } else {
       resetAttendance();
     }
@@ -640,7 +647,7 @@ const AttendanceDashboard = () => {
     return map;
   }, [attendances]);
 
-  // ✅ TAMBAH: overtimeMap (hanya APPROVED)
+  // TAMBAH: overtimeMap (hanya APPROVED)
   const overtimeMap = useMemo(() => {
     const map = {};
     (overtimes || []).forEach((ot) => {
@@ -816,7 +823,7 @@ const AttendanceDashboard = () => {
                         year={y}
                         month={m - 1}
                         attendanceMap={attendanceMap}
-                        overtimeMap={overtimeMap} // ✅ TAMBAH
+                        overtimeMap={overtimeMap} // TAMBAH
                         onNavigate={navigate}
                         selectedEmployee={selectedEmployee}
                       />

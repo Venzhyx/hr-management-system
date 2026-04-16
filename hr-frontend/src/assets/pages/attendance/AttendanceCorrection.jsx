@@ -872,7 +872,7 @@ const EmptyState = ({ onNew, isAdmin }) => (
 
   useEffect(() => {
   fetchEmployees();
-  handleRefresh(); // 🔥 ini cukup
+  handleRefresh(); // ini cukup
 }, [employeeId, role]);
 
   
@@ -884,7 +884,7 @@ const EmptyState = ({ onNew, isAdmin }) => (
 useEffect(() => {
   if (!employeeId && role !== "admin") return;
 
-  console.log("FETCH JALAN 🔥", { role, employeeId });
+  console.log("FETCH JALAN ", { role, employeeId });
 
   handleRefresh();
 }, [role, employeeId]);

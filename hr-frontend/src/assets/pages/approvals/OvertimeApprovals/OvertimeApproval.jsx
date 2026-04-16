@@ -34,7 +34,7 @@ const fmtHours = (h) => {
   return `${hours} jam ${minutes} mnt`;
 };
 
-// ✅ Semua status SUBMITTED dan PENDING pakai warna kuning (amber)
+// Semua status SUBMITTED dan PENDING pakai warna kuning (amber)
 const STATUS_CFG = {
   SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Submitted" },
   PENDING:   { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },
@@ -229,7 +229,7 @@ const ApprovalOvertimePage = () => {
     }
   }, [overtimes, selected]);
 
-  // ✅ Hitung stats berdasarkan display status
+  // Hitung stats berdasarkan display status
   const stats = (overtimes || []).reduce(
     (acc, o) => {
       const displayStatus = getDisplayStatus(o);
@@ -243,14 +243,14 @@ const ApprovalOvertimePage = () => {
     { total: 0, submitted: 0, pending: 0, approved: 0, rejected: 0 }
   );
 
-  // ✅ Hitung counts untuk filter berdasarkan display status
+  // Hitung counts untuk filter berdasarkan display status
   const counts = (overtimes || []).reduce((acc, o) => {
     const displayStatus = getDisplayStatus(o);
     acc[displayStatus] = (acc[displayStatus] || 0) + 1;
     return acc;
   }, {});
 
-  // ✅ Urutkan: SUBMITTED, PENDING, lalu lainnya
+  // Urutkan: SUBMITTED, PENDING, lalu lainnya
   const sorted = [
     ...(overtimes || []).filter((o) => getDisplayStatus(o) === "SUBMITTED"),
     ...(overtimes || []).filter((o) => getDisplayStatus(o) === "PENDING"),

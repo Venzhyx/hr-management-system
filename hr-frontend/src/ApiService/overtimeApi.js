@@ -27,7 +27,7 @@ export const overtimeApi = {
     return response.data;
   },
 
-  // ✅ FIXED: approve dengan notes
+  // FIXED: approve dengan notes
   approveOvertime: async (id, approverId, notes) => {
     const response = await API.put(
       `${BASE_URL}/${id}/approve`,
@@ -39,7 +39,7 @@ export const overtimeApi = {
     return response.data;
   },
 
-  // ✅ FIXED: reject dengan notes
+  // FIXED: reject dengan notes
   rejectOvertime: async (id, approverId, notes) => {
     const response = await API.put(
       `${BASE_URL}/${id}/reject`,
@@ -51,13 +51,13 @@ export const overtimeApi = {
     return response.data;
   },
 
-  // ✅ TAMBAH: Update Overtime
+  // TAMBAH: Update Overtime
   updateOvertime: async (id, payload) => {
     const response = await API.put(`${BASE_URL}/${id}`, payload);
     return response.data;
   },
 
-  // ✅ TAMBAH: Delete Overtime
+  // TAMBAH: Delete Overtime
   deleteOvertime: async (id) => {
     const response = await API.delete(`${BASE_URL}/${id}`);
     return response.data;

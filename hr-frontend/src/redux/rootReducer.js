@@ -18,7 +18,7 @@ const rootReducer = combineReducers({
   companies: companyReducer,
   attendanceSettings: attendanceSettingsReducer,
   attendance: attendanceReducer,
-  attendanceCorrection: attendanceCorrectionReducer, // ✅ INI YANG KURANG
+  attendanceCorrection: attendanceCorrectionReducer, // INI YANG KURANG
   calendarEvents: calendarEventReducer,
   timeOffTypes: timeOffTypeReducer,
   timeOff: timeOffReducer,

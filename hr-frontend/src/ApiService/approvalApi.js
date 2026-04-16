@@ -32,7 +32,7 @@ export const getMyAttendanceCorrectionsAPI = (employeeId) =>
 export const approveAttendanceCorrectionAPI = (id, approverId, notes) =>
   API.put(
     `/attendance-corrections/${id}/approve?approverId=${approverId}`,
-    { notes } // ✅ kirim ke backend
+    { notes } // kirim ke backend
   );
 
 export const rejectAttendanceCorrectionAPI = (id, approverId, notes) =>

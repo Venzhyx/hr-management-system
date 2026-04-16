@@ -305,7 +305,7 @@
                   const emp      = empMap[String(r.employeeId)];
                   const initials = r.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
                   const isActive = selected?.id === r.id;
-                  // ✅ canAct untuk SUBMITTED dan PENDING (multi-level approval)
+                  // canAct untuk SUBMITTED dan PENDING (multi-level approval)
                   const canAct   = r.status === "SUBMITTED" || r.status === "PENDING";
 
                   return (
@@ -343,7 +343,7 @@
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {/* ✅ Detail → buka modal, bukan navigate */}
+                          {/* Detail → buka modal, bukan navigate */}
                           <button
                             onClick={(e) => { e.stopPropagation(); setSelected(r); }}
                             className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 whitespace-nowrap"

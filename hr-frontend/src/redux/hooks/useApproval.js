@@ -10,12 +10,12 @@ import {
   updateReimbursementApprovalAPI,
   getTimeOffApprovalsAPI,
   updateTimeOffApprovalAPI,
-  // ✅ HAPUS INI (sudah tidak dipakai)
+  // HAPUS INI (sudah tidak dipakai)
   // getOvertimeApprovalsAPI,
   // updateOvertimeApprovalAPI,
   approveAttendanceCorrectionAPI,
   rejectAttendanceCorrectionAPI,
-  // ✅ TAMBAH INI
+  // TAMBAH INI
   approveOvertimeAPI,
   rejectOvertimeAPI,
 } from "../../ApiService/approvalApi";
@@ -36,11 +36,11 @@ const APPROVAL_APIS = {
     get: getTimeOffApprovalsAPI, 
     update: updateTimeOffApprovalAPI 
   },
-  // ✅ FIXED Overtime - pakai system baru seperti Attendance
+  // FIXED Overtime - pakai system baru seperti Attendance
   overtime: {
     get: null, // Tidak perlu get lagi, approvals sudah di response
     update: async (overtimeId, { action, notes }) => {
-      // ⚠️ TODO: Ambil approverId dari auth context/state nanti
+      // TODO: Ambil approverId dari auth context/state nanti
       const approverId = 1; // Sementara hardcode
       
       if (action === "APPROVED") {
@@ -97,7 +97,7 @@ export const useApproval = ({ type = "reimbursement" } = {}) => {
    * SPECIAL CASE: Attendance & Overtime - langsung panggil approve/reject endpoint
    */
   const processApproval = async (requestId, action, notes = null) => {
-    // 🔥 SPECIAL HANDLING UNTUK ATTENDANCE & OVERTIME
+    // SPECIAL HANDLING UNTUK ATTENDANCE & OVERTIME
     if (type === "attendance" || type === "overtime") {
       await apis.update(requestId, { action, notes });
       return;
@@ -122,10 +122,10 @@ export const useApproval = ({ type = "reimbursement" } = {}) => {
    * Backend model: AttendanceCorrectionApproval.sequence (Integer)
    * Previously used `approvalOrder` — now corrected to `sequence`.
    * 
-   * ⚠️ NOTE: Attendance & Overtime tidak support multi-level manual dari frontend
+   * NOTE: Attendance & Overtime tidak support multi-level manual dari frontend
    */
   const processApprovalByLevel = async (requestId, level, action, notes = null) => {
-    // 🔥 Attendance & Overtime tidak support multi-level
+    // Attendance & Overtime tidak support multi-level
     if (type === "attendance" || type === "overtime") {
       throw new Error(`${type} does not support manual multi-level approval from frontend`);
     }

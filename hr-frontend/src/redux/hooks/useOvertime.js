@@ -6,8 +6,8 @@ import {
   createOvertime,
   approveOvertime,
   rejectOvertime,
-  updateOvertime,        // ✅ TAMBAH
-  deleteOvertime,        // ✅ TAMBAH
+  updateOvertime,        // TAMBAH
+  deleteOvertime,        // TAMBAH
   openCreateModal,
   closeCreateModal,
   openDetailModal,
@@ -91,7 +91,7 @@ export const useOvertime = ({ role = "employee", employeeId, adminId } = {}) => 
     if (rejectOvertime.rejected.match(result)) throw new Error(result.payload);
   }, [dispatch, adminId]);
 
-  // ✅ TAMBAH: handleUpdate
+  // TAMBAH: handleUpdate
   const handleUpdate = useCallback(async (id, payload) => {
     const result = await dispatch(updateOvertime({ id, data: payload }));
     if (updateOvertime.rejected.match(result)) {
@@ -99,7 +99,7 @@ export const useOvertime = ({ role = "employee", employeeId, adminId } = {}) => 
     }
   }, [dispatch]);
 
-  // ✅ TAMBAH: handleDelete
+  // TAMBAH: handleDelete
   const handleDelete = useCallback(async (id) => {
     const result = await dispatch(deleteOvertime(id));
     if (deleteOvertime.rejected.match(result)) {
@@ -141,8 +141,8 @@ export const useOvertime = ({ role = "employee", employeeId, adminId } = {}) => 
     fetchOvertimes,
     handleRefresh,
     handleCreate,
-    handleUpdate,      // ✅ TAMBAH
-    handleDelete,      // ✅ TAMBAH
+    handleUpdate,      // TAMBAH
+    handleDelete,      // TAMBAH
     handleApprove,
     handleReject,
     clearError: handleClearError,

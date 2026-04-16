@@ -5,8 +5,8 @@ import {
   getMyCorrectionsByEmployeeAPI,
   approveCorrectionAPI,
   rejectCorrectionAPI,
-  updateCorrectionAPI,      // ✅ TAMBAH
-  deleteCorrectionAPI,      // ✅ TAMBAH
+  updateCorrectionAPI,      // TAMBAH
+  deleteCorrectionAPI,      // TAMBAH
 } from "../../ApiService/attendanceCorrection";
 
 // Fetch all corrections (admin)
@@ -103,7 +103,7 @@ export const rejectCorrection = createAsyncThunk(
   }
 );
 
-// ✅ TAMBAH: Update Correction
+// TAMBAH: Update Correction
 export const updateCorrection = createAsyncThunk(
   "attendanceCorrection/update",
   async ({ id, data }, { rejectWithValue }) => {
@@ -123,7 +123,7 @@ export const updateCorrection = createAsyncThunk(
   }
 );
 
-// ✅ TAMBAH: Delete Correction
+// TAMBAH: Delete Correction
 export const deleteCorrection = createAsyncThunk(
   "attendanceCorrection/delete",
   async (id, { rejectWithValue }) => {
@@ -279,7 +279,7 @@ const attendanceCorrectionSlice = createSlice({
         state.actionError = action.payload;
       });
 
-    // ✅ TAMBAH: update
+    // TAMBAH: update
     builder
       .addCase(updateCorrection.pending, (state) => {
         state.actionLoading = true;
@@ -302,7 +302,7 @@ const attendanceCorrectionSlice = createSlice({
         state.actionError = action.payload;
       });
 
-    // ✅ TAMBAH: delete
+    // TAMBAH: delete
     builder
       .addCase(deleteCorrection.pending, (state) => {
         state.actionLoading = true;

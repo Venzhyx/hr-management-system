@@ -334,7 +334,7 @@ const ApprovalCard = ({ tab, pendingCount, onNavigate, onOpenSettings }) => {
         </div>
       )}
 
-      {/* ✅ Settings menu untuk SEMUA module yang available */}
+      {/* Settings menu untuk SEMUA module yang available */}
       {tab.available && (
         <div ref={menuRef} className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setMenuOpen((v) => !v)} className="p-1.5 hover:bg-gray-100 rounded-lg">
@@ -408,7 +408,7 @@ const TABS = [
 const ApprovalPage = () => {
   const navigate = useNavigate();
   
-  // ✅ Gunakan useApproval dengan type berbeda untuk setiap module
+  // Gunakan useApproval dengan type berbeda untuk setiap module
   const reimbursementApproval = useApproval({ type: "reimbursement" });
   const timeoffApproval = useApproval({ type: "timeoff" });
   const attendanceApproval = useApproval({ type: "attendance" });
@@ -491,7 +491,7 @@ const ApprovalPage = () => {
         </div>
       </div>
 
-      {/* ✅ Satu modal untuk semua module, data dinamis */}
+      {/* Satu modal untuk semua module, data dinamis */}
       {showSettingsFor && activeModule && (
         <ApprovalSettingsModal
           title={activeModule.title}

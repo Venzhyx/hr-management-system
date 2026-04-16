@@ -319,7 +319,7 @@ const ActionModal = ({ request, action, onClose, onSuccess }) => {
 // ── Main Export: TimeOffDetailModal ───────────────────────────────────────────
 const TimeOffDetailModal = ({ request, emp, onClose, onSuccess }) => {
   const sCfg = STATUS_CFG[request.status] || STATUS_CFG.SUBMITTED;
-  // ✅ canAct untuk SUBMITTED dan PENDING (multi-level approval)
+  // canAct untuk SUBMITTED dan PENDING (multi-level approval)
   const canAct   = request.status === "SUBMITTED" || request.status === "PENDING";
   const initials = request.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
 

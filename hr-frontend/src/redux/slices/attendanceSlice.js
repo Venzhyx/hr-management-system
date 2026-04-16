@@ -47,7 +47,7 @@ export const fetchAttendancesByEmployeeId = createAsyncThunk(
   }
 );
 
-// ✅ Tambahan: fetch attendance by employee (alias untuk fetchAttendancesByEmployeeId)
+// Tambahan: fetch attendance by employee (alias untuk fetchAttendancesByEmployeeId)
 export const fetchAttendanceByEmployee = createAsyncThunk(
   "attendance/fetchByEmployee",
   async (employeeId, { rejectWithValue }) => {

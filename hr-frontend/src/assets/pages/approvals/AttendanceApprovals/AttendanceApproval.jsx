@@ -26,7 +26,7 @@ const fmtDateTime = (dt) => {
   }
 };
 
-// ✅ Semua status pakai warna kuning (amber)
+// Semua status pakai warna kuning (amber)
 const STATUS_CFG = {
   SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Submitted" },
   PENDING:   { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },

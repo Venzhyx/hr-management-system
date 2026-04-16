@@ -4,8 +4,8 @@ import {
   fetchAllCorrections,
   fetchCorrectionsByEmployee,
   createCorrection,
-  updateCorrection,        // ✅ TAMBAH
-  deleteCorrection,        // ✅ TAMBAH
+  updateCorrection,        // TAMBAH
+  deleteCorrection,        // TAMBAH
   openCreateModal,
   closeCreateModal,
   openDetailModal,
@@ -109,12 +109,12 @@ export const useAttendanceCorrection = ({ role = "employee", employeeId } = {}) 
     return dispatch(createCorrection(formData)).unwrap();
   };
 
-  // ✅ TAMBAH: handleUpdate
+  // TAMBAH: handleUpdate
   const handleUpdate = async (id, formData) => {
     return dispatch(updateCorrection({ id, data: formData })).unwrap();
   };
 
-  // ✅ TAMBAH: handleDelete
+  // TAMBAH: handleDelete
   const handleDelete = async (id) => {
     return dispatch(deleteCorrection(id)).unwrap();
   };
@@ -160,8 +160,8 @@ export const useAttendanceCorrection = ({ role = "employee", employeeId } = {}) 
 
     // Async actions
     handleCreate,
-    handleUpdate,      // ✅ TAMBAH
-    handleDelete,      // ✅ TAMBAH
+    handleUpdate,      // TAMBAH
+    handleDelete,      // TAMBAH
     handleApprove,
     handleReject,
     handleRefresh,
