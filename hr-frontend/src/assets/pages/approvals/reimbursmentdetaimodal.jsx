@@ -1,76 +1,40 @@
 import React, { useState, useEffect } from "react";
 import {
-  HiOutlineX,
-  HiOutlineCheck,
-  HiOutlineClock,
-  HiOutlineAnnotation,
-  HiOutlineCalendar,
-  HiOutlineChevronDown,
-  HiOutlineUser,
-  HiOutlineOfficeBuilding,
-  HiOutlineShieldCheck,
-  HiOutlineCheckCircle,
-  HiOutlineXCircle,
-  HiOutlineDotsCircleHorizontal,
+  HiOutlineX, HiOutlineCheck, HiOutlineClock,
+  HiOutlineAnnotation, HiOutlineCalendar, HiOutlineChevronDown,
+  HiOutlineDocumentText, HiOutlineUser, HiOutlineCurrencyDollar,
+  HiOutlinePhotograph, HiOutlineDownload, HiOutlineEye, HiOutlineTag,
+  HiOutlineOfficeBuilding, HiOutlineBriefcase,
 } from "react-icons/hi";
-import { useAttendanceCorrection } from "../../../redux/hooks/useAttendanceCorrection";
 import { useApproval } from "../../../redux/hooks/useApproval";
-import { getAttendanceApprovalsAPI, updateAttendanceApprovalAPI } from "../../../api/approvalApi";
-import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
+import { getReimbursementApprovalsAPI } from "../../../api/approvalApi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtDate = (d) => {
-  if (!d) return "—";
-  try {
-    return format(new Date(d), "dd MMM yyyy", { locale: localeId });
-  } catch {
-    return "—";
-  }
-};
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
-const fmtDateTime = (dt) => {
-  if (!dt) return "—";
-  try {
-    return format(new Date(dt), "dd MMM yyyy, HH:mm", { locale: localeId });
-  } catch {
-    return "—";
-  }
-};
-
-const fmtTime = (dt) => {
-  if (!dt) return "—";
-  try {
-    return format(new Date(dt), "HH:mm");
-  } catch {
-    return "—";
-  }
-};
+const fmt = (n) =>
+  n != null ? `Rp ${Number(n).toLocaleString("id-ID")}` : "—";
 
 const STATUS_CFG = {
-  PENDING: { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },
-  APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
-  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected" },
+  SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Submitted" },
+  PENDING:   { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"   },
+  APPROVED:  { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved"  },
+  REJECTED:  { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected"  },
 };
 
-const APPROVAL_STATUS = {
-  PENDING: { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },
+const AR_STATUS = {
+  PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"  },
   APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
-  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected" },
-};
-
-const TYPE_LABELS = {
-  CHECKIN: "Check-in",
-  CHECKOUT: "Check-out",
-  BOTH: "Check-in & Out",
+  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected" },
 };
 
 const parseApprovalList = (res) => {
   const payload = res?.data;
   if (!payload) return [];
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.content)) return payload.content;
-  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data))      return payload.data;
+  if (Array.isArray(payload?.content))   return payload.content;
+  if (Array.isArray(payload))            return payload;
   if (Array.isArray(payload?.approvals)) return payload.approvals;
   const firstArr = Object.values(payload).find((v) => Array.isArray(v));
   return firstArr ?? [];
@@ -121,14 +85,72 @@ const Section = ({ title, children, defaultOpen = true }) => {
   );
 };
 
-// ─── Approval Step Component (mirip Reimbursement) ───────────────────────────
+const isImageUrl = (url) => /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
+const isPDFUrl   = (url) => /\.pdf(\?.*)?$/i.test(url);
+
+const AttachmentPreview = ({ url, name }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!url) return null;
+  const img = isImageUrl(url);
+  const pdf = isPDFUrl(url);
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        className="w-full flex items-center gap-3 p-3 border border-dashed border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+      >
+        <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+          {img
+            ? <HiOutlinePhotograph className="w-5 h-5 text-indigo-600" />
+            : <HiOutlineDocumentText className="w-5 h-5 text-indigo-600" />}
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-semibold text-indigo-700 truncate">{name || (expanded ? "Sembunyikan Preview" : "Lihat Attachment")}</p>
+          <p className="text-[10px] text-indigo-400">
+            {img ? "Gambar" : pdf ? "PDF" : "File"} · klik untuk {expanded ? "tutup" : "pratinjau"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <a
+            href={url}
+            download={name}
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-600"
+            title="Download"
+          >
+            <HiOutlineDownload className="w-3.5 h-3.5" />
+          </a>
+          <HiOutlineEye className={`w-4 h-4 text-indigo-400 ${expanded ? "opacity-40" : ""}`} />
+        </div>
+      </button>
+      {expanded && (
+        <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+          {img ? (
+            <img src={url} alt="Receipt" className="w-full max-h-[400px] object-contain bg-gray-100" />
+          ) : pdf ? (
+            <iframe src={url} title="Receipt PDF" className="w-full h-[420px] border-0" />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+              <HiOutlineDocumentText className="w-10 h-10" />
+              <p className="text-sm">Format tidak didukung untuk preview.</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline">
+                Buka di tab baru
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ApprovalStep = ({ ar, isLast }) => {
-  const cfg = APPROVAL_STATUS[ar.status] || {
+  const cfg = AR_STATUS[ar.status] || {
     cls: "bg-gray-100 text-gray-600 border border-gray-200",
     dot: "bg-gray-400",
-    label: ar.status || "Unknown",
+    label: ar.status,
   };
-
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
@@ -149,13 +171,11 @@ const ApprovalStep = ({ ar, isLast }) => {
             <HiOutlineClock className="w-3.5 h-3.5 text-amber-500" />
           )}
         </div>
-        {!isLast && <div className="w-px flex-1 bg-gray-200 my-1 min-h-[20px]" />}
+        {!isLast && <div className="w-px flex-1 bg-gray-200 my-1" />}
       </div>
       <div className={`flex-1 min-w-0 ${!isLast ? "pb-4" : ""}`}>
         <div className="flex items-center gap-2 flex-wrap mb-1">
-          <span className="text-sm font-semibold text-gray-800">
-            {ar.approverName || `Level ${ar.approvalOrder || ar.level || "?"}`}
-          </span>
+          <span className="text-sm font-semibold text-gray-800">{ar.approverName || "—"}</span>
           <Badge cfg={cfg} />
           {(ar.approvedAt || ar.actionAt) && (
             <span className="text-[10px] text-gray-400 flex items-center gap-1">
@@ -175,53 +195,31 @@ const ApprovalStep = ({ ar, isLast }) => {
   );
 };
 
-// ─── Action Modal (internal) ───────────────────────────────────────────────────
-const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
-  const [notes, setNotes] = useState("");
+// ── Action Modal (internal) ───────────────────────────────────────────────────
+const ActionModal = ({ reimbursement, action, onClose, onSuccess }) => {
+  const { processApproval } = useApproval();
+  const [notes,   setNotes]   = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
 
   const isApprove = action === "APPROVED";
-  const btnCls = isApprove ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-500 hover:bg-red-600";
-  const iconBgCls = isApprove ? "bg-emerald-100" : "bg-red-100";
-  const iconCls = isApprove ? "text-emerald-600" : "text-red-500";
-  const ringCls = isApprove ? "focus:ring-emerald-400 border-emerald-300" : "focus:ring-red-400 border-red-300";
-  const wrapCls = isApprove ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200";
+  const btnCls    = isApprove ? "bg-green-600 hover:bg-green-700"       : "bg-red-500 hover:bg-red-600";
+  const iconBgCls = isApprove ? "bg-green-100"                          : "bg-red-100";
+  const iconCls   = isApprove ? "text-green-600"                        : "text-red-500";
+  const ringCls   = isApprove ? "focus:ring-green-400 border-green-300" : "focus:ring-red-400 border-red-300";
+  const wrapCls   = isApprove ? "bg-green-50 border-green-200"          : "bg-red-50 border-red-200";
 
   useEffect(() => {
-    const h = (e) => {
-      if (e.key === "Escape") onClose();
-    };
+    const h = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
-  // Cari current level yang perlu di-approve
-  const approvals = correction?.approvals || [];
-  const nextLevel = approvals.filter((a) => a.status === "APPROVED").length + 1;
-
   const handleSubmit = async () => {
-    if (!isApprove && !notes.trim()) {
-      setError("Alasan penolakan wajib diisi");
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      // Cari approval record untuk level saat ini
-      const currentApproval = approvals.find((a) => a.approvalOrder === nextLevel);
-      
-      if (!currentApproval) {
-        throw new Error(`Tidak ditemukan approval record untuk level ${nextLevel}`);
-      }
-
-      // Update approval record
-      await updateAttendanceApprovalAPI(currentApproval.id, {
-        action,
-        notes: notes || null,
-      });
-
-      if (onRefresh) await onRefresh();
+      await processApproval(reimbursement.id, action, notes);
       onSuccess();
       onClose();
     } catch (err) {
@@ -231,34 +229,26 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
     }
   };
 
-  // Hitung level yang akan di-approve
-  const totalLevels = 3;
-  const isLastLevel = nextLevel === totalLevels;
-
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className={`px-6 py-5 border-b ${wrapCls}`}>
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgCls}`}>
-              {isApprove ? (
-                <HiOutlineCheck className={`w-5 h-5 ${iconCls}`} />
-              ) : (
-                <HiOutlineX className={`w-5 h-5 ${iconCls}`} />
-              )}
+              {isApprove
+                ? <HiOutlineCheck className={`w-5 h-5 ${iconCls}`} />
+                : <HiOutlineX className={`w-5 h-5 ${iconCls}`} />}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-bold text-gray-800">
-                {isApprove ? "Approve Attendance Correction" : "Reject Attendance Correction"}
+                {isApprove ? "Approve Reimbursement" : "Reject Reimbursement"}
               </h3>
-              {correction?.employeeName && (
+              {reimbursement?.title && (
                 <p className="text-xs text-gray-500 mt-0.5 truncate">
-                  {correction.employeeName} · {fmtDate(correction.date)}
+                  {reimbursement.title} · {fmt(reimbursement.total)}
                 </p>
               )}
             </div>
@@ -268,84 +258,36 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
           </div>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5">
           {error && (
-            <div className="text-xs text-red-700 bg-red-50 border border-red-200 px-3 py-2.5 rounded-lg leading-relaxed">
+            <div className="mb-4 text-xs text-red-700 bg-red-50 border border-red-200 px-3 py-2.5 rounded-lg leading-relaxed">
               {error}
             </div>
           )}
-
-          {/* Level indicator */}
-          <div className="flex items-center gap-2">
-            {[1, 2, 3].map((lvl) => {
-              const isDone = lvl < nextLevel;
-              const isCurrent = lvl === nextLevel;
-              return (
-                <React.Fragment key={lvl}>
-                  <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                      isDone
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                        : isCurrent
-                        ? "bg-amber-500 border-amber-500 text-white shadow-sm"
-                        : "bg-gray-50 border-gray-200 text-gray-400"
-                    }`}
-                  >
-                    {isDone ? <HiOutlineCheck className="w-3 h-3" /> : <span>{lvl}</span>}
-                    Level {lvl}
-                  </div>
-                  {lvl < 3 && <div className={`h-px flex-1 ${isDone ? "bg-emerald-200" : "bg-gray-200"}`} />}
-                </React.Fragment>
-              );
-            })}
-          </div>
-
-          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-1.5">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Tanggal</span>
-              <span className="font-medium text-gray-700">{fmtDate(correction?.date)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Tipe Koreksi</span>
-              <span className="font-medium text-gray-700">{TYPE_LABELS[correction?.type] ?? correction?.type ?? "—"}</span>
-            </div>
-            {correction?.newCheckIn && (
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Check-in Baru</span>
-                <span className="font-medium text-gray-700">{fmtDateTime(correction.newCheckIn)}</span>
-              </div>
-            )}
-            {correction?.newCheckOut && (
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Check-out Baru</span>
-                <span className="font-medium text-gray-700">{fmtDateTime(correction.newCheckOut)}</span>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {isApprove ? "Catatan Approval" : "Alasan Penolakan"}
-              {!isApprove && <span className="text-red-500 ml-1">*</span>}
-              <span className="ml-1 text-xs text-gray-400 font-normal">
-                {isApprove ? "(opsional)" : "(wajib diisi)"}
-              </span>
+          <div className="flex items-center gap-2 mb-2">
+            <HiOutlineAnnotation className="w-4 h-4 text-gray-400" />
+            <label className="text-sm font-medium text-gray-700">
+              Notes
+              {!isApprove
+                ? <span className="text-red-500 ml-0.5">*</span>
+                : <span className="text-gray-400 font-normal ml-1">(opsional)</span>}
             </label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={
-                isApprove
-                  ? "Tambahkan catatan jika diperlukan..."
-                  : "Jelaskan alasan penolakan..."
-              }
-              className={`w-full px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 transition-colors resize-none disabled:opacity-60 ${ringCls}`}
-            />
-            {!isApprove && !notes.trim() && (
-              <p className="mt-1.5 text-xs text-red-500">Alasan penolakan wajib diisi.</p>
-            )}
           </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={loading}
+            rows={4}
+            placeholder={
+              isApprove
+                ? "Contoh: Semua kwitansi sudah diverifikasi."
+                : "Contoh: Kwitansi tidak jelas, mohon unggah ulang."
+            }
+            className={`w-full px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 transition-colors resize-none disabled:opacity-60 ${ringCls}`}
+          />
+          {!isApprove && !notes.trim() && (
+            <p className="mt-1.5 text-xs text-red-500">Alasan penolakan wajib diisi.</p>
+          )}
         </div>
 
         <div className="px-6 pb-6 flex gap-3">
@@ -364,17 +306,11 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
             className={`flex-1 px-4 py-2.5 text-white rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${btnCls}`}
           >
             {loading ? (
-              <>
-                <Spinner /> Memproses…
-              </>
+              <><Spinner /> Memproses…</>
             ) : isApprove ? (
-              <>
-                <HiOutlineCheck className="w-4 h-4" /> {isLastLevel ? "Final Approve" : `Approve Level ${nextLevel}`}
-              </>
+              <><HiOutlineCheck className="w-4 h-4" /> Konfirmasi Approve</>
             ) : (
-              <>
-                <HiOutlineX className="w-4 h-4" /> Konfirmasi Reject
-              </>
+              <><HiOutlineX className="w-4 h-4" /> Konfirmasi Reject</>
             )}
           </button>
         </div>
@@ -383,27 +319,30 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
   );
 };
 
-// ─── Main Export: AttendanceCorrectionDetailModal ────────────────────────────
-const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, onRefresh }) => {
-  const sCfg = STATUS_CFG[correction.status] || STATUS_CFG.PENDING;
-  const canAct = correction.status === "PENDING";
-  const initials = correction.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+// ── Main Export: ReimbursementDetailModal (LENGKAP) ────────────────────────────
+const ReimbursementDetailModal = ({ reimbursement, employee, onClose, onSuccess }) => {
+  const sCfg = STATUS_CFG[reimbursement.status] || STATUS_CFG.SUBMITTED;
+  const canAct = reimbursement.status === "SUBMITTED" || reimbursement.status === "PENDING";
+  const initials = reimbursement.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
 
-  const [approvalRecords, setApprovalRecords] = useState([]);
+  const [approvalRecords,  setApprovalRecords]  = useState([]);
   const [loadingApprovals, setLoadingApprovals] = useState(true);
-  const [actionModal, setActionModal] = useState(null);
-
-  // Fetch approvers untuk attendance (untuk menampilkan nama approver)
-  const attendanceApproval = useApproval({ type: "attendance" });
+  const [actionModal,      setActionModal]      = useState(null);
 
   useEffect(() => {
-    attendanceApproval.fetchApprovers();
-  }, []);
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", h);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
 
   const loadApprovals = async () => {
     setLoadingApprovals(true);
     try {
-      const res = await getAttendanceApprovalsAPI(correction.id);
+      const res  = await getReimbursementApprovalsAPI(reimbursement.id);
       const list = parseApprovalList(res);
       setApprovalRecords(list);
     } catch {
@@ -415,39 +354,22 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
 
   useEffect(() => {
     loadApprovals();
-  }, [correction.id]);
+  }, [reimbursement.id]);
 
-  // Hitung level yang sudah di-approve
-  const approvedCount = approvalRecords.filter((a) => a.status === "APPROVED").length;
-  const totalLevels = 3;
-  const nextLevel = approvedCount + 1;
-  const isLastLevel = nextLevel === totalLevels;
-
-  useEffect(() => {
-    const h = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", h);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", h);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
+  const processedRecord = approvalRecords.find(
+    (ar) => ar.status === "APPROVED" || ar.status === "REJECTED"
+  );
 
   const handleActionSuccess = () => {
-    if (onSuccess) onSuccess();
-    if (onRefresh) onRefresh();
-    loadApprovals();
+    onSuccess();
+    onClose();
   };
 
   return (
     <>
       <div
         className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
           className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] overflow-hidden"
@@ -460,17 +382,15 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <Badge cfg={sCfg} />
-                  <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                    {TYPE_LABELS[correction.type] || correction.type}
-                  </span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1">
-                    <HiOutlineShieldCheck className="w-3 h-3" />
-                    {approvedCount}/{totalLevels} Level
-                  </span>
+                  {reimbursement.category && (
+                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {reimbursement.category}
+                    </span>
+                  )}
                 </div>
-                <h2 className="text-lg font-bold text-gray-900 leading-snug">Attendance Correction Request</h2>
+                <h2 className="text-lg font-bold text-gray-900 leading-snug truncate">{reimbursement.title || "Detail Reimbursement"}</h2>
                 <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                  <HiOutlineClock className="w-3 h-3" /> Diajukan {fmtDateTime(correction.createdAt)}
+                  <HiOutlineClock className="w-3 h-3" /> Diajukan {fmtDate(reimbursement.createdAt)}
                 </p>
               </div>
               <button
@@ -481,129 +401,131 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
               </button>
             </div>
 
-            {/* Hero card */}
-            <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl px-5 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0.5">Tanggal Koreksi</p>
-                  <p className="text-xl font-bold text-amber-700">{fmtDate(correction.date)}</p>
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center">
-                  <HiOutlineCalendar className="w-6 h-6 text-amber-500" />
-                </div>
+            {/* Total hero */}
+            <div className="mt-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Total Reimbursement</p>
+                <p className="text-2xl font-bold text-indigo-700">{fmt(reimbursement.total)}</p>
+                <p className="text-xs text-indigo-400 mt-1">
+                  Tanggal pengeluaran: {fmtDate(reimbursement.expenseDate)}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
+                <HiOutlineCurrencyDollar className="w-6 h-6 text-indigo-500" />
               </div>
             </div>
 
-            {/* Notes banner jika sudah ada approval/reject */}
+            {/* Notes banner */}
             {loadingApprovals ? (
               <div className="mt-3 flex items-center gap-2 px-1 py-1">
-                <div className="w-4 h-4 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin flex-shrink-0" />
-                <p className="text-xs text-gray-400">Memuat riwayat approval…</p>
+                <div className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin flex-shrink-0" />
+                <p className="text-xs text-gray-400">Memuat catatan approval…</p>
               </div>
-            ) : (() => {
-              const processedRecord = approvalRecords.find(
-                (ar) => ar.status === "APPROVED" || ar.status === "REJECTED"
-              );
-              if (!processedRecord?.notes) return null;
-              return (
-                <div
-                  className={`mt-3 rounded-xl px-4 py-3 flex items-start gap-2 border ${
-                    processedRecord.status === "APPROVED" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
+            ) : processedRecord?.notes ? (
+              <div
+                className={`mt-3 rounded-xl px-4 py-3 flex items-start gap-2 border ${
+                  processedRecord.status === "APPROVED" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
+                }`}
+              >
+                <HiOutlineAnnotation
+                  className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                    processedRecord.status === "APPROVED" ? "text-emerald-500" : "text-red-400"
                   }`}
-                >
-                  <HiOutlineAnnotation
-                    className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                />
+                <div>
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${
                       processedRecord.status === "APPROVED" ? "text-emerald-500" : "text-red-400"
                     }`}
-                  />
-                  <div>
-                    <p
-                      className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${
-                        processedRecord.status === "APPROVED" ? "text-emerald-500" : "text-red-400"
-                      }`}
-                    >
-                      {processedRecord.status === "APPROVED" ? "Komentar Approver" : "Alasan Penolakan"}
-                    </p>
-                    <p
-                      className={`text-xs leading-relaxed italic ${
-                        processedRecord.status === "APPROVED" ? "text-emerald-800" : "text-red-800"
-                      }`}
-                    >
-                      "{processedRecord.notes}"
-                    </p>
-                  </div>
+                  >
+                    {processedRecord.status === "APPROVED" ? "Komentar Approver" : "Alasan Penolakan"}
+                  </p>
+                  <p
+                    className={`text-xs leading-relaxed italic ${
+                      processedRecord.status === "APPROVED" ? "text-emerald-800" : "text-red-800"
+                    }`}
+                  >
+                    "{processedRecord.notes}"
+                  </p>
                 </div>
-              );
-            })()}
+              </div>
+            ) : null}
           </div>
 
           {/* Scrollable Body */}
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
             <Section title="Informasi Pengaju">
               <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl">
-                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm bg-amber-100 flex items-center justify-center">
-                  {emp?.photo ? (
-                    <img src={emp.photo} alt={correction.employeeName} className="w-full h-full object-cover" />
+                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm">
+                  {employee?.photo ? (
+                    <img src={employee.photo} alt={reimbursement.employeeName} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-amber-700 font-bold text-lg">{initials}</span>
+                    <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
+                      {initials}
+                    </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{correction.employeeName}</p>
-                  {correction.employeeCode && <p className="text-xs text-gray-500 mt-0.5">NIK: {correction.employeeCode}</p>}
-                  {emp?.departmentName && (
+                  <p className="text-sm font-bold text-gray-900 truncate">{reimbursement.employeeName}</p>
+                  {(employee?.jobTitle || employee?.position) && (
+                    <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                      <HiOutlineBriefcase className="w-3 h-3" /> {employee.jobTitle || employee.position}
+                    </p>
+                  )}
+                  {employee?.departmentName && (
                     <p className="flex items-center gap-1 text-xs text-gray-400">
-                      <HiOutlineOfficeBuilding className="w-3 h-3" /> {emp.departmentName}
+                      <HiOutlineOfficeBuilding className="w-3 h-3" /> {employee.departmentName}
+                    </p>
+                  )}
+                  {reimbursement.paidBy && (
+                    <p className="flex items-center gap-1 text-xs text-gray-400 mt-1">
+                      <HiOutlineCurrencyDollar className="w-3 h-3" /> Dibayar oleh: {reimbursement.paidBy}
                     </p>
                   )}
                 </div>
               </div>
             </Section>
 
-            <Section title="Detail Koreksi">
+            <Section title="Detail Reimbursement">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoRow icon={HiOutlineCalendar} label="Tanggal" value={fmtDate(correction.date)} />
-                <InfoRow icon={HiOutlineShieldCheck} label="Tipe Koreksi" value={TYPE_LABELS[correction.type] || correction.type} />
-                {correction.oldCheckIn && (
-                  <InfoRow icon={HiOutlineClock} label="Check-in Lama" value={fmtTime(correction.oldCheckIn)} />
-                )}
-                {correction.newCheckIn && (
-                  <InfoRow icon={HiOutlineCheck} label="Check-in Baru" value={fmtDateTime(correction.newCheckIn)} />
-                )}
-                {correction.oldCheckOut && (
-                  <InfoRow icon={HiOutlineClock} label="Check-out Lama" value={fmtTime(correction.oldCheckOut)} />
-                )}
-                {correction.newCheckOut && (
-                  <InfoRow icon={HiOutlineCheck} label="Check-out Baru" value={fmtDateTime(correction.newCheckOut)} />
-                )}
+                <InfoRow icon={HiOutlineTag}            label="Kategori"           value={reimbursement.category} />
+                <InfoRow icon={HiOutlineCurrencyDollar} label="Total"              value={fmt(reimbursement.total)} />
+                <InfoRow icon={HiOutlineCalendar}       label="Tanggal Pengeluaran" value={fmtDate(reimbursement.expenseDate)} />
               </div>
             </Section>
 
-            {correction.description && (
-              <Section title="Alasan Pengajuan">
+            {reimbursement.notes && (
+              <Section title="Catatan">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <HiOutlineAnnotation className="w-4 h-4 text-blue-500" />
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HiOutlineAnnotation className="w-4 h-4 text-amber-500" />
                   </div>
-                  <div className="flex-1 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-                    <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap italic">
-                      "{correction.description}"
-                    </p>
+                  <div className="flex-1 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap">{reimbursement.notes}</p>
                   </div>
                 </div>
+              </Section>
+            )}
+
+            {(reimbursement.receiptFile || reimbursement.attachmentUrl) && (
+              <Section title="Kwitansi / Bukti">
+                <AttachmentPreview 
+                  url={reimbursement.receiptFile || reimbursement.attachmentUrl} 
+                  name={reimbursement.attachmentName || "Attachment"} 
+                />
               </Section>
             )}
 
             <Section title="Riwayat Approval">
               {loadingApprovals ? (
                 <div className="flex items-center gap-3 py-2">
-                  <div className="w-5 h-5 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin" />
+                  <div className="w-5 h-5 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
                   <p className="text-sm text-gray-400">Memuat riwayat approval…</p>
                 </div>
               ) : approvalRecords.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-center">
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                    <HiOutlineShieldCheck className="w-6 h-6 text-gray-300" />
+                    <HiOutlineDocumentText className="w-6 h-6 text-gray-300" />
                   </div>
                   <p className="text-sm font-medium text-gray-400">Belum ada approval record</p>
                   <p className="text-xs text-gray-300 mt-1">Pastikan approver sudah dikonfigurasi</p>
@@ -621,35 +543,19 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
           {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
             {canAct ? (
-              <div className="space-y-2">
-                {/* Level progress bar */}
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                      style={{ width: `${(approvedCount / totalLevels) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                    Level {nextLevel} dari {totalLevels}
-                  </span>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setActionModal("REJECTED")}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-colors shadow-sm"
-                  >
-                    <HiOutlineX className="w-4 h-4" /> Reject
-                  </button>
-                  <button
-                    onClick={() => setActionModal("APPROVED")}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
-                  >
-                    <HiOutlineCheck className="w-4 h-4" />
-                    {!isLastLevel ? `Approve Level ${nextLevel}` : "Final Approve"}
-                  </button>
-                </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setActionModal("REJECTED")}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                >
+                  <HiOutlineX className="w-4 h-4" /> Reject
+                </button>
+                <button
+                  onClick={() => setActionModal("APPROVED")}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                >
+                  <HiOutlineCheck className="w-4 h-4" /> Approve
+                </button>
               </div>
             ) : (
               <div className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border ${sCfg.cls}`}>
@@ -664,15 +570,14 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
       {/* Action Modal */}
       {actionModal && (
         <ActionModal
-          correction={correction}
+          reimbursement={reimbursement}
           action={actionModal}
           onClose={() => setActionModal(null)}
           onSuccess={handleActionSuccess}
-          onRefresh={onRefresh}
         />
       )}
     </>
   );
 };
 
-export default AttendanceCorrectionDetailModal;
+export default ReimbursementDetailModal;

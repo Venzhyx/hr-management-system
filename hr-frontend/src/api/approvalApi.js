@@ -25,10 +25,10 @@ export const updateReimbursementApprovalAPI = (approvalId, data) =>
 // TIMEOFF APPROVALS
 // ============================================
 export const getTimeOffApprovalsAPI = (requestId) =>
-  API.get(`/timeoff-approvals/request/${requestId}`);
+  API.get(`/time-off-approvals/request/${requestId}`);
 
 export const updateTimeOffApprovalAPI = (approvalId, data) =>
-  API.patch(`/timeoff-approvals/${approvalId}`, data);
+  API.patch(`/time-off-approvals/${approvalId}`, data);
 
 // ============================================
 // ATTENDANCE APPROVALS

@@ -3,44 +3,30 @@ import {
   HiOutlineX, HiOutlineCheck, HiOutlineClock,
   HiOutlineAnnotation, HiOutlineCalendar, HiOutlineChevronDown,
   HiOutlineDocumentText, HiOutlineOfficeBuilding, HiOutlineBriefcase,
-  HiOutlineUser, HiOutlineShieldCheck,
+  HiOutlinePhotograph, HiOutlineDownload, HiOutlineEye,
 } from "react-icons/hi";
-import { useAttendanceCorrection } from "../../../redux/hooks/useAttendanceCorrection";
-import { getAttendanceApprovalsAPI } from "../../../api/approvalApi";
+import { useTimeOff } from "../../../redux/hooks/useTimeOff";
+import { getTimeOffApprovalsAPI } from "../../../api/approvalApi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtDateShort = (d) =>
   d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
-const fmtDateTime = (dt) => {
-  if (!dt) return "—";
-  try {
-    return new Date(dt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "—";
-  }
-};
-
 const STATUS_CFG = {
-  PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },
-  APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
-  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected" },
-};
-
-const TYPE_LABELS = {
-  CHECKIN: "Check-in",
-  CHECKOUT: "Check-out",
-  BOTH: "Check-in & Out",
+  SUBMITTED: { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Submitted" },
+  PENDING:   { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"   },
+  APPROVED:  { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved"  },
+  REJECTED:  { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected"  },
 };
 
 const AR_STATUS = {
-  PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200", dot: "bg-amber-400", label: "Pending" },
+  PENDING:  { cls: "bg-amber-50 text-amber-700 border border-amber-200",       dot: "bg-amber-400",   label: "Pending"  },
   APPROVED: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", dot: "bg-emerald-400", label: "Approved" },
-  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200", dot: "bg-red-400", label: "Rejected" },
+  REJECTED: { cls: "bg-red-50 text-red-700 border border-red-200",             dot: "bg-red-400",     label: "Rejected" },
 };
 
 const parseApprovalList = (res) => {
-  const payload = res?.data;
+  const payload = res?.data?.data ?? res?.data;
   if (!payload) return [];
   if (Array.isArray(payload?.data))      return payload.data;
   if (Array.isArray(payload?.content))   return payload.content;
@@ -91,6 +77,66 @@ const Section = ({ title, children, defaultOpen = true }) => {
         <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && <div className="px-5 py-4 bg-white space-y-4">{children}</div>}
+    </div>
+  );
+};
+
+const isImageUrl = (url) => /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
+const isPDFUrl   = (url) => /\.pdf(\?.*)?$/i.test(url);
+
+const AttachmentPreview = ({ url }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!url) return null;
+  const img = isImageUrl(url);
+  const pdf = isPDFUrl(url);
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        className="w-full flex items-center gap-3 p-3 border border-dashed border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+      >
+        <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+          {img
+            ? <HiOutlinePhotograph className="w-5 h-5 text-indigo-600" />
+            : <HiOutlineDocumentText className="w-5 h-5 text-indigo-600" />}
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-semibold text-indigo-700">{expanded ? "Sembunyikan Preview" : "Lihat Attachment"}</p>
+          <p className="text-[10px] text-indigo-400">
+            {img ? "Gambar" : pdf ? "PDF" : "File"} · klik untuk {expanded ? "tutup" : "pratinjau"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <a
+            href={url}
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-600"
+            title="Download"
+          >
+            <HiOutlineDownload className="w-3.5 h-3.5" />
+          </a>
+          <HiOutlineEye className={`w-4 h-4 text-indigo-400 ${expanded ? "opacity-40" : ""}`} />
+        </div>
+      </button>
+      {expanded && (
+        <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+          {img ? (
+            <img src={url} alt="Attachment" className="w-full max-h-[400px] object-contain bg-gray-100" />
+          ) : pdf ? (
+            <iframe src={url} title="Attachment PDF" className="w-full h-[420px] border-0" />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+              <HiOutlineDocumentText className="w-10 h-10" />
+              <p className="text-sm">Format tidak didukung untuk preview.</p>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline">
+                Buka di tab baru
+              </a>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -146,18 +192,18 @@ const ApprovalStep = ({ ar, isLast }) => {
 };
 
 // ── Action Modal (internal) ───────────────────────────────────────────────────
-const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
-  const { handleApprove, handleReject } = useAttendanceCorrection({ role: "admin" });
-  const [notes, setNotes] = useState("");
+const ActionModal = ({ request, action, onClose, onSuccess }) => {
+  const { approveTimeOffRequest, rejectTimeOffRequest } = useTimeOff();
+  const [notes,   setNotes]   = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
 
   const isApprove = action === "APPROVED";
-  const btnCls = isApprove ? "bg-green-600 hover:bg-green-700" : "bg-red-500 hover:bg-red-600";
-  const iconBgCls = isApprove ? "bg-green-100" : "bg-red-100";
-  const iconCls = isApprove ? "text-green-600" : "text-red-500";
-  const ringCls = isApprove ? "focus:ring-green-400 border-green-300" : "focus:ring-red-400 border-red-300";
-  const wrapCls = isApprove ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200";
+  const btnCls    = isApprove ? "bg-green-600 hover:bg-green-700"       : "bg-red-500 hover:bg-red-600";
+  const iconBgCls = isApprove ? "bg-green-100"                          : "bg-red-100";
+  const iconCls   = isApprove ? "text-green-600"                        : "text-red-500";
+  const ringCls   = isApprove ? "focus:ring-green-400 border-green-300" : "focus:ring-red-400 border-red-300";
+  const wrapCls   = isApprove ? "bg-green-50 border-green-200"          : "bg-red-50 border-red-200";
 
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -166,19 +212,11 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
   }, [onClose]);
 
   const handleSubmit = async () => {
-    if (!isApprove && !notes.trim()) {
-      setError("Alasan penolakan wajib diisi");
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      if (isApprove) {
-        await handleApprove(correction.id, notes || undefined);
-      } else {
-        await handleReject(correction.id, notes || undefined);
-      }
-      if (onRefresh) await onRefresh();
+      if (isApprove) await approveTimeOffRequest(request.id, notes);
+      else           await rejectTimeOffRequest(request.id, notes);
       onSuccess();
       onClose();
     } catch (err) {
@@ -203,11 +241,11 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-bold text-gray-800">
-                {isApprove ? "Approve Attendance Correction" : "Reject Attendance Correction"}
+                {isApprove ? "Approve Time Off" : "Reject Time Off"}
               </h3>
-              {correction?.employeeName && (
+              {request?.employeeName && (
                 <p className="text-xs text-gray-500 mt-0.5 truncate">
-                  {correction.employeeName} · {fmtDateShort(correction.date)}
+                  {request.employeeName} · {request.timeOffTypeName} · {request.requested} hari
                 </p>
               )}
             </div>
@@ -239,8 +277,8 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
             rows={4}
             placeholder={
               isApprove
-                ? "Tambahkan catatan jika diperlukan..."
-                : "Jelaskan alasan penolakan..."
+                ? "Contoh: Cuti disetujui. Pastikan pekerjaan sudah didelegasikan."
+                : "Contoh: Mohon ajukan ulang dengan melampirkan surat keterangan."
             }
             className={`w-full px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 transition-colors resize-none disabled:opacity-60 ${ringCls}`}
           />
@@ -278,15 +316,16 @@ const ActionModal = ({ correction, action, onClose, onSuccess, onRefresh }) => {
   );
 };
 
-// ── Main Export: AttendanceCorrectionDetailModal ───────────────────────────────
-const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, onRefresh }) => {
-  const sCfg = STATUS_CFG[correction.status] || STATUS_CFG.PENDING;
-  const canAct = correction.status === "PENDING";
-  const initials = correction.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
+// ── Main Export: TimeOffDetailModal ───────────────────────────────────────────
+const TimeOffDetailModal = ({ request, emp, onClose, onSuccess }) => {
+  const sCfg = STATUS_CFG[request.status] || STATUS_CFG.SUBMITTED;
+  // ✅ canAct untuk SUBMITTED dan PENDING (multi-level approval)
+  const canAct   = request.status === "SUBMITTED" || request.status === "PENDING";
+  const initials = request.employeeName?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
 
-  const [approvalRecords, setApprovalRecords] = useState([]);
+  const [approvalRecords,  setApprovalRecords]  = useState([]);
   const [loadingApprovals, setLoadingApprovals] = useState(true);
-  const [actionModal, setActionModal] = useState(null);
+  const [actionModal,      setActionModal]      = useState(null); // "APPROVED" | "REJECTED" | null
 
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -301,11 +340,10 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
   const loadApprovals = async () => {
     setLoadingApprovals(true);
     try {
-      const res = await getAttendanceApprovalsAPI(correction.id);
+      const res  = await getTimeOffApprovalsAPI(request.id);
       const list = parseApprovalList(res);
       setApprovalRecords(list);
-    } catch (err) {
-      console.error("Failed to load approvals:", err);
+    } catch {
       setApprovalRecords([]);
     } finally {
       setLoadingApprovals(false);
@@ -314,7 +352,7 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
 
   useEffect(() => {
     loadApprovals();
-  }, [correction.id]);
+  }, [request.id]);
 
   const processedRecord = approvalRecords.find(
     (ar) => ar.status === "APPROVED" || ar.status === "REJECTED"
@@ -342,13 +380,15 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <Badge cfg={sCfg} />
-                  <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                    {TYPE_LABELS[correction.type] || correction.type}
-                  </span>
+                  {request.timeOffTypeName && (
+                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {request.timeOffTypeName}
+                    </span>
+                  )}
                 </div>
-                <h2 className="text-lg font-bold text-gray-900 leading-snug">Attendance Correction Request</h2>
+                <h2 className="text-lg font-bold text-gray-900 leading-snug">Detail Time Off</h2>
                 <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                  <HiOutlineClock className="w-3 h-3" /> Diajukan {fmtDateTime(correction.createdAt)}
+                  <HiOutlineClock className="w-3 h-3" /> Diajukan {fmtDateShort(request.createdAt)}
                 </p>
               </div>
               <button
@@ -359,21 +399,26 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
               </button>
             </div>
 
-            {/* Hero card */}
-            <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl px-5 py-4 flex items-center justify-between">
+            {/* Duration hero */}
+            <div className="mt-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl px-5 py-4 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0.5">Tanggal Koreksi</p>
-                <p className="text-xl font-bold text-amber-700">{fmtDateShort(correction.date)}</p>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Durasi</p>
+                <p className="text-2xl font-bold text-indigo-700">
+                  {request.requested ?? "—"} <span className="text-base font-semibold">hari</span>
+                </p>
+                <p className="text-xs text-indigo-400 mt-1">
+                  {fmtDateShort(request.startDate)} <span className="mx-1">→</span> {fmtDateShort(request.endDate)}
+                </p>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center">
-                <HiOutlineCalendar className="w-6 h-6 text-amber-500" />
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
+                <HiOutlineCalendar className="w-6 h-6 text-indigo-500" />
               </div>
             </div>
 
             {/* Notes banner */}
             {loadingApprovals ? (
               <div className="mt-3 flex items-center gap-2 px-1 py-1">
-                <div className="w-4 h-4 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin flex-shrink-0" />
+                <div className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin flex-shrink-0" />
                 <p className="text-xs text-gray-400">Memuat catatan approval…</p>
               </div>
             ) : processedRecord?.notes ? (
@@ -411,16 +456,22 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
             <Section title="Informasi Karyawan">
               <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl">
-                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm bg-amber-100 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm">
                   {emp?.photo ? (
-                    <img src={emp.photo} alt={correction.employeeName} className="w-full h-full object-cover" />
+                    <img src={emp.photo} alt={request.employeeName} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-amber-700 font-bold text-lg">{initials}</span>
+                    <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
+                      {initials}
+                    </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{correction.employeeName}</p>
-                  {correction.employeeCode && <p className="text-xs text-gray-500 mt-0.5">NIK: {correction.employeeCode}</p>}
+                  <p className="text-sm font-bold text-gray-900 truncate">{request.employeeName}</p>
+                  {(emp?.jobTitle || emp?.position) && (
+                    <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                      <HiOutlineBriefcase className="w-3 h-3" /> {emp.jobTitle || emp.position}
+                    </p>
+                  )}
                   {emp?.departmentName && (
                     <p className="flex items-center gap-1 text-xs text-gray-400">
                       <HiOutlineOfficeBuilding className="w-3 h-3" /> {emp.departmentName}
@@ -430,36 +481,38 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
               </div>
             </Section>
 
-            <Section title="Detail Koreksi">
+            <Section title="Detail Cuti">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoRow icon={HiOutlineCalendar} label="Tanggal" value={fmtDateShort(correction.date)} />
-                <InfoRow icon={HiOutlineShieldCheck} label="Tipe Koreksi" value={TYPE_LABELS[correction.type] || correction.type} />
-                {correction.oldCheckIn && <InfoRow icon={HiOutlineClock} label="Check-in Lama" value={fmtDateTime(correction.oldCheckIn)} />}
-                {correction.newCheckIn && <InfoRow icon={HiOutlineCheck} label="Check-in Baru" value={fmtDateTime(correction.newCheckIn)} />}
-                {correction.oldCheckOut && <InfoRow icon={HiOutlineClock} label="Check-out Lama" value={fmtDateTime(correction.oldCheckOut)} />}
-                {correction.newCheckOut && <InfoRow icon={HiOutlineCheck} label="Check-out Baru" value={fmtDateTime(correction.newCheckOut)} />}
+                <InfoRow icon={HiOutlineCalendar} label="Tipe Cuti"     value={request.timeOffTypeName} />
+                <InfoRow icon={HiOutlineClock}    label="Durasi"        value={request.requested ? `${request.requested} hari` : "—"} />
+                <InfoRow icon={HiOutlineCalendar} label="Tanggal Mulai" value={fmtDateShort(request.startDate)} />
+                <InfoRow icon={HiOutlineCalendar} label="Tanggal Akhir" value={fmtDateShort(request.endDate)} />
               </div>
             </Section>
 
-            {correction.description && (
-              <Section title="Alasan Pengajuan">
+            {request.reason && (
+              <Section title="Alasan">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <HiOutlineAnnotation className="w-4 h-4 text-blue-500" />
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HiOutlineAnnotation className="w-4 h-4 text-amber-500" />
                   </div>
-                  <div className="flex-1 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-                    <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap italic">
-                      "{correction.description}"
-                    </p>
+                  <div className="flex-1 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap">{request.reason}</p>
                   </div>
                 </div>
+              </Section>
+            )}
+
+            {request.attachmentUrl && (
+              <Section title="Attachment">
+                <AttachmentPreview url={request.attachmentUrl} />
               </Section>
             )}
 
             <Section title="Riwayat Approval">
               {loadingApprovals ? (
                 <div className="flex items-center gap-3 py-2">
-                  <div className="w-5 h-5 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin" />
+                  <div className="w-5 h-5 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
                   <p className="text-sm text-gray-400">Memuat riwayat approval…</p>
                 </div>
               ) : approvalRecords.length === 0 ? (
@@ -492,7 +545,7 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
                 </button>
                 <button
                   onClick={() => setActionModal("APPROVED")}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
                 >
                   <HiOutlineCheck className="w-4 h-4" /> Approve
                 </button>
@@ -507,18 +560,17 @@ const AttendanceCorrectionDetailModal = ({ correction, emp, onClose, onSuccess, 
         </div>
       </div>
 
-      {/* Action Modal */}
+      {/* Action Modal — z lebih tinggi dari detail modal */}
       {actionModal && (
         <ActionModal
-          correction={correction}
+          request={request}
           action={actionModal}
           onClose={() => setActionModal(null)}
           onSuccess={handleActionSuccess}
-          onRefresh={onRefresh}
         />
       )}
     </>
   );
 };
 
-export default AttendanceCorrectionDetailModal;
+export default TimeOffDetailModal;
