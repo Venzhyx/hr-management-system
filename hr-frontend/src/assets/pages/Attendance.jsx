@@ -1,13 +1,85 @@
+// PATCH INSTRUCTIONS untuk AttendanceDashboard.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Tambahkan 3 hal berikut:
+//
+//  1. Import CheckInModal
+//  2. State showCheckIn
+//  3. Tombol "Absen Hari Ini" di Header
+//  4. Mount <CheckInModal>
+//
+// Copy-paste perubahan di bawah ke file AttendanceDashboard.jsx Anda.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 1. Tambah import ini di bagian atas file ──────────────────────────────────
+//
+//   import CheckInModal from "../attendance/CheckInModal";
+//   import { HiOutlineFingerPrint } from "react-icons/hi";
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 2. Tambah state showCheckIn di dalam AttendanceDashboard ─────────────────
+//
+//   const [showCheckIn, setShowCheckIn] = useState(false);
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 3. Ganti bagian tombol Refresh di header dengan ini ──────────────────────
+//
+//   <button
+//     onClick={() => selectedEmployee?.id && loadAttendance(selectedEmployee.id)}
+//     disabled={!selectedEmployee}
+//     className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 disabled:opacity-40 transition-colors flex-shrink-0"
+//     title="Refresh"
+//   >
+//     <HiOutlineRefresh className="w-4 h-4" />
+//   </button>
+//   {/* TAMBAH: Tombol Absen Hari Ini */}
+//   <button
+//     onClick={() => {
+//       if (selectedEmployee?.id) setShowCheckIn(true);
+//     }}
+//     disabled={!selectedEmployee}
+//     className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-sm font-semibold shadow-sm"
+//     title="Absen Hari Ini"
+//   >
+//     <HiOutlineFingerPrint className="w-4 h-4" />
+//     <span className="hidden sm:inline">Absen Hari Ini</span>
+//   </button>
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 4. Tambah CheckInModal sebelum penutup </div> terakhir di return ──────────
+//
+//   <CheckInModal
+//     isOpen={showCheckIn}
+//     onClose={() => setShowCheckIn(false)}
+//     employee={selectedEmployee}
+//     onSuccess={(res) => {
+//       setShowCheckIn(false);
+//       // Refresh data attendance setelah absen berhasil
+//       if (selectedEmployee?.id) loadAttendance(selectedEmployee.id);
+//     }}
+//   />
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FILE LENGKAP DENGAN SEMUA PATCH SUDAH DITERAPKAN (siap copy-paste)
+// ══════════════════════════════════════════════════════════════════════════════
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   HiOutlineXCircle, HiOutlineCalendar, HiOutlineUser, HiOutlineOfficeBuilding,
   HiOutlineSearch, HiOutlineChevronDown, HiOutlineRefresh,
   HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineInformationCircle,
   HiOutlineDotsVertical, HiOutlineClipboardList, HiOutlineClock,
+  HiOutlineFingerPrint, // TAMBAH
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import { useAttendance } from "../../redux/hooks/useAttendance";
-import { useOvertime } from "../../redux/hooks/useOvertime"; // TAMBAH
+import { useOvertime } from "../../redux/hooks/useOvertime";
+import CheckInModal from "./CheckInModal"; // TAMBAH
 
 const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const monthFull   = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -219,7 +291,7 @@ const AttendanceSummary = ({ present, absent, late }) => {
   );
 };
 
-// ─── Activity Heatmap — full year ─────────────────────────────────────────────
+// ─── Activity Heatmap ─────────────────────────────────────────────────────────
 
 const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, availableYears }) => {
   const statusMap = useMemo(() => {
@@ -337,9 +409,7 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col" style={{ gap: "3px" }}>
                 {week.map((day, di) => {
-                  if (!day.inRange) {
-                    return <div key={di} style={{ height: "14px" }} />;
-                  }
+                  if (!day.inRange) return <div key={di} style={{ height: "14px" }} />;
                   const colorClass = day.status === "PRESENT"
                     ? "bg-green-500 hover:bg-green-600"
                     : day.status === "LATE"
@@ -459,9 +529,8 @@ const TimePopover = ({ att, status }) => {
   );
 };
 
-// ─── Monthly Calendar (DENGAN OVERTIME) ────────────────────────────────────────
+// ─── Monthly Calendar ─────────────────────────────────────────────────────────
 
-// FIX: tambah prop overtimeMap
 const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, selectedEmployee }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const today       = new Date();
@@ -474,13 +543,11 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const getDayAtt = (day) => {
+  const getDayAtt     = (day) => {
     if (!day) return null;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return attendanceMap[dateStr] || null;
   };
-
-  // TAMBAH: getDayOvertime
   const getDayOvertime = (day) => {
     if (!day) return null;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -499,8 +566,6 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
       <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
         <p className="text-sm font-semibold text-gray-700">{monthFull[month]} {year}</p>
       </div>
-
-      {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-gray-100">
         {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
           <div key={d} className={`text-left text-xs font-semibold px-3 py-2 border-r border-gray-100 last:border-r-0 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>
@@ -508,13 +573,11 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
           </div>
         ))}
       </div>
-
-      {/* Date rows */}
       {rows.map((row, ri) => (
         <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
           {row.map((day, ci) => {
             const att       = getDayAtt(day);
-            const overtime  = getDayOvertime(day); // TAMBAH
+            const overtime  = getDayOvertime(day);
             const status    = att?.status?.toUpperCase();
             const today_    = isToday(day);
             const weekend   = isWeekend(ci);
@@ -531,14 +594,12 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
               >
                 {day && (
                   <>
-                    {/* Date number + status badge */}
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className={`text-sm font-medium inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0
                         ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-600"}
                       `}>
                         {day}
                       </span>
-
                       {status ? (
                         <>
                           <StatusIcon status={status} />
@@ -552,34 +613,26 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
                         <span className="text-xs text-orange-300">Weekend</span>
                       ) : null}
 
-                      {/* TAMBAH: Overtime badge */}
                       {overtime && overtime.status === "APPROVED" && (
-                      <div className="relative group flex items-center gap-1 ml-1">
-                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                        <span className="text-xs text-blue-600 font-medium">Overtime</span>
-
-                        {/* TOOLTIP */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-20 transition-opacity text-[11px]">
-                          {overtime.startTime && overtime.endTime
-                            ? `${fmtTime(overtime.startTime)} - ${fmtTime(overtime.endTime)}`
-                            : `${overtime.duration || 0} jam`}
+                        <div className="relative group flex items-center gap-1 ml-1">
+                          <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                          <span className="text-xs text-blue-600 font-medium">Overtime</span>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-20 transition-opacity text-[11px]">
+                            {overtime.startTime && overtime.endTime
+                              ? `${fmtTime(overtime.startTime)} - ${fmtTime(overtime.endTime)}`
+                              : `${overtime.duration || 0} jam`}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                     </div>
 
-                    {/* Check-in/out time popover */}
                     {att && (att.checkIn || att.checkOut) && (
                       <TimePopover att={att} status={status} />
                     )}
 
-                    {/* 3-dot menu */}
                     <div className="absolute top-1.5 right-1.5">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenu(isMenuOpen ? null : dateStr);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setOpenMenu(isMenuOpen ? null : dateStr); }}
                         className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors
                           text-gray-400 hover:text-gray-600 hover:bg-gray-100
                           ${isMenuOpen ? "bg-gray-100 text-gray-600" : ""}
@@ -587,7 +640,6 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
                       >
                         <HiOutlineDotsVertical className="w-3.5 h-3.5" />
                       </button>
-
                       {isMenuOpen && (
                         <DateContextMenu
                           dateStr={dateStr}
@@ -618,19 +670,19 @@ const AttendanceDashboard = () => {
     loadEmployees, loadAttendance, dismissError, resetAttendance,
   } = useAttendance();
 
-  // TAMBAH: hook overtime
   const { overtimes, fetchOvertimes } = useOvertime({ role: "admin" });
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedYear, setSelectedYear]         = useState(new Date().getFullYear());
   const [calPage, setCalPage]                   = useState(0);
+  const [showCheckIn, setShowCheckIn]           = useState(false); // TAMBAH
 
   useEffect(() => { loadEmployees(); }, []);
 
   useEffect(() => {
     if (selectedEmployee?.id) {
       loadAttendance(selectedEmployee.id);
-      fetchOvertimes(); // TAMBAH: fetch overtime
+      fetchOvertimes();
     } else {
       resetAttendance();
     }
@@ -647,13 +699,10 @@ const AttendanceDashboard = () => {
     return map;
   }, [attendances]);
 
-  // TAMBAH: overtimeMap (hanya APPROVED)
   const overtimeMap = useMemo(() => {
     const map = {};
     (overtimes || []).forEach((ot) => {
-      if (ot.status === "APPROVED" && ot.date) {
-        map[ot.date] = ot;
-      }
+      if (ot.status === "APPROVED" && ot.date) map[ot.date] = ot;
     });
     return map;
   }, [overtimes]);
@@ -718,7 +767,7 @@ const AttendanceDashboard = () => {
             </h1>
             <p className="text-xs text-gray-400 mt-1">Jam kerja: 08:00 – 16:00 (Senin – Jumat)</p>
           </div>
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap">
             <EmployeeDropdown
               employees={employees}
               loadingEmployees={loadingEmployees}
@@ -732,6 +781,17 @@ const AttendanceDashboard = () => {
               title="Refresh"
             >
               <HiOutlineRefresh className="w-4 h-4" />
+            </button>
+
+            {/* ── TOMBOL ABSEN HARI INI ── */}
+            <button
+              onClick={() => { if (selectedEmployee?.id) setShowCheckIn(true); }}
+              disabled={!selectedEmployee}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-sm font-semibold shadow-sm"
+              title="Absen Hari Ini"
+            >
+              <HiOutlineFingerPrint className="w-4 h-4" />
+              <span className="hidden sm:inline">Absen Hari Ini</span>
             </button>
           </div>
         </div>
@@ -766,13 +826,8 @@ const AttendanceDashboard = () => {
 
       {attendances.length > 0 && (
         <>
-          {/* Summary + Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4 items-stretch">
-            <AttendanceSummary
-              present={summary.present}
-              absent={summary.absent}
-              late={summary.late}
-            />
+            <AttendanceSummary present={summary.present} absent={summary.absent} late={summary.late} />
             <ActivityHeatmap
               attendances={attendances}
               selectedYear={selectedYear}
@@ -781,7 +836,6 @@ const AttendanceDashboard = () => {
             />
           </div>
 
-          {/* Monthly Calendar */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
@@ -823,7 +877,7 @@ const AttendanceDashboard = () => {
                         year={y}
                         month={m - 1}
                         attendanceMap={attendanceMap}
-                        overtimeMap={overtimeMap} // TAMBAH
+                        overtimeMap={overtimeMap}
                         onNavigate={navigate}
                         selectedEmployee={selectedEmployee}
                       />
@@ -836,7 +890,6 @@ const AttendanceDashboard = () => {
         </>
       )}
 
-      {/* Empty state */}
       {attendances.length === 0 && !loading && selectedEmployee && (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <HiOutlineCalendar className="w-14 h-14 text-gray-300 mx-auto mb-4" />
@@ -852,6 +905,17 @@ const AttendanceDashboard = () => {
           ? `Data absensi: ${selectedEmployee.name} (${selectedEmployee.employeeIdentificationNumber}) · Jam kerja: 08:00 – 16:00`
           : "Pilih karyawan dari dropdown untuk melihat data absensi"}
       </p>
+
+      {/* ── CHECK-IN MODAL ── */}
+      <CheckInModal
+        isOpen={showCheckIn}
+        onClose={() => setShowCheckIn(false)}
+        employee={selectedEmployee}
+        onSuccess={() => {
+          setShowCheckIn(false);
+          if (selectedEmployee?.id) loadAttendance(selectedEmployee.id);
+        }}
+      />
     </div>
   );
 };
