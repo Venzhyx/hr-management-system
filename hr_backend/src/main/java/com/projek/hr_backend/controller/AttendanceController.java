@@ -1,8 +1,10 @@
 package com.projek.hr_backend.controller;
 
 import com.projek.hr_backend.dto.ApiResponse;
+import com.projek.hr_backend.dto.CheckInResponse;
 import com.projek.hr_backend.model.Attendance;
 import com.projek.hr_backend.service.AttendanceService;
+import com.projek.hr_backend.service.CheckInService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,11 +23,27 @@ import java.util.stream.Collectors;
 public class AttendanceController {
 
     private final AttendanceService service;
+    private final CheckInService checkInService;
 
     @PostMapping("/upload")
-    public ResponseEntity<ApiResponse<String>> uploadExcel(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<ApiResponse<String>> uploadExcel(
+            @RequestParam("file") MultipartFile file) throws IOException {
         service.importExcel(file);
         return ResponseEntity.ok(new ApiResponse<>(true, "Upload success", null));
+    }
+
+    @PostMapping("/check-in")
+    public ResponseEntity<ApiResponse<CheckInResponse>> checkIn(
+            @RequestParam Long employeeId,
+            @RequestParam MultipartFile photo,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) String attendanceType,
+            @RequestParam(required = false) String workType) throws IOException {
+        String type = attendanceType != null ? attendanceType : workType;
+        if (type == null) type = "WFO";
+        CheckInResponse response = checkInService.checkIn(employeeId, photo, latitude, longitude, type);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Check-in berhasil", response));
     }
 
     @GetMapping
@@ -35,23 +53,28 @@ public class AttendanceController {
     }
 
     @GetMapping("/employee/{id}")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAttendancesByEmployee(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAttendancesByEmployee(
+            @PathVariable Long id) {
         List<Attendance> attendances = service.getAttendancesByEmployee(id);
         return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", toDto(attendances)));
     }
 
-    // ── Helper: ubah Attendance → Map sederhana tanpa circular reference ──────
     private List<Map<String, Object>> toDto(List<Attendance> attendances) {
         return attendances.stream().map(att -> {
             Map<String, Object> map = new LinkedHashMap<>();
-            map.put("id",           att.getId());
-            map.put("date",         att.getDate());
-            map.put("checkIn",      att.getCheckIn());
-            map.put("checkOut",     att.getCheckOut());
-            map.put("status",       att.getStatus());
-            map.put("employeeCode", att.getEmployeeCode());
-            map.put("employeeName", att.getEmployeeName());
-            map.put("createdAt",    att.getCreatedAt());
+            map.put("id",             att.getId());
+            map.put("date",           att.getDate());
+            map.put("checkIn",        att.getCheckIn());
+            map.put("checkOut",       att.getCheckOut());
+            map.put("status",         att.getStatus());
+            map.put("employeeCode",   att.getEmployeeCode());
+            map.put("employeeName",   att.getEmployeeName());
+            map.put("photoPath",      att.getPhotoPath());
+            map.put("latitude",       att.getLatitude());
+            map.put("longitude",      att.getLongitude());
+            map.put("attendanceType", att.getAttendanceType());
+            map.put("source",         att.getSource());
+            map.put("createdAt",      att.getCreatedAt());
 
             if (att.getEmployee() != null) {
                 Map<String, Object> emp = new LinkedHashMap<>();

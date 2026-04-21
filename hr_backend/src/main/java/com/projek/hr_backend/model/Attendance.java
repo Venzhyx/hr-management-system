@@ -48,6 +48,23 @@ public class Attendance {
     @Column(name = "employee_name")
     private String employeeName;
 
+    @Column(name = "photo_path")
+    private String photoPath;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attendance_type", length = 10)
+    private AttendanceType attendanceType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", length = 10)
+    private AttendanceSource source = AttendanceSource.EXCEL;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
