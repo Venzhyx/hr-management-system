@@ -4,6 +4,7 @@ import com.projek.hr_backend.dto.CheckInResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.AttendanceRepository;
+import com.projek.hr_backend.repository.AttendanceSettingsRepository;
 import com.projek.hr_backend.repository.EmployeeSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class CheckInService {
 
     private final AttendanceRepository attendanceRepository;
     private final EmployeeSettingsRepository employeeSettingsRepository;
+    private final AttendanceSettingsRepository attendanceSettingsRepository;
 
     private static final String UPLOAD_DIR = "/app/uploads/attendance/";
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -60,15 +62,26 @@ public class CheckInService {
         // 4. Set waktu check-in
         LocalDateTime checkIn = LocalDateTime.now();
 
-        // 5. Tentukan status
+        // 5. Tentukan status dengan toleransi dari AttendanceSettings
         DayOfWeek day = today.getDayOfWeek();
         String status;
         if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
             status = "OFF";
-        } else if (checkIn.toLocalTime().isAfter(LocalTime.of(8, 0))) {
-            status = "LATE";
         } else {
-            status = "PRESENT";
+            // Ambil toleransi dari settings (default 0 menit jika belum dikonfigurasi)
+            int toleranceMinutes = attendanceSettingsRepository.findFirstByOrderByIdAsc()
+                    .map(s -> s.getToleranceTimeInFavorOfEmployee() != null
+                            ? s.getToleranceTimeInFavorOfEmployee() : 0)
+                    .orElse(0);
+
+            // Batas jam masuk = 08:00 + toleransi
+            LocalTime deadline = LocalTime.of(8, 0).plusMinutes(toleranceMinutes);
+
+            if (checkIn.toLocalTime().isAfter(deadline)) {
+                status = "LATE";
+            } else {
+                status = "PRESENT";
+            }
         }
 
         // 6. Buat dan simpan attendance
