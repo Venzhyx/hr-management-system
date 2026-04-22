@@ -1,6 +1,7 @@
 package com.projek.hr_backend.service;
 
 import com.projek.hr_backend.dto.CheckInResponse;
+import com.projek.hr_backend.dto.CheckOutResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.AttendanceRepository;
@@ -120,13 +121,84 @@ public class CheckInService {
         );
     }
 
+    @Transactional
+    public CheckOutResponse checkOut(Long employeeId, MultipartFile photo,
+                                     Double latitude, Double longitude) throws IOException {
+
+        // 1. Cari employee
+        EmployeeSettings settings = employeeSettingsRepository.findByEmployeeId(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+
+        Employee employee = settings.getEmployee();
+        if (employee == null) {
+            throw new ResourceNotFoundException("Employee data not found");
+        }
+
+        // 2. Cari attendance hari ini
+        LocalDate today = LocalDate.now();
+        Attendance attendance = attendanceRepository.findByEmployeeIdAndDate(employeeId, today)
+                .orElseThrow(() -> new IllegalStateException("Belum melakukan check-in hari ini"));
+
+        // 3. Validasi belum checkout
+        if (attendance.getCheckOut() != null) {
+            throw new IllegalStateException("Sudah melakukan check-out hari ini");
+        }
+
+        // 4. Simpan foto checkout
+        String photoPath = null;
+        if (photo != null && !photo.isEmpty()) {
+            photoPath = savePhoto(photo, employeeId, "checkout");
+        }
+
+        // 5. Set waktu checkout
+        LocalDateTime checkOut = LocalDateTime.now();
+
+        // 6. Ambil checkOutTime dari settings untuk validasi
+        AttendanceSettings attSettings = attendanceSettingsRepository
+                .findFirstByOrderByIdAsc().orElse(null);
+
+        LocalTime expectedCheckOut = (attSettings != null && attSettings.getCheckOutTime() != null)
+                ? attSettings.getCheckOutTime()
+                : LocalTime.of(17, 0);
+
+        // 7. Tentukan pesan berdasarkan waktu checkout
+        String message;
+        if (checkOut.toLocalTime().isBefore(expectedCheckOut)) {
+            message = "Checkout lebih awal dari jam kerja (" + expectedCheckOut + ")";
+        } else {
+            message = "Checkout berhasil";
+        }
+
+        // 8. Update attendance dengan foto dan GPS checkout
+        attendance.setCheckOut(checkOut);
+        if (photoPath != null) {
+            attendance.setCheckOutPhotoPath(photoPath);
+        }
+        if (latitude != null)  attendance.setCheckOutLatitude(latitude);
+        if (longitude != null) attendance.setCheckOutLongitude(longitude);
+        attendanceRepository.save(attendance);
+
+        return new CheckOutResponse(
+                "SUCCESS",
+                employee.getId(),
+                employee.getName(),
+                checkOut.format(TIME_FORMATTER),
+                attendance.getStatus(),
+                message
+        );
+    }
+
     private String savePhoto(MultipartFile photo, Long employeeId) throws IOException {
+        return savePhoto(photo, employeeId, "checkin");
+    }
+
+    private String savePhoto(MultipartFile photo, Long employeeId, String type) throws IOException {
         File uploadDir = new File(UPLOAD_DIR);
         if (!uploadDir.exists()) {
             uploadDir.mkdirs();
         }
 
-        String fileName = System.currentTimeMillis() + "_" + employeeId + ".jpg";
+        String fileName = System.currentTimeMillis() + "_" + employeeId + "_" + type + ".jpg";
         Path filePath = Paths.get(UPLOAD_DIR + fileName);
         Files.write(filePath, photo.getBytes());
 

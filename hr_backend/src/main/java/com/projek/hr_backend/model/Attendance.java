@@ -57,6 +57,15 @@ public class Attendance {
     @Column(name = "longitude")
     private Double longitude;
 
+    @Column(name = "check_out_photo_path")
+    private String checkOutPhotoPath;
+
+    @Column(name = "check_out_latitude")
+    private Double checkOutLatitude;
+
+    @Column(name = "check_out_longitude")
+    private Double checkOutLongitude;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "attendance_type", length = 10)
     private AttendanceType attendanceType;

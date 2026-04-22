@@ -2,7 +2,9 @@ package com.projek.hr_backend.controller;
 
 import com.projek.hr_backend.dto.ApiResponse;
 import com.projek.hr_backend.dto.CheckInResponse;
+import com.projek.hr_backend.dto.CheckOutResponse;
 import com.projek.hr_backend.model.Attendance;
+import com.projek.hr_backend.repository.AttendanceRepository;
 import com.projek.hr_backend.service.AttendanceService;
 import com.projek.hr_backend.service.CheckInService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class AttendanceController {
 
     private final AttendanceService service;
     private final CheckInService checkInService;
+    private final AttendanceRepository attendanceRepository;
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> uploadExcel(
@@ -46,6 +49,16 @@ public class AttendanceController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Check-in berhasil", response));
     }
 
+    @PostMapping("/check-out")
+    public ResponseEntity<ApiResponse<CheckOutResponse>> checkOut(
+            @RequestParam Long employeeId,
+            @RequestParam MultipartFile photo,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude) throws IOException {
+        CheckOutResponse response = checkInService.checkOut(employeeId, photo, latitude, longitude);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Check-out berhasil", response));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllAttendances() {
         List<Attendance> attendances = service.getAllAttendances();
@@ -59,6 +72,34 @@ public class AttendanceController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", toDto(attendances)));
     }
 
+    @GetMapping("/today/{employeeId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTodayAttendance(
+            @PathVariable Long employeeId) {
+        return attendanceRepository.findByEmployeeIdAndDate(employeeId, java.time.LocalDate.now())
+                .map(att -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("hasCheckedIn",  att.getCheckIn() != null);
+                    map.put("hasCheckedOut", att.getCheckOut() != null);
+                    map.put("checkIn",       att.getCheckIn());
+                    map.put("checkOut",      att.getCheckOut());
+                    map.put("status",        att.getStatus());
+                    map.put("attendanceType",att.getAttendanceType());
+                    map.put("source",        att.getSource());
+                    return ResponseEntity.ok(new ApiResponse<>(true, "Today attendance found", map));
+                })
+                .orElseGet(() -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("hasCheckedIn",  false);
+                    map.put("hasCheckedOut", false);
+                    map.put("checkIn",       null);
+                    map.put("checkOut",      null);
+                    map.put("status",        null);
+                    map.put("attendanceType",null);
+                    map.put("source",        null);
+                    return ResponseEntity.ok(new ApiResponse<>(true, "No attendance today", map));
+                });
+    }
+
     private List<Map<String, Object>> toDto(List<Attendance> attendances) {
         return attendances.stream().map(att -> {
             Map<String, Object> map = new LinkedHashMap<>();
@@ -69,11 +110,14 @@ public class AttendanceController {
             map.put("status",         att.getStatus());
             map.put("employeeCode",   att.getEmployeeCode());
             map.put("employeeName",   att.getEmployeeName());
-            map.put("photoPath",      att.getPhotoPath());
-            map.put("latitude",       att.getLatitude());
-            map.put("longitude",      att.getLongitude());
-            map.put("attendanceType", att.getAttendanceType());
-            map.put("source",         att.getSource());
+            map.put("photoPath",          att.getPhotoPath());
+            map.put("latitude",            att.getLatitude());
+            map.put("longitude",           att.getLongitude());
+            map.put("checkOutPhotoPath",   att.getCheckOutPhotoPath());
+            map.put("checkOutLatitude",    att.getCheckOutLatitude());
+            map.put("checkOutLongitude",   att.getCheckOutLongitude());
+            map.put("attendanceType",      att.getAttendanceType());
+            map.put("source",              att.getSource());
             map.put("createdAt",      att.getCreatedAt());
 
             if (att.getEmployee() != null) {
