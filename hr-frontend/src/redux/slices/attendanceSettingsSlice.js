@@ -18,9 +18,14 @@ export const fetchAttendanceSettings = createAsyncThunk(
 export const updateAttendanceSettings = createAsyncThunk(
   'attendanceSettings/update',
   async (payload, { rejectWithValue }) => {
-    // payload: { toleranceTimeInFavorOfEmployee: number, extraHoursValidation: string }
     try {
-      const res = await updateAttendanceSettingsAPI(payload);
+      // Konversi "HH:mm" → "HH:mm:ss" supaya backend (LocalTime) menerima dengan benar
+      const normalized = {
+        ...payload,
+        checkInTime:  payload.checkInTime  ? toLocalTime(payload.checkInTime)  : undefined,
+        checkOutTime: payload.checkOutTime ? toLocalTime(payload.checkOutTime) : undefined,
+      };
+      const res = await updateAttendanceSettingsAPI(normalized);
       return res.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -28,12 +33,20 @@ export const updateAttendanceSettings = createAsyncThunk(
   }
 );
 
+// "HH:mm" atau "HH:mm:ss" → "HH:mm:ss"
+const toLocalTime = (t) => {
+  if (!t) return undefined;
+  return t.length === 5 ? `${t}:00` : t;
+};
+
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS = {
   id:                             null,
   toleranceTimeInFavorOfEmployee: 0,
   extraHoursValidation:           'APPROVED_BY_MANAGER',
+  checkInTime:                    '08:00:00',
+  checkOutTime:                   '17:00:00',
   createdAt:                      null,
   updatedAt:                      null,
 };

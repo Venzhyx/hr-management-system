@@ -15,7 +15,7 @@ import { useAttendanceSettings } from '../../redux/hooks/useAttendanceSettings';
 import { useCalendarEvent }      from '../../redux/hooks/useCalendarEvent';
 import { useTimeOffType }        from '../../redux/hooks/useTimeOffType';
 
-// ─── Enums (match Java backend exactly) ───────────────────────────────────────
+// ─── Enums ────────────────────────────────────────────────────────────────────
 const EXTRA_HOURS_OPTIONS = [
   { value: 'AUTOMATICALLY_APPROVED', label: 'Automatically Approved' },
   { value: 'APPROVED_BY_MANAGER',    label: 'By Manager' },
@@ -33,7 +33,7 @@ const STATUS_OPTIONS = [
   { value: 'INACTIVE', label: 'Inactive' },
 ];
 
-// ─── Shared UI ─────────────────────────────────────────────────────────────────
+// ─── Shared UI ────────────────────────────────────────────────────────────────
 
 const Toggle = ({ checked, onChange }) => (
   <button type="button" onClick={() => onChange(!checked)}
@@ -108,6 +108,33 @@ const DeleteConfirm = ({ name, onConfirm, onCancel }) => (
   </div>
 );
 
+// ─── TimeSelect — selalu 24 jam (WIB) ─────────────────────────────────────────
+// value: "HH:mm" atau "HH:mm:ss" — onChange mengembalikan "HH:mm"
+
+const TimeSelect = ({ value, onChange }) => {
+  const parts  = (value || '00:00').split(':');
+  const hour   = parts[0] ?? '00';
+  const minute = parts[1] ?? '00';
+  return (
+    <div className="flex items-center gap-2">
+      <select value={hour} onChange={e => onChange(`${e.target.value}:${minute}`)}
+        className={`${inputCls} w-24 appearance-none`} style={selectStyle}>
+        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <span className="text-gray-500 font-semibold">:</span>
+      <select value={minute} onChange={e => onChange(`${hour}:${e.target.value}`)}
+        className={`${inputCls} w-24 appearance-none`} style={selectStyle}>
+        {['00', '15', '30', '45'].map(m => (
+          <option key={m} value={m}>{m}</option>
+        ))}
+      </select>
+      <span className="text-sm text-gray-500 font-medium">WIB</span>
+    </div>
+  );
+};
+
 // ─── Attendance Settings ───────────────────────────────────────────────────────
 
 const AttendanceSettings = ({ showToast }) => {
@@ -116,8 +143,8 @@ const AttendanceSettings = ({ showToast }) => {
   const [form, setForm] = useState({
     toleranceTimeInFavorOfEmployee: 0,
     extraHoursValidation:           'APPROVED_BY_MANAGER',
-    defaultCheckinTime:             '08:00',
-    defaultCheckoutTime:            '17:00',
+    checkInTime:                    '08:00',
+    checkOutTime:                   '17:00',
   });
 
   useEffect(() => { fetchSettings(); }, []);
@@ -126,8 +153,9 @@ const AttendanceSettings = ({ showToast }) => {
       setForm({
         toleranceTimeInFavorOfEmployee: settings.toleranceTimeInFavorOfEmployee ?? 0,
         extraHoursValidation:           settings.extraHoursValidation ?? 'APPROVED_BY_MANAGER',
-        defaultCheckinTime:             settings.defaultCheckinTime   ?? '08:00',
-        defaultCheckoutTime:            settings.defaultCheckoutTime  ?? '17:00',
+        // Backend kirim "HH:mm:ss" → ambil 5 karakter pertama untuk UI
+        checkInTime:  (settings.checkInTime  ?? '08:00:00').slice(0, 5),
+        checkOutTime: (settings.checkOutTime ?? '17:00:00').slice(0, 5),
       });
     }
   }, [settings]);
@@ -136,8 +164,8 @@ const AttendanceSettings = ({ showToast }) => {
     const result = await updateSettings({
       toleranceTimeInFavorOfEmployee: Number(form.toleranceTimeInFavorOfEmployee),
       extraHoursValidation:           form.extraHoursValidation,
-      defaultCheckinTime:             form.defaultCheckinTime,
-      defaultCheckoutTime:            form.defaultCheckoutTime,
+      checkInTime:                    form.checkInTime,   // slice konversi ke HH:mm:ss di Redux thunk
+      checkOutTime:                   form.checkOutTime,
     });
     if (result.meta.requestStatus === 'fulfilled') {
       showToast('Attendance settings saved', 'success');
@@ -146,24 +174,13 @@ const AttendanceSettings = ({ showToast }) => {
     }
   };
 
-  // Helper: split "HH:mm" → hour / minute
-  const checkinHour    = form.defaultCheckinTime.split(':')[0]  ?? '08';
-  const checkinMinute  = form.defaultCheckinTime.split(':')[1]  ?? '00';
-  const checkoutHour   = form.defaultCheckoutTime.split(':')[0] ?? '17';
-  const checkoutMinute = form.defaultCheckoutTime.split(':')[1] ?? '00';
-
-  const setCheckinHour    = (h) => setForm(f => ({ ...f, defaultCheckinTime:  `${h}:${checkinMinute}`  }));
-  const setCheckinMinute  = (m) => setForm(f => ({ ...f, defaultCheckinTime:  `${checkinHour}:${m}`   }));
-  const setCheckoutHour   = (h) => setForm(f => ({ ...f, defaultCheckoutTime: `${h}:${checkoutMinute}` }));
-  const setCheckoutMinute = (m) => setForm(f => ({ ...f, defaultCheckoutTime: `${checkoutHour}:${m}`  }));
-
   if (loading) return <SectionCard title="Attendance Settings"><Spinner /></SectionCard>;
   if (error)   return <SectionCard title="Attendance Settings"><ErrorBox message={error} onRetry={fetchSettings} /></SectionCard>;
 
   return (
     <div className="space-y-6">
 
-      {/* ── Extra Hours ─────────────────────────────────────────────────────── */}
+      {/* ── Extra Hours ──────────────────────────────────────────────────── */}
       <SectionCard title="Extra Hours">
         <div className="space-y-5 max-w-lg">
           <div>
@@ -193,147 +210,69 @@ const AttendanceSettings = ({ showToast }) => {
         </div>
       </SectionCard>
 
-      {/* ── Check-in Time ────────────────────────────────────────────────────── */}
-      <SectionCard title="Check-in Time">
-        <div className="space-y-5 max-w-lg">
+      {/* ── Work Hours ───────────────────────────────────────────────────── */}
+      <SectionCard title="Work Hours">
+        <div className="space-y-6 max-w-lg">
           <div>
             <label className={labelCls}>Default Check-in Time</label>
-            <div className="flex items-center gap-2">
-              <select
-                value={checkinHour}
-                onChange={e => setCheckinHour(e.target.value)}
-                className={`${inputCls} w-24 appearance-none`}
-                style={selectStyle}>
-                {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
-              <span className="text-gray-500 font-semibold text-base">:</span>
-              <select
-                value={checkinMinute}
-                onChange={e => setCheckinMinute(e.target.value)}
-                className={`${inputCls} w-24 appearance-none`}
-                style={selectStyle}>
-                {['00', '15', '30', '45'].map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <span className="text-sm text-gray-500 font-medium">WIB</span>
-            </div>
+            <TimeSelect value={form.checkInTime} onChange={v => setForm(f => ({ ...f, checkInTime: v }))} />
             <p className="mt-1 text-xs text-gray-400">
-              Jam ini menentukan kapan tombol absen berubah dari{' '}
-              <span className="font-medium text-gray-600">Check-out</span> menjadi{' '}
-              <span className="font-medium text-gray-600">Check-in</span> kembali (hari berikutnya).
+              Setelah jam ini, tombol absen akan tampil sebagai{' '}
+              <span className="font-medium text-gray-600">Check-in</span>.
             </p>
           </div>
-        </div>
-      </SectionCard>
-
-      {/* ── Checkout Time ────────────────────────────────────────────────────── */}
-      <SectionCard title="Checkout Time">
-        <div className="space-y-5 max-w-lg">
           <div>
-            <label className={labelCls}>Default Checkout Time</label>
-            <div className="flex items-center gap-2">
-              {/* Hour select — 00–23 */}
-              <select
-                value={checkoutHour}
-                onChange={e => setCheckoutHour(e.target.value)}
-                className={`${inputCls} w-24 appearance-none`}
-                style={selectStyle}>
-                {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
-              <span className="text-gray-500 font-semibold text-base">:</span>
-              {/* Minute select — 00, 15, 30, 45 */}
-              <select
-                value={checkoutMinute}
-                onChange={e => setCheckoutMinute(e.target.value)}
-                className={`${inputCls} w-24 appearance-none`}
-                style={selectStyle}>
-                {['00', '15', '30', '45'].map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <span className="text-sm text-gray-500 font-medium">WIB</span>
-            </div>
+            <label className={labelCls}>Default Check-out Time</label>
+            <TimeSelect value={form.checkOutTime} onChange={v => setForm(f => ({ ...f, checkOutTime: v }))} />
             <p className="mt-1 text-xs text-gray-400">
-              Jam ini menentukan kapan tombol absen berubah dari{' '}
-              <span className="font-medium text-gray-600">Check-in</span> menjadi{' '}
+              Setelah jam ini, tombol absen akan berubah menjadi{' '}
               <span className="font-medium text-gray-600">Check-out</span>.
             </p>
           </div>
         </div>
       </SectionCard>
 
-      {/* ── Save ─────────────────────────────────────────────────────────────── */}
+      {/* ── Save ─────────────────────────────────────────────────────────── */}
       <div className="flex justify-start">
         <button onClick={handleSave} disabled={saving}
           className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50">
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
-
     </div>
   );
 };
 
-// ─── Calendar Settings ─────────────────────────────────────────────────────────
+// ─── Calendar Settings ────────────────────────────────────────────────────────
 
 const CalendarSettings = ({ showToast }) => {
   const { events, loading, saving, error, fetchEvents, createEvent, updateEvent, deleteEvent } = useCalendarEvent();
-
-  const [showModal,    setShowModal]    = useState(false);
-  const [editEvent,    setEditEvent]    = useState(null);
+  const [showModal, setShowModal]    = useState(false);
+  const [editEvent, setEditEvent]    = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ eventDate: '', eventName: '', eventType: 'NATIONAL_HOLIDAY' });
 
   useEffect(() => { fetchEvents(); }, []);
 
-  const openAdd = () => {
-    setEditEvent(null);
-    setForm({ eventDate: '', eventName: '', eventType: 'NATIONAL_HOLIDAY' });
-    setShowModal(true);
-  };
-  const openEdit = (ev) => {
-    setEditEvent(ev);
-    setForm({ eventDate: ev.eventDate ?? '', eventName: ev.eventName ?? '', eventType: ev.eventType ?? 'NATIONAL_HOLIDAY' });
-    setShowModal(true);
-  };
+  const openAdd  = () => { setEditEvent(null); setForm({ eventDate: '', eventName: '', eventType: 'NATIONAL_HOLIDAY' }); setShowModal(true); };
+  const openEdit = (ev) => { setEditEvent(ev); setForm({ eventDate: ev.eventDate ?? '', eventName: ev.eventName ?? '', eventType: ev.eventType ?? 'NATIONAL_HOLIDAY' }); setShowModal(true); };
 
   const handleSave = async () => {
     if (!form.eventDate || !form.eventName.trim()) return;
-    const result = editEvent
-      ? await updateEvent(editEvent.id, form)
-      : await createEvent(form);
-    if (result.meta.requestStatus === 'fulfilled') {
-      showToast(editEvent ? 'Event updated' : 'Event added', 'success');
-      setShowModal(false);
-    } else {
-      showToast(result.payload || 'Failed to save', 'error');
-    }
+    const result = editEvent ? await updateEvent(editEvent.id, form) : await createEvent(form);
+    if (result.meta.requestStatus === 'fulfilled') { showToast(editEvent ? 'Event updated' : 'Event added', 'success'); setShowModal(false); }
+    else showToast(result.payload || 'Failed to save', 'error');
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const result = await deleteEvent(deleteTarget.id);
-    if (result.meta.requestStatus === 'fulfilled') {
-      showToast('Event deleted', 'success');
-      setDeleteTarget(null);
-    } else {
-      showToast(result.payload || 'Failed to delete', 'error');
-    }
+    if (result.meta.requestStatus === 'fulfilled') { showToast('Event deleted', 'success'); setDeleteTarget(null); }
+    else showToast(result.payload || 'Failed to delete', 'error');
   };
 
-  const TYPE_BADGE = {
-    NATIONAL_HOLIDAY:     'bg-red-100 text-red-700',
-    COLLECTIVE_LEAVE_DAY: 'bg-blue-100 text-blue-700',
-  };
-
-  const formatDate = (d) => d
-    ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '-';
+  const TYPE_BADGE = { NATIONAL_HOLIDAY: 'bg-red-100 text-red-700', COLLECTIVE_LEAVE_DAY: 'bg-blue-100 text-blue-700' };
+  const formatDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
   return (
     <>
@@ -341,8 +280,7 @@ const CalendarSettings = ({ showToast }) => {
         {loading ? <Spinner /> : error ? <ErrorBox message={error} onRetry={fetchEvents} /> : (
           <>
             <div className="flex justify-end mb-4">
-              <button onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+              <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
                 <HiOutlinePlus className="w-4 h-4" /> Add Event
               </button>
             </div>
@@ -350,32 +288,31 @@ const CalendarSettings = ({ showToast }) => {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Event Name</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    {['Date','Event Name','Type','Actions'].map((h, i) => (
+                      <th key={h} className={`px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider ${i === 3 ? 'text-right' : 'text-left'}`}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {events.length === 0 ? (
-                    <tr><td colSpan={4} className="py-10 text-center text-gray-400">No events. Click "Add Event" to get started.</td></tr>
-                  ) : events.map(ev => (
-                    <tr key={ev.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3 whitespace-nowrap text-gray-700 font-medium">{formatDate(ev.eventDate)}</td>
-                      <td className="px-5 py-3 text-gray-800">{ev.eventName}</td>
-                      <td className="px-5 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${TYPE_BADGE[ev.eventType] || 'bg-gray-100 text-gray-600'}`}>
-                          {EVENT_TYPE_OPTIONS.find(o => o.value === ev.eventType)?.label || ev.eventType}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(ev)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><HiOutlinePencil className="w-4 h-4" /></button>
-                          <button onClick={() => setDeleteTarget(ev)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><HiOutlineTrash className="w-4 h-4" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {events.length === 0
+                    ? <tr><td colSpan={4} className="py-10 text-center text-gray-400">No events. Click "Add Event" to get started.</td></tr>
+                    : events.map(ev => (
+                      <tr key={ev.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3 whitespace-nowrap text-gray-700 font-medium">{formatDate(ev.eventDate)}</td>
+                        <td className="px-5 py-3 text-gray-800">{ev.eventName}</td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${TYPE_BADGE[ev.eventType] || 'bg-gray-100 text-gray-600'}`}>
+                            {EVENT_TYPE_OPTIONS.find(o => o.value === ev.eventType)?.label || ev.eventType}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => openEdit(ev)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><HiOutlinePencil className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteTarget(ev)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><HiOutlineTrash className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -391,29 +328,18 @@ const CalendarSettings = ({ showToast }) => {
               <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"><HiOutlineX className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div>
-                <label className={labelCls}>Date</label>
-                <input type="date" value={form.eventDate}
-                  onChange={e => setForm(f => ({ ...f, eventDate: e.target.value }))} className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Event Name</label>
-                <input type="text" placeholder="e.g. Independence Day" value={form.eventName}
-                  onChange={e => setForm(f => ({ ...f, eventName: e.target.value }))} className={inputCls} />
-              </div>
+              <div><label className={labelCls}>Date</label><input type="date" value={form.eventDate} onChange={e => setForm(f => ({ ...f, eventDate: e.target.value }))} className={inputCls} /></div>
+              <div><label className={labelCls}>Event Name</label><input type="text" placeholder="e.g. Independence Day" value={form.eventName} onChange={e => setForm(f => ({ ...f, eventName: e.target.value }))} className={inputCls} /></div>
               <div>
                 <label className={labelCls}>Type</label>
-                <select value={form.eventType}
-                  onChange={e => setForm(f => ({ ...f, eventType: e.target.value }))}
-                  className={`${inputCls} appearance-none`} style={selectStyle}>
+                <select value={form.eventType} onChange={e => setForm(f => ({ ...f, eventType: e.target.value }))} className={`${inputCls} appearance-none`} style={selectStyle}>
                   {EVENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
-              <button onClick={handleSave} disabled={!form.eventDate || !form.eventName.trim() || saving}
-                className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+              <button onClick={handleSave} disabled={!form.eventDate || !form.eventName.trim() || saving} className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 shadow-sm">
                 {saving ? 'Saving…' : editEvent ? 'Save Changes' : 'Add Event'}
               </button>
             </div>
@@ -425,58 +351,39 @@ const CalendarSettings = ({ showToast }) => {
   );
 };
 
-// ─── Time Off Settings ─────────────────────────────────────────────────────────
+// ─── Time Off Settings ────────────────────────────────────────────────────────
 
 const TimeOffSettings = ({ showToast }) => {
   const { types, loading, saving, error, fetchTypes, createType, updateType, deleteType } = useTimeOffType();
-
-  const [showModal,    setShowModal]    = useState(false);
-  const [editType,     setEditType]     = useState(null);
+  const [showModal, setShowModal]    = useState(false);
+  const [editType, setEditType]      = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name: '', type: 'LEAVE', maxDaysPerSubmission: 1, status: 'ACTIVE' });
 
   useEffect(() => { fetchTypes(); }, []);
 
-  const openAdd = () => {
-    setEditType(null);
-    setForm({ name: '', type: 'LEAVE', maxDaysPerSubmission: 1, status: 'ACTIVE' });
-    setShowModal(true);
-  };
-  const openEdit = (t) => {
-    setEditType(t);
-    setForm({ name: t.name ?? '', type: t.type ?? 'LEAVE', maxDaysPerSubmission: t.maxDaysPerSubmission ?? 1, status: t.status ?? 'ACTIVE' });
-    setShowModal(true);
-  };
+  const openAdd  = () => { setEditType(null); setForm({ name: '', type: 'LEAVE', maxDaysPerSubmission: 1, status: 'ACTIVE' }); setShowModal(true); };
+  const openEdit = (t) => { setEditType(t); setForm({ name: t.name ?? '', type: t.type ?? 'LEAVE', maxDaysPerSubmission: t.maxDaysPerSubmission ?? 1, status: t.status ?? 'ACTIVE' }); setShowModal(true); };
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
     const payload = { name: form.name.trim(), type: form.type, maxDaysPerSubmission: Number(form.maxDaysPerSubmission), status: form.status };
-    const result = editType ? await updateType(editType.id, payload) : await createType(payload);
-    if (result.meta.requestStatus === 'fulfilled') {
-      showToast(editType ? 'Time off type updated' : 'Time off type added', 'success');
-      setShowModal(false);
-    } else {
-      showToast(result.payload || 'Failed to save', 'error');
-    }
+    const result  = editType ? await updateType(editType.id, payload) : await createType(payload);
+    if (result.meta.requestStatus === 'fulfilled') { showToast(editType ? 'Time off type updated' : 'Time off type added', 'success'); setShowModal(false); }
+    else showToast(result.payload || 'Failed to save', 'error');
   };
 
   const handleToggleStatus = async (t) => {
     const newStatus = t.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const result = await updateType(t.id, { name: t.name, type: t.type, maxDaysPerSubmission: t.maxDaysPerSubmission, status: newStatus });
-    if (result.meta.requestStatus === 'rejected') {
-      showToast(result.payload || 'Failed to update status', 'error');
-    }
+    if (result.meta.requestStatus === 'rejected') showToast(result.payload || 'Failed to update status', 'error');
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const result = await deleteType(deleteTarget.id);
-    if (result.meta.requestStatus === 'fulfilled') {
-      showToast('Time off type deleted', 'success');
-      setDeleteTarget(null);
-    } else {
-      showToast(result.payload || 'Failed to delete', 'error');
-    }
+    if (result.meta.requestStatus === 'fulfilled') { showToast('Time off type deleted', 'success'); setDeleteTarget(null); }
+    else showToast(result.payload || 'Failed to delete', 'error');
   };
 
   return (
@@ -485,8 +392,7 @@ const TimeOffSettings = ({ showToast }) => {
         {loading ? <Spinner /> : error ? <ErrorBox message={error} onRetry={fetchTypes} /> : (
           <>
             <div className="flex justify-end mb-4">
-              <button onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+              <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
                 <HiOutlinePlus className="w-4 h-4" /> Add Type
               </button>
             </div>
@@ -494,41 +400,39 @@ const TimeOffSettings = ({ showToast }) => {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Time Off Type</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Max Days</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    {['Time Off Type','Type','Max Days','Status','Actions'].map((h, i) => (
+                      <th key={h} className={`px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {types.length === 0 ? (
-                    <tr><td colSpan={5} className="py-10 text-center text-gray-400">No time off types. Click "Add Type" to get started.</td></tr>
-                  ) : types.map(t => (
-                    <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3 font-medium text-gray-800">{t.name}</td>
-                      <td className="px-5 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${t.type === 'LEAVE' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {TIME_OFF_TYPE_OPTIONS.find(o => o.value === t.type)?.label || t.type}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-gray-600">{t.maxDaysPerSubmission} days</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <Toggle checked={t.status === 'ACTIVE'} onChange={() => handleToggleStatus(t)} />
-                          <span className={`text-xs font-medium ${t.status === 'ACTIVE' ? 'text-green-600' : 'text-gray-400'}`}>
-                            {t.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  {types.length === 0
+                    ? <tr><td colSpan={5} className="py-10 text-center text-gray-400">No time off types. Click "Add Type" to get started.</td></tr>
+                    : types.map(t => (
+                      <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-3 font-medium text-gray-800">{t.name}</td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${t.type === 'LEAVE' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {TIME_OFF_TYPE_OPTIONS.find(o => o.value === t.type)?.label || t.type}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(t)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><HiOutlinePencil className="w-4 h-4" /></button>
-                          <button onClick={() => setDeleteTarget(t)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><HiOutlineTrash className="w-4 h-4" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-5 py-3 text-gray-600">{t.maxDaysPerSubmission} days</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <Toggle checked={t.status === 'ACTIVE'} onChange={() => handleToggleStatus(t)} />
+                            <span className={`text-xs font-medium ${t.status === 'ACTIVE' ? 'text-green-600' : 'text-gray-400'}`}>
+                              {t.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => openEdit(t)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><HiOutlinePencil className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteTarget(t)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><HiOutlineTrash className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -544,36 +448,24 @@ const TimeOffSettings = ({ showToast }) => {
               <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"><HiOutlineX className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div>
-                <label className={labelCls}>Time Off Type Name</label>
-                <input type="text" placeholder="e.g. Annual Leave" value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} />
-              </div>
+              <div><label className={labelCls}>Time Off Type Name</label><input type="text" placeholder="e.g. Annual Leave" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} /></div>
               <div>
                 <label className={labelCls}>Type</label>
-                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                  className={`${inputCls} appearance-none`} style={selectStyle}>
+                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className={`${inputCls} appearance-none`} style={selectStyle}>
                   {TIME_OFF_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
-              <div>
-                <label className={labelCls}>Max Days / Submission</label>
-                <input type="number" min={1} max={365} value={form.maxDaysPerSubmission}
-                  onChange={e => setForm(f => ({ ...f, maxDaysPerSubmission: e.target.value }))}
-                  className={`${inputCls} w-40`} />
-              </div>
+              <div><label className={labelCls}>Max Days / Submission</label><input type="number" min={1} max={365} value={form.maxDaysPerSubmission} onChange={e => setForm(f => ({ ...f, maxDaysPerSubmission: e.target.value }))} className={`${inputCls} w-40`} /></div>
               <div>
                 <label className={labelCls}>Status</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                  className={`${inputCls} w-40 appearance-none`} style={selectStyle}>
+                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={`${inputCls} w-40 appearance-none`} style={selectStyle}>
                   {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
-              <button onClick={handleSave} disabled={!form.name.trim() || saving}
-                className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+              <button onClick={handleSave} disabled={!form.name.trim() || saving} className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 shadow-sm">
                 {saving ? 'Saving…' : editType ? 'Save Changes' : 'Add Type'}
               </button>
             </div>
@@ -585,7 +477,7 @@ const TimeOffSettings = ({ showToast }) => {
   );
 };
 
-// ─── Main Settings Page ────────────────────────────────────────────────────────
+// ─── Main Settings Page ───────────────────────────────────────────────────────
 
 const MENU = [
   { key: 'attendance', label: 'Attendance', icon: <HiOutlineClock className="w-5 h-5" /> },
@@ -609,7 +501,6 @@ export default function Settings() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Settings Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-white border-r border-gray-200 pt-6">
         <p className="px-5 mb-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Settings</p>
         <nav className="px-3 space-y-0.5">
@@ -624,8 +515,6 @@ export default function Settings() {
           ))}
         </nav>
       </aside>
-
-      {/* Main Content */}
       <main className="flex-1 px-8 py-6 overflow-y-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">{TITLES[active]}</h1>
@@ -635,7 +524,6 @@ export default function Settings() {
         {active === 'calendar'   && <CalendarSettings  showToast={showToast} />}
         {active === 'timeoff'    && <TimeOffSettings   showToast={showToast} />}
       </main>
-
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );

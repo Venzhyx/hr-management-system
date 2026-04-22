@@ -1,85 +1,17 @@
-// PATCH INSTRUCTIONS untuk AttendanceDashboard.jsx
-// ─────────────────────────────────────────────────────────────────────────────
-// Tambahkan 3 hal berikut:
-//
-//  1. Import CheckInModal
-//  2. State showCheckIn
-//  3. Tombol "Absen Hari Ini" di Header
-//  4. Mount <CheckInModal>
-//
-// Copy-paste perubahan di bawah ke file AttendanceDashboard.jsx Anda.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── 1. Tambah import ini di bagian atas file ──────────────────────────────────
-//
-//   import CheckInModal from "../attendance/CheckInModal";
-//   import { HiOutlineFingerPrint } from "react-icons/hi";
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── 2. Tambah state showCheckIn di dalam AttendanceDashboard ─────────────────
-//
-//   const [showCheckIn, setShowCheckIn] = useState(false);
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── 3. Ganti bagian tombol Refresh di header dengan ini ──────────────────────
-//
-//   <button
-//     onClick={() => selectedEmployee?.id && loadAttendance(selectedEmployee.id)}
-//     disabled={!selectedEmployee}
-//     className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 disabled:opacity-40 transition-colors flex-shrink-0"
-//     title="Refresh"
-//   >
-//     <HiOutlineRefresh className="w-4 h-4" />
-//   </button>
-//   {/* TAMBAH: Tombol Absen Hari Ini */}
-//   <button
-//     onClick={() => {
-//       if (selectedEmployee?.id) setShowCheckIn(true);
-//     }}
-//     disabled={!selectedEmployee}
-//     className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-sm font-semibold shadow-sm"
-//     title="Absen Hari Ini"
-//   >
-//     <HiOutlineFingerPrint className="w-4 h-4" />
-//     <span className="hidden sm:inline">Absen Hari Ini</span>
-//   </button>
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── 4. Tambah CheckInModal sebelum penutup </div> terakhir di return ──────────
-//
-//   <CheckInModal
-//     isOpen={showCheckIn}
-//     onClose={() => setShowCheckIn(false)}
-//     employee={selectedEmployee}
-//     onSuccess={(res) => {
-//       setShowCheckIn(false);
-//       // Refresh data attendance setelah absen berhasil
-//       if (selectedEmployee?.id) loadAttendance(selectedEmployee.id);
-//     }}
-//   />
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// FILE LENGKAP DENGAN SEMUA PATCH SUDAH DITERAPKAN (siap copy-paste)
-// ══════════════════════════════════════════════════════════════════════════════
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   HiOutlineXCircle, HiOutlineCalendar, HiOutlineUser, HiOutlineOfficeBuilding,
   HiOutlineSearch, HiOutlineChevronDown, HiOutlineRefresh,
   HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineInformationCircle,
   HiOutlineDotsVertical, HiOutlineClipboardList, HiOutlineClock,
-  HiOutlineFingerPrint, // TAMBAH
+  HiOutlineFingerPrint, HiOutlineLogout,
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
-import { useAttendance } from "../../redux/hooks/useAttendance";
-import { useOvertime } from "../../redux/hooks/useOvertime";
-import CheckInModal from "./CheckInModal"; // TAMBAH
+import { useAttendance }         from "../../redux/hooks/useAttendance";
+import { useOvertime }           from "../../redux/hooks/useOvertime";
+import { useAttendanceSettings } from "../../redux/hooks/useAttendanceSettings";
+import CheckInModal  from "./CheckInModal";
+import CheckOutModal from "./CheckOutModal";
 
 const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const monthFull   = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -93,6 +25,28 @@ const fmtTime = (t) => {
   const d = new Date(t);
   if (isNaN(d)) return "-";
   return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+};
+
+// ─── Helper: apakah sekarang sudah melewati jam checkOutTime? ─────────────────
+// checkInTime & checkOutTime dari backend: "HH:mm:ss" atau "HH:mm"
+// Logika:
+//   - Sebelum checkOutTime  → tampilkan tombol Check-in
+//   - Setelah checkOutTime  → tampilkan tombol Check-out
+
+const parseHHmm = (timeStr) => {
+  if (!timeStr) return null;
+  const [h, m] = timeStr.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+  return { hour: h, minute: m };
+};
+
+const isAfterCheckout = (checkOutTimeStr) => {
+  const parsed = parseHHmm(checkOutTimeStr);
+  if (!parsed) return false;
+  const now = new Date();
+  const cutoff = new Date();
+  cutoff.setHours(parsed.hour, parsed.minute, 0, 0);
+  return now >= cutoff;
 };
 
 // ─── Status Icon ──────────────────────────────────────────────────────────────
@@ -369,15 +323,7 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
 
       <div className="p-4 overflow-x-auto">
         <div className="flex" style={{ paddingLeft: "28px" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${totalWeeks}, 1fr)`,
-              gap: "3px",
-              width: "100%",
-              minWidth: `${totalWeeks * 14}px`,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${totalWeeks}, 1fr)`, gap: "3px", width: "100%", minWidth: `${totalWeeks * 14}px` }}>
             {weeks.map((_, wi) => {
               const entry = Object.entries(monthPositions).find(([, v]) => v === wi);
               return (
@@ -397,15 +343,7 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
               </div>
             ))}
           </div>
-
-          <div
-            style={{
-              flex: 1,
-              display: "grid",
-              gridTemplateColumns: `repeat(${totalWeeks}, 1fr)`,
-              gap: "3px",
-            }}
-          >
+          <div style={{ flex: 1, display: "grid", gridTemplateColumns: `repeat(${totalWeeks}, 1fr)`, gap: "3px" }}>
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col" style={{ gap: "3px" }}>
                 {week.map((day, di) => {
@@ -424,11 +362,7 @@ const ActivityHeatmap = ({ attendances, selectedYear, setSelectedYear, available
                     : "Tidak ada data";
 
                   return (
-                    <div
-                      key={di}
-                      className={`rounded-sm cursor-pointer group relative transition-colors ${colorClass}`}
-                      style={{ height: "14px" }}
-                    >
+                    <div key={di} className={`rounded-sm cursor-pointer group relative transition-colors ${colorClass}`} style={{ height: "14px" }}>
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity" style={{ fontSize: "11px" }}>
                         {day.dateStr} · {sLabel}
                       </div>
@@ -459,51 +393,26 @@ const DateContextMenu = ({ dateStr, attendanceData, selectedEmployee, onClose, o
 
   const handleCorrection = () => {
     onClose();
-    onNavigate('/attendance/correction', {
-      state: {
-        selectedDate: dateStr,
-        attendanceData: attendanceData || null,
-        employeeId: selectedEmployee?.id ?? null,
-        employeeName: selectedEmployee?.name ?? null,
-        openModal: true,
-        action: 'correction',
-      }
+    onNavigate("/attendance/correction", {
+      state: { selectedDate: dateStr, attendanceData: attendanceData || null, employeeId: selectedEmployee?.id ?? null, employeeName: selectedEmployee?.name ?? null, openModal: true, action: "correction" },
     });
   };
 
   const handleOvertime = () => {
     onClose();
-    onNavigate('/attendance/overtime', {
-      state: {
-        selectedDate: dateStr,
-        attendanceData: attendanceData || null,
-        employeeId: selectedEmployee?.id ?? null,
-        employeeName: selectedEmployee?.name ?? null,
-        openModal: true,
-        action: 'overtime',
-      }
+    onNavigate("/attendance/overtime", {
+      state: { selectedDate: dateStr, attendanceData: attendanceData || null, employeeId: selectedEmployee?.id ?? null, employeeName: selectedEmployee?.name ?? null, openModal: true, action: "overtime" },
     });
   };
 
   return (
-    <div
-      ref={menuRef}
-      className="absolute top-7 right-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
-      style={{ minWidth: "180px" }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={handleCorrection}
-        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
-      >
+    <div ref={menuRef} className="absolute top-7 right-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style={{ minWidth: "180px" }} onClick={(e) => e.stopPropagation()}>
+      <button onClick={handleCorrection} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
         <HiOutlineClipboardList className="w-4 h-4 text-gray-400 flex-shrink-0" />
         Attendance correction
       </button>
       <div className="border-t border-gray-100" />
-      <button
-        onClick={handleOvertime}
-        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
-      >
+      <button onClick={handleOvertime} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
         <HiOutlineClock className="w-4 h-4 text-gray-400 flex-shrink-0" />
         Overtime
       </button>
@@ -516,10 +425,7 @@ const DateContextMenu = ({ dateStr, attendanceData, selectedEmployee, onClose, o
 const TimePopover = ({ att, status }) => {
   if (!att?.checkIn && !att?.checkOut) return null;
   return (
-    <div
-      className="absolute bottom-full left-0 mb-1.5 z-30 px-3 py-2 bg-gray-900 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity shadow-xl"
-      style={{ fontSize: "11px" }}
-    >
+    <div className="absolute bottom-full left-0 mb-1.5 z-30 px-3 py-2 bg-gray-900 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/cell:opacity-100 pointer-events-none transition-opacity shadow-xl" style={{ fontSize: "11px" }}>
       <p className="font-semibold mb-0.5" style={{ fontSize: "11px" }}>
         {status === "PRESENT" ? "Attend" : status === "LATE" ? "Late" : status === "ABSENT" ? "Non Present" : ""}
       </p>
@@ -543,20 +449,11 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const getDayAtt     = (day) => {
-    if (!day) return null;
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return attendanceMap[dateStr] || null;
-  };
-  const getDayOvertime = (day) => {
-    if (!day) return null;
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return overtimeMap?.[dateStr] || null;
-  };
-
-  const isToday    = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-  const isWeekend  = (idx) => idx % 7 === 5 || idx % 7 === 6;
-  const getDateStr = (day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const getDayAtt      = (day) => { if (!day) return null; const ds = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`; return attendanceMap[ds] || null; };
+  const getDayOvertime = (day) => { if (!day) return null; const ds = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`; return overtimeMap?.[ds] || null; };
+  const isToday        = (day) => day && today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+  const isWeekend      = (idx) => idx % 7 === 5 || idx % 7 === 6;
+  const getDateStr     = (day) => `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 
   const rows = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
@@ -568,44 +465,32 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
       </div>
       <div className="grid grid-cols-7 border-b border-gray-100">
         {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
-          <div key={d} className={`text-left text-xs font-semibold px-3 py-2 border-r border-gray-100 last:border-r-0 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>
-            {d}
-          </div>
+          <div key={d} className={`text-left text-xs font-semibold px-3 py-2 border-r border-gray-100 last:border-r-0 ${i >= 5 ? "text-orange-400" : "text-gray-500"}`}>{d}</div>
         ))}
       </div>
       {rows.map((row, ri) => (
         <div key={ri} className={`grid grid-cols-7 ${ri < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
           {row.map((day, ci) => {
-            const att       = getDayAtt(day);
-            const overtime  = getDayOvertime(day);
-            const status    = att?.status?.toUpperCase();
-            const today_    = isToday(day);
-            const weekend   = isWeekend(ci);
-            const dateStr   = day ? getDateStr(day) : null;
+            const att        = getDayAtt(day);
+            const overtime   = getDayOvertime(day);
+            const status     = att?.status?.toUpperCase();
+            const today_     = isToday(day);
+            const weekend    = isWeekend(ci);
+            const dateStr    = day ? getDateStr(day) : null;
             const isMenuOpen = openMenu === dateStr;
 
             return (
-              <div
-                key={ci}
-                className={`group/cell min-h-[68px] px-2 py-2 border-r border-gray-100 last:border-r-0 relative
-                  ${!day ? "bg-gray-50/50" : ""}
-                  ${weekend && day ? "bg-orange-50/30" : ""}
-                `}
-              >
+              <div key={ci} className={`group/cell min-h-[68px] px-2 py-2 border-r border-gray-100 last:border-r-0 relative ${!day ? "bg-gray-50/50" : ""} ${weekend && day ? "bg-orange-50/30" : ""}`}>
                 {day && (
                   <>
                     <div className="flex items-center gap-1 flex-wrap">
-                      <span className={`text-sm font-medium inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0
-                        ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-600"}
-                      `}>
+                      <span className={`text-sm font-medium inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 ${today_ ? "bg-indigo-600 text-white" : weekend ? "text-orange-400" : "text-gray-600"}`}>
                         {day}
                       </span>
                       {status ? (
                         <>
                           <StatusIcon status={status} />
-                          <span className={`text-xs font-medium
-                            ${status === "PRESENT" ? "text-green-700" : status === "ABSENT" ? "text-red-600" : "text-yellow-600"}
-                          `}>
+                          <span className={`text-xs font-medium ${status === "PRESENT" ? "text-green-700" : status === "ABSENT" ? "text-red-600" : "text-yellow-600"}`}>
                             {statusLabel(status)}
                           </span>
                         </>
@@ -618,36 +503,23 @@ const MonthCalendar = ({ year, month, attendanceMap, overtimeMap, onNavigate, se
                           <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
                           <span className="text-xs text-blue-600 font-medium">Overtime</span>
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-20 transition-opacity text-[11px]">
-                            {overtime.startTime && overtime.endTime
-                              ? `${fmtTime(overtime.startTime)} - ${fmtTime(overtime.endTime)}`
-                              : `${overtime.duration || 0} jam`}
+                            {overtime.startTime && overtime.endTime ? `${fmtTime(overtime.startTime)} - ${fmtTime(overtime.endTime)}` : `${overtime.duration || 0} jam`}
                           </div>
                         </div>
                       )}
                     </div>
 
-                    {att && (att.checkIn || att.checkOut) && (
-                      <TimePopover att={att} status={status} />
-                    )}
+                    {att && (att.checkIn || att.checkOut) && <TimePopover att={att} status={status} />}
 
                     <div className="absolute top-1.5 right-1.5">
                       <button
                         onClick={(e) => { e.stopPropagation(); setOpenMenu(isMenuOpen ? null : dateStr); }}
-                        className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors
-                          text-gray-400 hover:text-gray-600 hover:bg-gray-100
-                          ${isMenuOpen ? "bg-gray-100 text-gray-600" : ""}
-                        `}
+                        className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 ${isMenuOpen ? "bg-gray-100 text-gray-600" : ""}`}
                       >
                         <HiOutlineDotsVertical className="w-3.5 h-3.5" />
                       </button>
                       {isMenuOpen && (
-                        <DateContextMenu
-                          dateStr={dateStr}
-                          attendanceData={att}
-                          selectedEmployee={selectedEmployee}
-                          onClose={() => setOpenMenu(null)}
-                          onNavigate={onNavigate}
-                        />
+                        <DateContextMenu dateStr={dateStr} attendanceData={att} selectedEmployee={selectedEmployee} onClose={() => setOpenMenu(null)} onNavigate={onNavigate} />
                       )}
                     </div>
                   </>
@@ -670,13 +542,17 @@ const AttendanceDashboard = () => {
     loadEmployees, loadAttendance, dismissError, resetAttendance,
   } = useAttendance();
 
-  const { overtimes, fetchOvertimes } = useOvertime({ role: "admin" });
+  const { overtimes, fetchOvertimes }       = useOvertime({ role: "admin" });
+  const { settings, fetchSettings }         = useAttendanceSettings();
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedYear, setSelectedYear]         = useState(new Date().getFullYear());
   const [calPage, setCalPage]                   = useState(0);
-  const [showCheckIn, setShowCheckIn]           = useState(false); // TAMBAH
+  const [showCheckIn, setShowCheckIn]           = useState(false);
+  const [showCheckOut, setShowCheckOut]         = useState(false);
 
+  // ── Fetch settings untuk tahu jam check-in / check-out ──────────────────────
+  useEffect(() => { fetchSettings(); }, []);
   useEffect(() => { loadEmployees(); }, []);
 
   useEffect(() => {
@@ -690,30 +566,36 @@ const AttendanceDashboard = () => {
 
   useEffect(() => { setCalPage(0); }, [selectedEmployee]);
 
+  // ── Tentukan mode tombol berdasarkan jam sekarang vs checkOutTime ────────────
+  // - Sebelum checkOutTime  → tombol = Check-in (indigo)
+  // - Setelah checkOutTime  → tombol = Check-out (emerald)
+  const isCheckoutTime = useMemo(
+    () => isAfterCheckout(settings?.checkOutTime ?? "17:00:00"),
+    // Re-compute setiap menit agar tombol berubah otomatis saat jam berubah
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings?.checkOutTime, Math.floor(Date.now() / 60000)]
+  );
+
+  // Label jam untuk subtitle header (format "HH:mm")
+  const checkInLabel  = (settings?.checkInTime  ?? "08:00:00").slice(0, 5);
+  const checkOutLabel = (settings?.checkOutTime ?? "17:00:00").slice(0, 5);
+
   const attendanceMap = useMemo(() => {
     const map = {};
-    attendances.forEach((att) => {
-      const d = getDate(att);
-      if (d) map[d] = att;
-    });
+    attendances.forEach((att) => { const d = getDate(att); if (d) map[d] = att; });
     return map;
   }, [attendances]);
 
   const overtimeMap = useMemo(() => {
     const map = {};
-    (overtimes || []).forEach((ot) => {
-      if (ot.status === "APPROVED" && ot.date) map[ot.date] = ot;
-    });
+    (overtimes || []).forEach((ot) => { if (ot.status === "APPROVED" && ot.date) map[ot.date] = ot; });
     return map;
   }, [overtimes]);
 
   const availableMonths = useMemo(() => {
     if (!attendances.length) return [];
     const set = new Set();
-    attendances.forEach((att) => {
-      const d = getDate(att);
-      if (d) set.add(d.slice(0, 7));
-    });
+    attendances.forEach((att) => { const d = getDate(att); if (d) set.add(d.slice(0, 7)); });
     return [...set].sort((a, b) => b.localeCompare(a));
   }, [attendances]);
 
@@ -757,7 +639,7 @@ const AttendanceDashboard = () => {
   return (
     <div className="w-full px-4 md:px-6 py-6 space-y-5 bg-gray-50 min-h-screen">
 
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
@@ -765,8 +647,12 @@ const AttendanceDashboard = () => {
               <HiOutlineCalendar className="w-6 h-6 text-indigo-600" />
               Dashboard Absensi
             </h1>
-            <p className="text-xs text-gray-400 mt-1">Jam kerja: 08:00 – 16:00 (Senin – Jumat)</p>
+            {/* Jam kerja dinamis dari settings */}
+            <p className="text-xs text-gray-400 mt-1">
+              Jam kerja: {checkInLabel} – {checkOutLabel} (Senin – Jumat)
+            </p>
           </div>
+
           <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap">
             <EmployeeDropdown
               employees={employees}
@@ -774,6 +660,8 @@ const AttendanceDashboard = () => {
               selectedEmployee={selectedEmployee}
               onChange={setSelectedEmployee}
             />
+
+            {/* Refresh */}
             <button
               onClick={() => selectedEmployee?.id && loadAttendance(selectedEmployee.id)}
               disabled={!selectedEmployee}
@@ -783,16 +671,30 @@ const AttendanceDashboard = () => {
               <HiOutlineRefresh className="w-4 h-4" />
             </button>
 
-            {/* ── TOMBOL ABSEN HARI INI ── */}
-            <button
-              onClick={() => { if (selectedEmployee?.id) setShowCheckIn(true); }}
-              disabled={!selectedEmployee}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-sm font-semibold shadow-sm"
-              title="Absen Hari Ini"
-            >
-              <HiOutlineFingerPrint className="w-4 h-4" />
-              <span className="hidden sm:inline">Absen Hari Ini</span>
-            </button>
+            {/* ── Tombol absen dinamis ──────────────────────────────────────── */}
+            {isCheckoutTime ? (
+              // Sudah lewat jam checkOut → tampilkan tombol Check-out
+              <button
+                onClick={() => { if (selectedEmployee?.id) setShowCheckOut(true); }}
+                disabled={!selectedEmployee}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-sm font-semibold shadow-sm"
+                title="Check-out Hari Ini"
+              >
+                <HiOutlineLogout className="w-4 h-4" />
+                <span className="hidden sm:inline">Check-out</span>
+              </button>
+            ) : (
+              // Sebelum jam checkOut → tampilkan tombol Check-in
+              <button
+                onClick={() => { if (selectedEmployee?.id) setShowCheckIn(true); }}
+                disabled={!selectedEmployee}
+                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0 text-sm font-semibold shadow-sm"
+                title="Absen Hari Ini"
+              >
+                <HiOutlineFingerPrint className="w-4 h-4" />
+                <span className="hidden sm:inline">Absen Hari Ini</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -844,21 +746,13 @@ const AttendanceDashboard = () => {
               </div>
               {totalPages > 1 && (
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCalPage((p) => Math.min(p + 1, totalPages - 1))}
-                    disabled={calPage >= totalPages - 1}
-                    className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
-                  >
+                  <button onClick={() => setCalPage((p) => Math.min(p + 1, totalPages - 1))} disabled={calPage >= totalPages - 1} className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
                     <HiOutlineChevronLeft className="w-4 h-4 text-gray-600" />
                   </button>
                   <span className="text-xs text-gray-500 min-w-[100px] text-center">
                     {pagedMonths[0] ? (() => { const [y,m] = pagedMonths[0].split("-"); return `${monthFull[+m-1]} ${y}`; })() : ""}
                   </span>
-                  <button
-                    onClick={() => setCalPage((p) => Math.max(p - 1, 0))}
-                    disabled={calPage <= 0}
-                    className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
-                  >
+                  <button onClick={() => setCalPage((p) => Math.max(p - 1, 0))} disabled={calPage <= 0} className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
                     <HiOutlineChevronRight className="w-4 h-4 text-gray-600" />
                   </button>
                 </div>
@@ -871,17 +765,7 @@ const AttendanceDashboard = () => {
                 <div className="space-y-6">
                   {pagedMonths.map((ym) => {
                     const [y, m] = ym.split("-").map(Number);
-                    return (
-                      <MonthCalendar
-                        key={ym}
-                        year={y}
-                        month={m - 1}
-                        attendanceMap={attendanceMap}
-                        overtimeMap={overtimeMap}
-                        onNavigate={navigate}
-                        selectedEmployee={selectedEmployee}
-                      />
-                    );
+                    return <MonthCalendar key={ym} year={y} month={m - 1} attendanceMap={attendanceMap} overtimeMap={overtimeMap} onNavigate={navigate} selectedEmployee={selectedEmployee} />;
                   })}
                 </div>
               )}
@@ -902,17 +786,26 @@ const AttendanceDashboard = () => {
 
       <p className="text-center text-xs text-gray-400 pt-4 border-t border-gray-200">
         {selectedEmployee
-          ? `Data absensi: ${selectedEmployee.name} (${selectedEmployee.employeeIdentificationNumber}) · Jam kerja: 08:00 – 16:00`
+          ? `Data absensi: ${selectedEmployee.name} (${selectedEmployee.employeeIdentificationNumber}) · Jam kerja: ${checkInLabel} – ${checkOutLabel}`
           : "Pilih karyawan dari dropdown untuk melihat data absensi"}
       </p>
 
-      {/* ── CHECK-IN MODAL ── */}
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <CheckInModal
         isOpen={showCheckIn}
         onClose={() => setShowCheckIn(false)}
         employee={selectedEmployee}
         onSuccess={() => {
           setShowCheckIn(false);
+          if (selectedEmployee?.id) loadAttendance(selectedEmployee.id);
+        }}
+      />
+      <CheckOutModal
+        isOpen={showCheckOut}
+        onClose={() => setShowCheckOut(false)}
+        employee={selectedEmployee}
+        onSuccess={() => {
+          setShowCheckOut(false);
           if (selectedEmployee?.id) loadAttendance(selectedEmployee.id);
         }}
       />
