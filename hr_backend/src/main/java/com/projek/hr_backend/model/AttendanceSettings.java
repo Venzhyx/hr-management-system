@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "attendance_settings")
@@ -26,6 +27,12 @@ public class AttendanceSettings {
     @Enumerated(EnumType.STRING)
     @Column(name = "extra_hours_validation", nullable = false)
     private ExtraHoursValidation extraHoursValidation = ExtraHoursValidation.APPROVED_BY_MANAGER;
+
+    @Column(name = "check_in_time")
+    private LocalTime checkInTime = LocalTime.of(8, 0);
+
+    @Column(name = "check_out_time")
+    private LocalTime checkOutTime = LocalTime.of(17, 0);
     
     @CreationTimestamp
     @Column(updatable = false)

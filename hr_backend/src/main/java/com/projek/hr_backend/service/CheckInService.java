@@ -62,20 +62,26 @@ public class CheckInService {
         // 4. Set waktu check-in
         LocalDateTime checkIn = LocalDateTime.now();
 
-        // 5. Tentukan status dengan toleransi dari AttendanceSettings
+        // 5. Tentukan status dengan checkInTime dan toleransi dari AttendanceSettings
         DayOfWeek day = today.getDayOfWeek();
         String status;
         if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
             status = "OFF";
         } else {
-            // Ambil toleransi dari settings (default 0 menit jika belum dikonfigurasi)
-            int toleranceMinutes = attendanceSettingsRepository.findFirstByOrderByIdAsc()
-                    .map(s -> s.getToleranceTimeInFavorOfEmployee() != null
-                            ? s.getToleranceTimeInFavorOfEmployee() : 0)
-                    .orElse(0);
+            // Ambil checkInTime dan toleransi dari settings
+            AttendanceSettings attSettings = attendanceSettingsRepository
+                    .findFirstByOrderByIdAsc().orElse(null);
 
-            // Batas jam masuk = 08:00 + toleransi
-            LocalTime deadline = LocalTime.of(8, 0).plusMinutes(toleranceMinutes);
+            LocalTime baseCheckIn = (attSettings != null && attSettings.getCheckInTime() != null)
+                    ? attSettings.getCheckInTime()
+                    : LocalTime.of(8, 0);
+
+            int toleranceMinutes = (attSettings != null && attSettings.getToleranceTimeInFavorOfEmployee() != null)
+                    ? attSettings.getToleranceTimeInFavorOfEmployee()
+                    : 0;
+
+            // Batas jam masuk = checkInTime + toleransi
+            LocalTime deadline = baseCheckIn.plusMinutes(toleranceMinutes);
 
             if (checkIn.toLocalTime().isAfter(deadline)) {
                 status = "LATE";

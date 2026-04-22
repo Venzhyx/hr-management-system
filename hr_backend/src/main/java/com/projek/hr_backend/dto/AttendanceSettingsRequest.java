@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,4 +20,8 @@ public class AttendanceSettingsRequest {
     
     @NotNull(message = "Extra hours validation is required")
     private ExtraHoursValidation extraHoursValidation;
+
+    private LocalTime checkInTime;
+
+    private LocalTime checkOutTime;
 }

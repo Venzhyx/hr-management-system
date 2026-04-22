@@ -9,24 +9,27 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
+
 @Service
 @RequiredArgsConstructor
 public class AttendanceSettingsService {
     
     private final AttendanceSettingsRepository repository;
     
-    // AttendanceSettingsService.java
-public AttendanceSettingsResponse getSettings() {
-    return repository.findFirstByOrderByIdAsc()
-            .map(this::mapToResponse)
-            .orElse(new AttendanceSettingsResponse(
-                null,
-                0,                                        // toleranceTime default
-                ExtraHoursValidation.APPROVED_BY_MANAGER, // validation default
-                null,
-                null
-            ));
-}
+    public AttendanceSettingsResponse getSettings() {
+        return repository.findFirstByOrderByIdAsc()
+                .map(this::mapToResponse)
+                .orElse(new AttendanceSettingsResponse(
+                    null,
+                    0,
+                    ExtraHoursValidation.APPROVED_BY_MANAGER,
+                    LocalTime.of(8, 0),
+                    LocalTime.of(17, 0),
+                    null,
+                    null
+                ));
+    }
     
     @Transactional
     public AttendanceSettingsResponse updateSettings(AttendanceSettingsRequest request) {
@@ -38,6 +41,13 @@ public AttendanceSettingsResponse getSettings() {
         
         settings.setToleranceTimeInFavorOfEmployee(request.getToleranceTimeInFavorOfEmployee());
         settings.setExtraHoursValidation(request.getExtraHoursValidation());
+
+        if (request.getCheckInTime() != null) {
+            settings.setCheckInTime(request.getCheckInTime());
+        }
+        if (request.getCheckOutTime() != null) {
+            settings.setCheckOutTime(request.getCheckOutTime());
+        }
         
         AttendanceSettings saved = repository.save(settings);
         return mapToResponse(saved);
@@ -48,6 +58,8 @@ public AttendanceSettingsResponse getSettings() {
             settings.getId(),
             settings.getToleranceTimeInFavorOfEmployee(),
             settings.getExtraHoursValidation(),
+            settings.getCheckInTime() != null ? settings.getCheckInTime() : LocalTime.of(8, 0),
+            settings.getCheckOutTime() != null ? settings.getCheckOutTime() : LocalTime.of(17, 0),
             settings.getCreatedAt(),
             settings.getUpdatedAt()
         );
