@@ -116,15 +116,18 @@ const AttendanceSettings = ({ showToast }) => {
   const [form, setForm] = useState({
     toleranceTimeInFavorOfEmployee: 0,
     extraHoursValidation:           'APPROVED_BY_MANAGER',
+    defaultCheckinTime:             '08:00',
+    defaultCheckoutTime:            '17:00',
   });
 
-  // Sync form when Redux state loads
   useEffect(() => { fetchSettings(); }, []);
   useEffect(() => {
     if (settings) {
       setForm({
         toleranceTimeInFavorOfEmployee: settings.toleranceTimeInFavorOfEmployee ?? 0,
         extraHoursValidation:           settings.extraHoursValidation ?? 'APPROVED_BY_MANAGER',
+        defaultCheckinTime:             settings.defaultCheckinTime   ?? '08:00',
+        defaultCheckoutTime:            settings.defaultCheckoutTime  ?? '17:00',
       });
     }
   }, [settings]);
@@ -133,6 +136,8 @@ const AttendanceSettings = ({ showToast }) => {
     const result = await updateSettings({
       toleranceTimeInFavorOfEmployee: Number(form.toleranceTimeInFavorOfEmployee),
       extraHoursValidation:           form.extraHoursValidation,
+      defaultCheckinTime:             form.defaultCheckinTime,
+      defaultCheckoutTime:            form.defaultCheckoutTime,
     });
     if (result.meta.requestStatus === 'fulfilled') {
       showToast('Attendance settings saved', 'success');
@@ -141,44 +146,136 @@ const AttendanceSettings = ({ showToast }) => {
     }
   };
 
-  if (loading) return <SectionCard title="Extra Hours"><Spinner /></SectionCard>;
-  if (error)   return <SectionCard title="Extra Hours"><ErrorBox message={error} onRetry={fetchSettings} /></SectionCard>;
+  // Helper: split "HH:mm" → hour / minute
+  const checkinHour    = form.defaultCheckinTime.split(':')[0]  ?? '08';
+  const checkinMinute  = form.defaultCheckinTime.split(':')[1]  ?? '00';
+  const checkoutHour   = form.defaultCheckoutTime.split(':')[0] ?? '17';
+  const checkoutMinute = form.defaultCheckoutTime.split(':')[1] ?? '00';
+
+  const setCheckinHour    = (h) => setForm(f => ({ ...f, defaultCheckinTime:  `${h}:${checkinMinute}`  }));
+  const setCheckinMinute  = (m) => setForm(f => ({ ...f, defaultCheckinTime:  `${checkinHour}:${m}`   }));
+  const setCheckoutHour   = (h) => setForm(f => ({ ...f, defaultCheckoutTime: `${h}:${checkoutMinute}` }));
+  const setCheckoutMinute = (m) => setForm(f => ({ ...f, defaultCheckoutTime: `${checkoutHour}:${m}`  }));
+
+  if (loading) return <SectionCard title="Attendance Settings"><Spinner /></SectionCard>;
+  if (error)   return <SectionCard title="Attendance Settings"><ErrorBox message={error} onRetry={fetchSettings} /></SectionCard>;
 
   return (
-    <SectionCard title="Extra Hours">
-      <div className="space-y-5 max-w-lg">
-        <div>
-          <label className={labelCls}>
-            Tolerance Time in Favor of Employee
-            <span className="ml-1 text-gray-400 font-normal">(minutes)</span>
-          </label>
-          <input type="number" min={0} max={120}
-            value={form.toleranceTimeInFavorOfEmployee}
-            onChange={e => setForm(f => ({ ...f, toleranceTimeInFavorOfEmployee: e.target.value }))}
-            className={`${inputCls} w-40`} />
-          <p className="mt-1 text-xs text-gray-400">Grace period before overtime is counted against the employee.</p>
+    <div className="space-y-6">
+
+      {/* ── Extra Hours ─────────────────────────────────────────────────────── */}
+      <SectionCard title="Extra Hours">
+        <div className="space-y-5 max-w-lg">
+          <div>
+            <label className={labelCls}>
+              Tolerance Time in Favor of Employee
+              <span className="ml-1 text-gray-400 font-normal">(minutes)</span>
+            </label>
+            <input type="number" min={0} max={120}
+              value={form.toleranceTimeInFavorOfEmployee}
+              onChange={e => setForm(f => ({ ...f, toleranceTimeInFavorOfEmployee: e.target.value }))}
+              className={`${inputCls} w-40`} />
+            <p className="mt-1 text-xs text-gray-400">Grace period before overtime is counted against the employee.</p>
+          </div>
+          <div>
+            <label className={labelCls}>Extra Hours Validation</label>
+            <select value={form.extraHoursValidation}
+              onChange={e => setForm(f => ({ ...f, extraHoursValidation: e.target.value }))}
+              className={`${inputCls} w-64 appearance-none`} style={selectStyle}>
+              {EXTRA_HOURS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              {form.extraHoursValidation === 'AUTOMATICALLY_APPROVED'
+                ? 'Extra hours are approved automatically without manager review.'
+                : 'Extra hours require manager approval before being counted.'}
+            </p>
+          </div>
         </div>
-        <div>
-          <label className={labelCls}>Extra Hours Validation</label>
-          <select value={form.extraHoursValidation}
-            onChange={e => setForm(f => ({ ...f, extraHoursValidation: e.target.value }))}
-            className={`${inputCls} w-64 appearance-none`} style={selectStyle}>
-            {EXTRA_HOURS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <p className="mt-1 text-xs text-gray-400">
-            {form.extraHoursValidation === 'AUTOMATICALLY_APPROVED'
-              ? 'Extra hours are approved automatically without manager review.'
-              : 'Extra hours require manager approval before being counted.'}
-          </p>
+      </SectionCard>
+
+      {/* ── Check-in Time ────────────────────────────────────────────────────── */}
+      <SectionCard title="Check-in Time">
+        <div className="space-y-5 max-w-lg">
+          <div>
+            <label className={labelCls}>Default Check-in Time</label>
+            <div className="flex items-center gap-2">
+              <select
+                value={checkinHour}
+                onChange={e => setCheckinHour(e.target.value)}
+                className={`${inputCls} w-24 appearance-none`}
+                style={selectStyle}>
+                {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
+              <span className="text-gray-500 font-semibold text-base">:</span>
+              <select
+                value={checkinMinute}
+                onChange={e => setCheckinMinute(e.target.value)}
+                className={`${inputCls} w-24 appearance-none`}
+                style={selectStyle}>
+                {['00', '15', '30', '45'].map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-500 font-medium">WIB</span>
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              Jam ini menentukan kapan tombol absen berubah dari{' '}
+              <span className="font-medium text-gray-600">Check-out</span> menjadi{' '}
+              <span className="font-medium text-gray-600">Check-in</span> kembali (hari berikutnya).
+            </p>
+          </div>
         </div>
-        <div className="pt-2">
-          <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50">
-            {saving ? 'Saving…' : 'Save Changes'}
-          </button>
+      </SectionCard>
+
+      {/* ── Checkout Time ────────────────────────────────────────────────────── */}
+      <SectionCard title="Checkout Time">
+        <div className="space-y-5 max-w-lg">
+          <div>
+            <label className={labelCls}>Default Checkout Time</label>
+            <div className="flex items-center gap-2">
+              {/* Hour select — 00–23 */}
+              <select
+                value={checkoutHour}
+                onChange={e => setCheckoutHour(e.target.value)}
+                className={`${inputCls} w-24 appearance-none`}
+                style={selectStyle}>
+                {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
+              <span className="text-gray-500 font-semibold text-base">:</span>
+              {/* Minute select — 00, 15, 30, 45 */}
+              <select
+                value={checkoutMinute}
+                onChange={e => setCheckoutMinute(e.target.value)}
+                className={`${inputCls} w-24 appearance-none`}
+                style={selectStyle}>
+                {['00', '15', '30', '45'].map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-500 font-medium">WIB</span>
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              Jam ini menentukan kapan tombol absen berubah dari{' '}
+              <span className="font-medium text-gray-600">Check-in</span> menjadi{' '}
+              <span className="font-medium text-gray-600">Check-out</span>.
+            </p>
+          </div>
         </div>
+      </SectionCard>
+
+      {/* ── Save ─────────────────────────────────────────────────────────────── */}
+      <div className="flex justify-start">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50">
+          {saving ? 'Saving…' : 'Save Changes'}
+        </button>
       </div>
-    </SectionCard>
+
+    </div>
   );
 };
 
