@@ -43,8 +43,6 @@ export const useCheckOut = () => {
       const formData = new FormData();
       formData.append("employeeId", employeeId);
       formData.append("photo", photoBlob, `checkout_${employeeId}_${Date.now()}.jpg`);
-      formData.append("checkOutTime", (capturedAt || new Date()).toISOString());
-      formData.append("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
 
       // GPS optional
       if (location?.latitude  != null) formData.append("latitude",  String(location.latitude));
