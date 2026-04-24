@@ -17,6 +17,8 @@ import {
   HiOutlineLibrary,
   HiOutlinePencilAlt,
   HiOutlineClipboard,
+  HiOutlineX,
+  HiOutlineClipboardList,
 } from 'react-icons/hi';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import companyLogo from '../images/ABE.png';
@@ -27,7 +29,7 @@ import { useOvertime } from '../../redux/hooks/useOvertime';
 
 const NEEDS_REVIEW_STATUSES = ['submitted', 'pending'];
 
-const Sidebar = () => {
+const Sidebar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -70,14 +72,19 @@ const Sidebar = () => {
   ).length;
 
   const totalApprovalPending = 
-  pendingReimbursements + 
-  pendingTimeOff +
-  pendingCorrections +
-  pendingOvertimes;
+    pendingReimbursements + 
+    pendingTimeOff +
+    pendingCorrections +
+    pendingOvertimes;
 
   const attendanceSubItems = [
     { name: 'Attendance Correction', icon: <HiOutlinePencilAlt className="w-4 h-4" />, path: '/attendance/correction' },
     { name: 'Overtime',              icon: <HiOutlineClipboard className="w-4 h-4" />,  path: '/attendance/overtime' },
+    {
+    name: 'Attendance List',
+    icon: <HiOutlineClipboardList className="w-4 h-4" />,
+    path: '/attendance/list',
+  },
   ];
 
   const mainMenuItems = [
@@ -88,7 +95,7 @@ const Sidebar = () => {
     {
       name: 'Attendance',
       icon: <HiOutlineClock className="w-5 h-5" />,
-      path: '/attendance',  // ← INDEX PAGE untuk Attendance
+      path: '/attendance',
       hasSubmenu: true,
       submenu: attendanceSubItems,
     },
@@ -123,184 +130,237 @@ const Sidebar = () => {
   const isAttendanceActive = location.pathname.startsWith('/attendance');
 
   return (
-    <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 transition-all duration-300 ease-in-out z-50">
-      {/* Logo */}
-      <div className="px-6 py-5 border-gray-200 flex justify-center group">
-        <div className="w-20 h-20 flex items-center justify-center overflow-hidden transition-transform duration-300 group-hover:scale-110">
-          <img src={companyLogo} alt="Company Logo"
-            className="w-full h-full object-cover transition-all duration-300 group-hover:opacity-80" />
+    <>
+      {/* Sidebar Container - Responsive */}
+      <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out shadow-lg lg:shadow-none">
+        
+        {/* Logo Area dengan Tombol Close (Mobile Only) */}
+        <div className="px-4 py-5 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex-1 flex justify-center lg:justify-start">
+            <div className="w-16 h-16 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-110">
+              <img 
+                src={companyLogo} 
+                alt="Company Logo"
+                className="w-full h-full object-contain" 
+              />
+            </div>
+          </div>
+          
+          {/* Tombol Close - Hanya muncul di mobile, dikirim dari AppLayout */}
+          <button
+            onClick={toggleSidebar}
+            className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
+            aria-label="Close sidebar"
+          >
+            <HiOutlineX className="w-5 h-5" />
+          </button>
         </div>
-      </div>
 
-      {/* Main Menu */}
-      <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-        {mainMenuItems.map((item, index) => {
-          if (item.hasSubmenu) {
-            return (
-              <div key={item.name}>
-                {/* Attendance: NavLink + Dropdown button */}
-                <div className="relative flex items-center">
-                  {/* NavLink untuk halaman index Attendance */}
-                  <NavLink
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `flex-1 flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out transform hover:translate-x-1 ${
-                        isActive && location.pathname === item.path
-                          ? 'bg-indigo-50 text-indigo-600 shadow-md'
-                          : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <span className={`relative transition-all duration-300 flex-shrink-0 ${isActive && location.pathname === item.path ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
-                          {item.icon}
-                        </span>
-                        <span className="text-sm font-medium flex-1 text-left">{item.name}</span>
-                      </>
-                    )}
-                  </NavLink>
-                  
-                  {/* Tombol dropdown terpisah */}
-                  <button
-                    onClick={() => setIsAttendanceOpen(prev => !prev)}
-                    className={`ml-1 p-2 rounded-lg transition-all duration-300 ${
-                      isAttendanceActive ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'
+        {/* Main Menu */}
+        <nav className="flex-1 px-3 sm:px-4 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
+          {mainMenuItems.map((item, index) => {
+            if (item.hasSubmenu) {
+              return (
+                <div key={item.name} className="mb-1">
+                  {/* Attendance: NavLink + Dropdown button */}
+                  <div className="relative flex items-center gap-1">
+                    <NavLink
+                      to={item.path}
+                      className={({ isActive }) =>
+                        `flex-1 flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out ${
+                          isActive && location.pathname === item.path
+                            ? 'bg-indigo-50 text-indigo-600 shadow-sm'
+                            : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <span className={`transition-all duration-300 flex-shrink-0 ${isActive && location.pathname === item.path ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
+                            {item.icon}
+                          </span>
+                          <span className="text-sm font-medium flex-1 text-left">{item.name}</span>
+                        </>
+                      )}
+                    </NavLink>
+                    
+                    {/* Tombol dropdown */}
+                    <button
+                      onClick={() => setIsAttendanceOpen(prev => !prev)}
+                      className={`p-2 rounded-lg transition-all duration-300 flex-shrink-0 ${
+                        isAttendanceActive ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'
+                      }`}
+                      aria-label="Toggle attendance submenu"
+                    >
+                      <span className={`transition-transform duration-300 ${isAttendanceOpen ? 'rotate-180' : 'rotate-0'}`}>
+                        <HiOutlineChevronDown className="w-4 h-4" />
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Submenu items */}
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      isAttendanceOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'
                     }`}
                   >
-                    <span className={`transition-transform duration-300 ${isAttendanceOpen ? 'rotate-180' : 'rotate-0'}`}>
-                      <HiOutlineChevronDown className="w-4 h-4" />
-                    </span>
-                  </button>
-                </div>
-
-                {/* Submenu items */}
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isAttendanceOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-indigo-100 pl-3">
-                    {item.submenu.map((subItem) => (
-                      <NavLink
-                        key={subItem.name}
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `flex items-center space-x-2.5 px-2.5 py-2 rounded-lg transition-all duration-200 ease-in-out hover:translate-x-1 ${
-                            isActive
-                              ? 'bg-indigo-50 text-indigo-600 shadow-sm'
-                              : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-                          }`
-                        }
-                      >
-                        {({ isActive }) => (
-                          <>
-                            <span className={`flex-shrink-0 transition-all duration-200 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}>
-                              {subItem.icon}
-                            </span>
-                            <span className="text-xs font-medium">{subItem.name}</span>
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
+                    <div className="ml-6 pl-3 space-y-1 border-l-2 border-indigo-100">
+                      {item.submenu.map((subItem) => (
+                        <NavLink
+                          key={subItem.name}
+                          to={subItem.path}
+                          className={({ isActive }) =>
+                            `flex items-center space-x-2.5 px-3 py-2 rounded-lg transition-all duration-200 ease-in-out ${
+                              isActive
+                                ? 'bg-indigo-50 text-indigo-600 shadow-sm'
+                                : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                            }`
+                          }
+                        >
+                          {({ isActive }) => (
+                            <>
+                              <span className={`flex-shrink-0 transition-all duration-200 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}>
+                                {subItem.icon}
+                              </span>
+                              <span className="text-xs font-medium">{subItem.name}</span>
+                            </>
+                          )}
+                        </NavLink>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          return (
-            <NavLink key={item.name} to={item.path}
-              style={{ animationDelay: `${index * 0.05}s` }}
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out transform hover:translate-x-1 ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-600 shadow-md'
-                    : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span className={`relative transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
-                    {item.icon}
-                    {item.badge > 0 && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
-                    )}
-                  </span>
-
-                  <span className="text-sm font-medium flex-1">{item.name}</span>
-
-                  {item.badge > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
-                      {item.badge > 99 ? '99+' : item.badge}
+            return (
+              <NavLink 
+                key={item.name} 
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-600 shadow-sm'
+                      : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span className={`relative transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
+                      {item.icon}
+                      {item.badge > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white animate-pulse" />
+                      )}
                     </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
 
-      {/* Bottom Menu - sama seperti sebelumnya */}
-      <div className="border-t border-gray-200 pt-4">
-        <nav className="px-4 space-y-1">
-          {bottomMenuItems.map((item, index) => (
-            <NavLink key={item.name} to={item.path}
-              style={{ animationDelay: `${index * 0.05}s` }}
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out transform hover:translate-x-1 ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-600 shadow-md'
-                    : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span className={`transition-all duration-300 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
-                    {item.icon}
-                  </span>
-                  <span className="text-sm font-medium">{item.name}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                    <span className="text-sm font-medium flex-1">{item.name}</span>
+
+                    {item.badge > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
-        {/* Profile Section */}
-        <div className="px-4 mt-4 relative">
-          <button onClick={() => setIsProfileMenuOpen(p => !p)}
-            className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-indigo-50 transition-all duration-300 group">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-semibold transition-all duration-300 group-hover:scale-110 group-hover:bg-indigo-200">
-                AN
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-gray-800 truncate group-hover:text-indigo-600 transition-colors duration-300">Admin New</p>
-                <p className="text-xs text-gray-500 truncate group-hover:text-indigo-400 transition-colors duration-300">HR</p>
-              </div>
-            </div>
-            <span className="text-gray-400 group-hover:text-indigo-600">
-              {isProfileMenuOpen ? <HiOutlineChevronUp className="w-4 h-4" /> : <HiOutlineChevronDown className="w-4 h-4" />}
-            </span>
-          </button>
+        {/* Bottom Section */}
+        <div className="border-t border-gray-200 pt-4">
+          {/* Bottom Menu Items */}
+          <nav className="px-3 sm:px-4 space-y-1">
+            {bottomMenuItems.map((item) => (
+              <NavLink 
+                key={item.name} 
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-600 shadow-sm'
+                      : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span className={`transition-all duration-300 flex-shrink-0 ${isActive ? 'text-indigo-600 scale-110' : 'text-gray-500'}`}>
+                      {item.icon}
+                    </span>
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </nav>
 
-          {isProfileMenuOpen && (
-            <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-lg border border-gray-200 shadow-lg overflow-hidden animate-fadeIn">
-              {profileMenuItems.map((item) => (
-                <button key={item.name} onClick={() => handleProfileAction(item)}
-                  className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-indigo-50 transition-colors duration-200 text-left">
-                  <span className={item.name === 'Logout' ? 'text-red-500' : 'text-gray-500'}>{item.icon}</span>
-                  <span className={`text-sm font-medium ${item.name === 'Logout' ? 'text-red-600' : 'text-gray-700'}`}>{item.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Profile Section */}
+          <div className="px-3 sm:px-4 mt-4 pb-4 relative">
+            <button 
+              onClick={() => setIsProfileMenuOpen(prev => !prev)}
+              className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-indigo-50 transition-all duration-300 group"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold transition-all duration-300 group-hover:scale-110 shadow-sm">
+                  AN
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium text-gray-800 truncate group-hover:text-indigo-600 transition-colors duration-300">
+                    Admin New
+                  </p>
+                  <p className="text-xs text-gray-500 truncate group-hover:text-indigo-400 transition-colors duration-300">
+                    HR
+                  </p>
+                </div>
+              </div>
+              <span className="text-gray-400 group-hover:text-indigo-600 transition-colors duration-300">
+                {isProfileMenuOpen ? <HiOutlineChevronUp className="w-4 h-4" /> : <HiOutlineChevronDown className="w-4 h-4" />}
+              </span>
+            </button>
+
+            {/* Dropdown Profile Menu */}
+            {isProfileMenuOpen && (
+              <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden animate-slideUp">
+                {profileMenuItems.map((item) => (
+                  <button 
+                    key={item.name} 
+                    onClick={() => handleProfileAction(item)}
+                    className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-indigo-50 transition-all duration-200 text-left group"
+                  >
+                    <span className={item.name === 'Logout' ? 'text-red-500 group-hover:text-red-600' : 'text-gray-500 group-hover:text-indigo-600'}>
+                      {item.icon}
+                    </span>
+                    <span className={`text-sm font-medium ${item.name === 'Logout' ? 'text-red-600 group-hover:text-red-700' : 'text-gray-700 group-hover:text-indigo-600'}`}>
+                      {item.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-slideUp {
+          animation: slideUp 0.2s ease-out;
+        }
+      `}</style>
+    </>
   );
 };
 

@@ -5,7 +5,7 @@ import {
 } from 'react-icons/hi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useReimbursement } from '../../redux/hooks/useReimbursement';
-import { useTimeOff }       from '../../redux/hooks/useTimeOff';
+import { useTimeOff } from '../../redux/hooks/useTimeOff';
 
 // ─── Route Titles ─────────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ const ReimbursementIcon = () => (
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
-const Navbar = ({ toggleSidebar }) => {
+const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   const location = useLocation();
   const navigate  = useNavigate();
 
@@ -199,153 +199,199 @@ const Navbar = ({ toggleSidebar }) => {
   const clearAll    = () => setReadIds(new Set(notifications.map(n => n.id)));
 
   return (
-    <nav className={`fixed top-0 right-0 lg:left-64 h-20 z-30 transition-all duration-500 ${
-      isScrolled
-        ? 'bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20'
-        : 'bg-white border-b border-gray-200 shadow-sm'
-    }`}>
-      <div className="h-full px-8 flex items-center justify-between">
+    <>
+      <nav className={`fixed top-0 right-0 left-0 lg:left-64 h-16 sm:h-20 z-30 transition-all duration-500 ${
+        isScrolled
+          ? 'bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20'
+          : 'bg-white border-b border-gray-200 shadow-sm'
+      }`}>
+        <div className="h-full px-3 sm:px-5 lg:px-8 flex items-center justify-between">
 
-        {/* LEFT — title */}
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={toggleSidebar}
-            className="lg:hidden p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-          >
-            <HiOutlineMenu className="w-6 h-6" />
-          </button>
-          <div className={`transition-all duration-300 ${animateTitle ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">{routeInfo.title}</h2>
-            <div className="flex items-center space-x-2 mt-0.5">
-              <HiOutlineOfficeBuilding className="w-3 h-3 text-indigo-400" />
-              <p className="text-xs text-gray-400">{routeInfo.sub}</p>
-              <span className="text-gray-300">·</span>
-              <p className="text-xs text-gray-400">{currentDate}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT — Bell */}
-        <div className="flex items-center space-x-3 relative">
-          <button
-            ref={buttonRef}
-            onClick={() => setShowNotifications(p => !p)}
-            className={`relative p-2.5 rounded-xl transition-all duration-200 ${
-              showNotifications
-                ? 'bg-indigo-100 text-indigo-600'
-                : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
-            }`}
-          >
-            <HiOutlineBell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-0.5 bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md animate-bounce">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {showNotifications && (
-            <div
-              ref={notifRef}
-              className="absolute top-full right-0 mt-3 w-[22rem] rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 bg-white"
-              style={{ animation: 'slideDown 0.2s ease' }}
+          {/* LEFT — title area */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Hamburger Menu Button - Mobile Only */}
+            <button
+              onClick={toggleSidebar}
+              className="lg:hidden p-2 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200"
+              aria-label="Toggle sidebar"
             >
-              {/* Header */}
-              <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-800">Notifikasi</h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                  Approval menunggu review
+              <HiOutlineMenu className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            
+            {/* Title Section */}
+            <div className={`transition-all duration-300 ${animateTitle ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+              {/* Title - selalu tampil */}
+              <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 leading-tight">
+                {routeInfo.title}
+              </h2>
+              
+              {/* Subtitle & Date - Desktop (lg) */}
+              <div className="hidden lg:flex items-center gap-2 mt-0.5">
+                <HiOutlineOfficeBuilding className="w-3 h-3 text-indigo-400" />
+                <p className="text-xs text-gray-400">{routeInfo.sub}</p>
+                <span className="text-gray-300">·</span>
+                <p className="text-xs text-gray-400">{currentDate}</p>
+              </div>
+              
+              {/* Subtitle & Date - Mobile & Tablet (simplified) */}
+              <div className="flex lg:hidden items-center gap-1 mt-0.5">
+                <p className="text-[10px] sm:text-xs text-gray-400 truncate max-w-[150px] sm:max-w-[200px]">
+                  {routeInfo.sub}
+                </p>
+                <span className="text-gray-300 text-[10px] sm:text-xs">·</span>
+                <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                  {currentDate.split(',')[0]}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* RIGHT — Notifications Bell */}
+          <div className="flex items-center gap-2 sm:gap-3 relative">
+            <button
+              ref={buttonRef}
+              onClick={() => setShowNotifications(prev => !prev)}
+              className={`relative p-2 sm:p-2.5 rounded-xl transition-all duration-200 ${
+                showNotifications
+                  ? 'bg-indigo-100 text-indigo-600'
+                  : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'
+              }`}
+              aria-label="Notifications"
+            >
+              <HiOutlineBell className="w-4 h-4 sm:w-5 sm:h-5" />
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-semibold rounded-full">
-                  {unreadCount} baru
+                <span className="absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] px-0.5 bg-gradient-to-br from-red-500 to-rose-600 text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-md animate-bounce">
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
-</div>
+            </button>
 
-              {/* Bulk actions */}
-              {notifications.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100">
-                  <button onClick={markAllRead} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-                    Tandai semua dibaca
-                  </button>
-                  <button onClick={clearAll} className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
-                    Tutup semua
-                  </button>
+            {/* Notifications Dropdown - Responsive width */}
+            {showNotifications && (
+              <div
+                ref={notifRef}
+                className="absolute top-full right-0 mt-2 sm:mt-3 w-[85vw] max-w-[20rem] sm:w-[22rem] rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 bg-white"
+                style={{ animation: 'slideDown 0.2s ease' }}
+              >
+                {/* Header */}
+                <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Notifikasi</h3>
+                    <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5">
+                      Approval menunggu review
+                    </p>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="px-1.5 sm:px-2 py-0.5 bg-red-100 text-red-600 text-[9px] sm:text-[10px] font-semibold rounded-full">
+                      {unreadCount} baru
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {/* List */}
-              <div className="max-h-[26rem] overflow-y-auto divide-y divide-gray-50">
-                {notifications.length > 0 ? (
-                  notifications.map(notif => (
-                    <div
-                      key={notif.id}
-                      onClick={() => handleNotifClick(notif)}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors duration-150 ${
-                        !notif.read ? 'bg-indigo-50/40' : ''
-                      }`}
+                {/* Bulk actions */}
+                {notifications.length > 0 && (
+                  <div className="flex items-center justify-between px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 border-b border-gray-100">
+                    <button 
+                      onClick={markAllRead} 
+                      className="text-[10px] sm:text-[11px] font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
                     >
-                      <div className={`flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${
-                        notif.type === 'timeoff' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-                      }`}>
-                        {notif.type === 'timeoff' ? <TimeOffIcon /> : <ReimbursementIcon />}
-                      </div>
+                      Tandai semua dibaca
+                    </button>
+                    <button 
+                      onClick={clearAll} 
+                      className="text-[10px] sm:text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      Tutup semua
+                    </button>
+                  </div>
+                )}
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <p className={`text-xs font-semibold leading-snug ${!notif.read ? 'text-gray-900' : 'text-gray-700'}`}>
-                            {notif.title}
-                          </p>
-                          {!notif.read && (
-                            <span className={`flex-shrink-0 mt-1 w-2 h-2 rounded-full ${
-                              notif.type === 'timeoff' ? 'bg-blue-500' : 'bg-green-500'
-                            }`} />
-                          )}
+                {/* List */}
+                <div className="max-h-[20rem] sm:max-h-[26rem] overflow-y-auto divide-y divide-gray-50">
+                  {notifications.length > 0 ? (
+                    notifications.map(notif => (
+                      <div
+                        key={notif.id}
+                        onClick={() => handleNotifClick(notif)}
+                        className={`flex items-start gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 cursor-pointer hover:bg-gray-50 transition-colors duration-150 ${
+                          !notif.read ? 'bg-indigo-50/40' : ''
+                        }`}
+                      >
+                        <div className={`flex-shrink-0 mt-0.5 w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shadow-sm ${
+                          notif.type === 'timeoff' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                        }`}>
+                          {notif.type === 'timeoff' ? <TimeOffIcon /> : <ReimbursementIcon />}
                         </div>
-                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed line-clamp-2">
-                          {notif.message}
-                        </p>
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          {relativeTime(notif.time)}
-                        </p>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-1">
+                            <p className={`text-[11px] sm:text-xs font-semibold leading-snug ${!notif.read ? 'text-gray-900' : 'text-gray-700'}`}>
+                              {notif.title}
+                            </p>
+                            {!notif.read && (
+                              <span className={`flex-shrink-0 mt-1 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
+                                notif.type === 'timeoff' ? 'bg-blue-500' : 'bg-green-500'
+                              }`} />
+                            )}
+                          </div>
+                          <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 leading-relaxed line-clamp-2">
+                            {notif.message}
+                          </p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">
+                            {relativeTime(notif.time)}
+                          </p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="py-8 sm:py-12 flex flex-col items-center text-gray-400">
+                      <HiOutlineBell className="w-8 h-8 sm:w-10 sm:h-10 text-gray-200 mb-2 sm:mb-3" />
+                      <p className="text-xs sm:text-sm font-medium">Tidak ada pengajuan</p>
+                      <p className="text-[10px] sm:text-xs text-gray-300 mt-1">Semua approval sudah diproses</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="py-12 flex flex-col items-center text-gray-400">
-                    <HiOutlineBell className="w-10 h-10 text-gray-200 mb-3" />
-                    <p className="text-sm font-medium">Tidak ada pengajuan</p>
-                    <p className="text-xs text-gray-300 mt-1">Semua approval sudah diproses</p>
+                  )}
+                </div>
+
+                {/* Footer */}
+                {notifications.length > 0 && (
+                  <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-t border-gray-100 bg-gray-50 text-center">
+                    <button
+                      onClick={() => { navigate('/approvals'); setShowNotifications(false); }}
+                      className="text-[11px] sm:text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      Lihat semua approval →
+                    </button>
                   </div>
                 )}
               </div>
-
-              {/* Footer */}
-              {notifications.length > 0 && (
-                <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-center">
-                  <button
-                    onClick={() => { navigate('/approvals'); setShowNotifications(false); }}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
-                  >
-                    Lihat semua approval →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      </nav>
 
+      {/* CSS Animations */}
       <style>{`
         @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-8px); }
-          to   { opacity: 1; transform: translateY(0); }
+          from { 
+            opacity: 0; 
+            transform: translateY(-8px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
+        }
+        
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+        }
+        
+        .animate-bounce {
+          animation: bounce 0.5s ease-in-out 2;
         }
       `}</style>
-    </nav>
+    </>
   );
 };
 

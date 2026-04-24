@@ -12,6 +12,7 @@ import EmployeeDetail from '../pages/employees/DetailEmployee';
 import Attendance from '../pages/Attendance';
 import AttendanceCorrection from '../pages/attendance/AttendanceCorrection';
 import Overtime from '../pages/attendance/Overtime';
+import AttendanceList from '../pages/attendance/AttendanceList';
 
 // Departments
 import DepartmentsList from '../pages/departments/IndexDepartments';
@@ -95,6 +96,8 @@ const AppRoutes = () => {
         <Route path="attendance"            element={<Attendance />} />
         <Route path="attendance/correction" element={<AttendanceCorrection />} />
         <Route path="attendance/overtime"   element={<Overtime />} />
+        <Route path="attendance/list"            element={<AttendanceList />} />
+        
 
         {/* Other */}
         <Route path="payroll"    element={<Payroll />} />
