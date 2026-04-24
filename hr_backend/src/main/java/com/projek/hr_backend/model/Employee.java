@@ -42,6 +42,15 @@ public class Employee {
     
     private String photo;
     
+    @Column(name = "home_latitude")
+    private Double homeLatitude;
+
+    @Column(name = "home_longitude")
+    private Double homeLongitude;
+
+    @Column(name = "home_address")
+    private String homeAddress;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;

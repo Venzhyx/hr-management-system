@@ -17,6 +17,10 @@ public class AttendanceSettingsResponse {
     private ExtraHoursValidation extraHoursValidation;
     private LocalTime checkInTime;
     private LocalTime checkOutTime;
+    private Double officeLatitude;
+    private Double officeLongitude;
+    private Double wfoRadius;
+    private Double wfhRadius;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

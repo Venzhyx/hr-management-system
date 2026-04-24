@@ -16,4 +16,8 @@ public class CheckInResponse {
     private Double latitude;
     private Double longitude;
     private String attendanceStatus;
+    private Boolean isLocationValidated;
+    private Double distance;
+    private Double radius;
+    private String locationMessage;
 }

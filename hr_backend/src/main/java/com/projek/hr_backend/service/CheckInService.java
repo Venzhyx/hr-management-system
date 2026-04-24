@@ -2,6 +2,7 @@ package com.projek.hr_backend.service;
 
 import com.projek.hr_backend.dto.CheckInResponse;
 import com.projek.hr_backend.dto.CheckOutResponse;
+import com.projek.hr_backend.dto.LocationValidationResponse;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.AttendanceRepository;
@@ -30,6 +31,7 @@ public class CheckInService {
     private final AttendanceRepository attendanceRepository;
     private final EmployeeSettingsRepository employeeSettingsRepository;
     private final AttendanceSettingsRepository attendanceSettingsRepository;
+    private final LocationValidationService locationValidationService;
 
     private static final String UPLOAD_DIR = "/app/uploads/attendance/";
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -48,28 +50,36 @@ public class CheckInService {
             throw new ResourceNotFoundException("Employee data not found");
         }
 
-        // 2. Cek duplikat - tidak boleh check-in 2x di hari yang sama
+        // 2. Cek duplikat
         LocalDate today = LocalDate.now();
         if (attendanceRepository.existsByEmployeeIdAndDate(employeeId, today)) {
             throw new IllegalStateException("Sudah absen hari ini");
         }
 
-        // 3. Simpan foto
-        String photoPath = null;
-        if (photo != null && !photo.isEmpty()) {
-            photoPath = savePhoto(photo, employeeId);
+        // 3. Validasi lokasi GPS
+        AttendanceType type = AttendanceType.valueOf(attendanceType.toUpperCase());
+        LocationValidationResponse locationResult = locationValidationService
+                .validateLocation(employee, latitude, longitude, type);
+
+        if (!locationResult.isValid()) {
+            throw new IllegalStateException(locationResult.getMessage());
         }
 
-        // 4. Set waktu check-in
+        // 4. Simpan foto
+        String photoPath = null;
+        if (photo != null && !photo.isEmpty()) {
+            photoPath = savePhoto(photo, employeeId, "checkin");
+        }
+
+        // 5. Set waktu check-in
         LocalDateTime checkIn = LocalDateTime.now();
 
-        // 5. Tentukan status dengan checkInTime dan toleransi dari AttendanceSettings
+        // 6. Tentukan status dengan checkInTime dan toleransi dari AttendanceSettings
         DayOfWeek day = today.getDayOfWeek();
         String status;
         if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
             status = "OFF";
         } else {
-            // Ambil checkInTime dan toleransi dari settings
             AttendanceSettings attSettings = attendanceSettingsRepository
                     .findFirstByOrderByIdAsc().orElse(null);
 
@@ -81,7 +91,6 @@ public class CheckInService {
                     ? attSettings.getToleranceTimeInFavorOfEmployee()
                     : 0;
 
-            // Batas jam masuk = checkInTime + toleransi
             LocalTime deadline = baseCheckIn.plusMinutes(toleranceMinutes);
 
             if (checkIn.toLocalTime().isAfter(deadline)) {
@@ -91,7 +100,7 @@ public class CheckInService {
             }
         }
 
-        // 6. Buat dan simpan attendance
+        // 7. Simpan attendance
         Attendance attendance = new Attendance();
         attendance.setEmployee(employee);
         attendance.setEmployeeCode(settings.getEmployeeIdentificationNumber());
@@ -103,22 +112,28 @@ public class CheckInService {
         attendance.setPhotoPath(photoPath);
         attendance.setLatitude(latitude);
         attendance.setLongitude(longitude);
-        attendance.setAttendanceType(AttendanceType.valueOf(attendanceType.toUpperCase()));
+        attendance.setAttendanceType(type);
         attendance.setSource(AttendanceSource.MANUAL);
+        attendance.setIsLocationValidated(locationResult.isValid());
 
         attendanceRepository.save(attendance);
 
-        // 7. Return response
-        return new CheckInResponse(
-                "SUCCESS",
-                employee.getId(),
-                employee.getName(),
-                checkIn.format(TIME_FORMATTER),
-                attendanceType.toUpperCase(),
-                latitude,
-                longitude,
-                status
-        );
+        // 8. Return response
+        CheckInResponse response = new CheckInResponse();
+        response.setStatus("SUCCESS");
+        response.setEmployeeId(employee.getId());
+        response.setEmployeeName(employee.getName());
+        response.setCheckInTime(checkIn.format(TIME_FORMATTER));
+        response.setAttendanceType(attendanceType.toUpperCase());
+        response.setLatitude(latitude);
+        response.setLongitude(longitude);
+        response.setAttendanceStatus(status);
+        response.setIsLocationValidated(locationResult.isValid());
+        response.setDistance(locationResult.getDistance());
+        response.setRadius(locationResult.getRadius());
+        response.setLocationMessage(locationResult.getMessage());
+
+        return response;
     }
 
     @Transactional
@@ -153,7 +168,7 @@ public class CheckInService {
         // 5. Set waktu checkout
         LocalDateTime checkOut = LocalDateTime.now();
 
-        // 6. Ambil checkOutTime dari settings untuk validasi
+        // 6. Ambil checkOutTime dari settings
         AttendanceSettings attSettings = attendanceSettingsRepository
                 .findFirstByOrderByIdAsc().orElse(null);
 
@@ -161,19 +176,13 @@ public class CheckInService {
                 ? attSettings.getCheckOutTime()
                 : LocalTime.of(17, 0);
 
-        // 7. Tentukan pesan berdasarkan waktu checkout
-        String message;
-        if (checkOut.toLocalTime().isBefore(expectedCheckOut)) {
-            message = "Checkout lebih awal dari jam kerja (" + expectedCheckOut + ")";
-        } else {
-            message = "Checkout berhasil";
-        }
+        String message = checkOut.toLocalTime().isBefore(expectedCheckOut)
+                ? "Checkout lebih awal dari jam kerja (" + expectedCheckOut + ")"
+                : "Checkout berhasil";
 
-        // 8. Update attendance dengan foto dan GPS checkout
+        // 7. Update attendance
         attendance.setCheckOut(checkOut);
-        if (photoPath != null) {
-            attendance.setCheckOutPhotoPath(photoPath);
-        }
+        if (photoPath != null) attendance.setCheckOutPhotoPath(photoPath);
         if (latitude != null)  attendance.setCheckOutLatitude(latitude);
         if (longitude != null) attendance.setCheckOutLongitude(longitude);
         attendanceRepository.save(attendance);
@@ -188,20 +197,14 @@ public class CheckInService {
         );
     }
 
-    private String savePhoto(MultipartFile photo, Long employeeId) throws IOException {
-        return savePhoto(photo, employeeId, "checkin");
-    }
-
     private String savePhoto(MultipartFile photo, Long employeeId, String type) throws IOException {
         File uploadDir = new File(UPLOAD_DIR);
         if (!uploadDir.exists()) {
             uploadDir.mkdirs();
         }
-
         String fileName = System.currentTimeMillis() + "_" + employeeId + "_" + type + ".jpg";
         Path filePath = Paths.get(UPLOAD_DIR + fileName);
         Files.write(filePath, photo.getBytes());
-
         return UPLOAD_DIR + fileName;
     }
 }

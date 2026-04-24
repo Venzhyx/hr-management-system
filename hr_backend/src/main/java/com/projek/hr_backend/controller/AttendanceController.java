@@ -3,10 +3,15 @@ package com.projek.hr_backend.controller;
 import com.projek.hr_backend.dto.ApiResponse;
 import com.projek.hr_backend.dto.CheckInResponse;
 import com.projek.hr_backend.dto.CheckOutResponse;
+import com.projek.hr_backend.dto.LocationValidationResponse;
 import com.projek.hr_backend.model.Attendance;
+import com.projek.hr_backend.model.AttendanceType;
+import com.projek.hr_backend.model.Employee;
 import com.projek.hr_backend.repository.AttendanceRepository;
+import com.projek.hr_backend.repository.EmployeeRepository;
 import com.projek.hr_backend.service.AttendanceService;
 import com.projek.hr_backend.service.CheckInService;
+import com.projek.hr_backend.service.LocationValidationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +32,8 @@ public class AttendanceController {
     private final AttendanceService service;
     private final CheckInService checkInService;
     private final AttendanceRepository attendanceRepository;
+    private final LocationValidationService locationValidationService;
+    private final EmployeeRepository employeeRepository;
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> uploadExcel(
@@ -70,6 +77,20 @@ public class AttendanceController {
             @PathVariable Long id) {
         List<Attendance> attendances = service.getAttendancesByEmployee(id);
         return ResponseEntity.ok(new ApiResponse<>(true, "Attendances retrieved successfully", toDto(attendances)));
+    }
+
+    @GetMapping("/validate-location")
+    public ResponseEntity<ApiResponse<LocationValidationResponse>> validateLocation(
+            @RequestParam Long employeeId,
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @RequestParam String attendanceType) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        LocationValidationResponse result = locationValidationService.validateLocation(
+                employee, latitude, longitude,
+                AttendanceType.valueOf(attendanceType.toUpperCase()));
+        return ResponseEntity.ok(new ApiResponse<>(true, result.getMessage(), result));
     }
 
     @GetMapping("/today/{employeeId}")

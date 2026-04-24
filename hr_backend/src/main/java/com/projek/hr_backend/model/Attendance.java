@@ -66,6 +66,9 @@ public class Attendance {
     @Column(name = "check_out_longitude")
     private Double checkOutLongitude;
 
+    @Column(name = "is_location_validated")
+    private Boolean isLocationValidated;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "attendance_type", length = 10)
     private AttendanceType attendanceType;

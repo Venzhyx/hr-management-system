@@ -33,6 +33,18 @@ public class AttendanceSettings {
 
     @Column(name = "check_out_time")
     private LocalTime checkOutTime = LocalTime.of(17, 0);
+
+    @Column(name = "office_latitude")
+    private Double officeLatitude;
+
+    @Column(name = "office_longitude")
+    private Double officeLongitude;
+
+    @Column(name = "wfo_radius")
+    private Double wfoRadius = 100.0;
+
+    @Column(name = "wfh_radius")
+    private Double wfhRadius = 100.0;
     
     @CreationTimestamp
     @Column(updatable = false)
