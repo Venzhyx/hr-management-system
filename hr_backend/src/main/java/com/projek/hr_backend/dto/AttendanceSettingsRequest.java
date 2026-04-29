@@ -26,6 +26,6 @@ public class AttendanceSettingsRequest {
 
     private Double officeLatitude;
     private Double officeLongitude;
-    private Double wfoRadius;
-    private Double wfhRadius;
+    private Integer wfoRadius;
+    private Integer wfhRadius;
 }

@@ -41,10 +41,10 @@ public class AttendanceSettings {
     private Double officeLongitude;
 
     @Column(name = "wfo_radius")
-    private Double wfoRadius = 100.0;
+    private Integer wfoRadius = 100;
 
     @Column(name = "wfh_radius")
-    private Double wfhRadius = 100.0;
+    private Integer wfhRadius = 100;
     
     @CreationTimestamp
     @Column(updatable = false)
