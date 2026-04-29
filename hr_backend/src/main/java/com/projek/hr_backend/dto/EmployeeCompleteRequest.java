@@ -52,6 +52,11 @@
         private String privatePhone;
         private String npwpId;
         private Double homeToWorkDistance;
+
+        // WFH Location
+        private String homeAddress;
+        private Double homeLatitude;
+        private Double homeLongitude;
         
         @Valid
         private List<EmployeeBankRequest> banks;

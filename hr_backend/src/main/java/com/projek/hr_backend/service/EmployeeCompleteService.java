@@ -226,6 +226,9 @@
             employee.setWorkPhone(request.getWorkPhone());
             employee.setWorkMobile(request.getWorkMobile());
             employee.setJoinDate(request.getJoinDate());
+            employee.setHomeAddress(request.getHomeAddress());
+            employee.setHomeLatitude(request.getHomeLatitude());
+            employee.setHomeLongitude(request.getHomeLongitude());
 
             if (request.getPhoto() != null) {
                 employee.setPhoto(request.getPhoto());
@@ -270,6 +273,9 @@
             response.setPhoto(employee.getPhoto());
             response.setCreatedAt(employee.getCreatedAt());
             response.setUpdatedAt(employee.getUpdatedAt());
+            response.setHomeAddress(employee.getHomeAddress());
+            response.setHomeLatitude(employee.getHomeLatitude());
+            response.setHomeLongitude(employee.getHomeLongitude());
             
             if (employee.getCompany() != null) {
                 response.setCompanyId(employee.getCompany().getId());
