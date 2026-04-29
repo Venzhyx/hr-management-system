@@ -7,6 +7,7 @@ import {
   HiOutlineHome, HiOutlineGlobe,
 } from "react-icons/hi";
 import { useCheckIn } from "../../redux/hooks/useCheckin";
+import { useAttendance } from "../../redux/hooks/useAttendance"; // ✅ IMPORT useAttendance
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
   const [cameraError, setCameraError] = useState(null);
 
   const { error: submitError, submitCheckIn, getLocation, reset: resetHook } = useCheckIn();
+  const { upsertAttendanceRecord } = useAttendance(); // ✅ GET UPSERT FUNCTION
 
   // ── Live clock ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -246,13 +248,20 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
         capturedAt: capturedAt || new Date(),
         workType,
       });
+      
+      // ✅ UPDATE REDUX STORE dengan data attendance yang baru
+      const record = res?.data ?? res;
+      if (record?.id) {
+        upsertAttendanceRecord(record);
+      }
+      
       setStep(STEP.SUCCESS);
       onSuccess?.(res);
     } catch (err) {
       console.error("[CheckIn] Submit error:", err);
       setStep(STEP.ERROR);
     }
-  }, [photoBlob, location, employee, capturedAt, workType, submitCheckIn, onSuccess]);
+  }, [photoBlob, location, employee, capturedAt, workType, submitCheckIn, onSuccess, upsertAttendanceRecord]);
 
   // ── Close ──────────────────────────────────────────────────────────────────
   const handleClose = useCallback(() => {

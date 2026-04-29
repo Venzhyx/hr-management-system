@@ -33,7 +33,8 @@ public class CheckInService {
     private final AttendanceSettingsRepository attendanceSettingsRepository;
     private final LocationValidationService locationValidationService;
 
-    private static final String UPLOAD_DIR = "/app/uploads/attendance/";
+    private static final String UPLOAD_DIR   = "/app/uploads/attendance/";
+    private static final String UPLOAD_URL   = "/uploads/attendance/"; // ✅ URL relatif untuk browser
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     @Transactional
@@ -100,7 +101,7 @@ public class CheckInService {
             }
         }
 
-        // 7. Simpan attendance
+        // 7. Simpan attendance — simpan path absolut di DB untuk akses server
         Attendance attendance = new Attendance();
         attendance.setEmployee(employee);
         attendance.setEmployeeCode(settings.getEmployeeIdentificationNumber());
@@ -109,7 +110,7 @@ public class CheckInService {
         attendance.setCheckIn(checkIn);
         attendance.setCheckOut(null);
         attendance.setStatus(status);
-        attendance.setPhotoPath(photoPath);
+        attendance.setPhotoPath(photoPath); // path relatif "/uploads/attendance/..."
         attendance.setLatitude(latitude);
         attendance.setLongitude(longitude);
         attendance.setAttendanceType(type);
@@ -132,6 +133,7 @@ public class CheckInService {
         response.setDistance(locationResult.getDistance());
         response.setRadius(locationResult.getRadius());
         response.setLocationMessage(locationResult.getMessage());
+        response.setPhotoPath(photoPath); // ✅ TAMBAH: kirim path foto ke frontend
 
         return response;
     }
@@ -182,7 +184,7 @@ public class CheckInService {
 
         // 7. Update attendance
         attendance.setCheckOut(checkOut);
-        if (photoPath != null) attendance.setCheckOutPhotoPath(photoPath);
+        if (photoPath != null) attendance.setCheckOutPhotoPath(photoPath); // path relatif
         if (latitude != null)  attendance.setCheckOutLatitude(latitude);
         if (longitude != null) attendance.setCheckOutLongitude(longitude);
         attendanceRepository.save(attendance);
@@ -197,6 +199,11 @@ public class CheckInService {
         );
     }
 
+    /**
+     * Simpan file foto ke disk.
+     * ✅ FIX: kembalikan URL relatif (/uploads/attendance/...) bukan path absolut server.
+     * Path relatif ini langsung bisa diakses browser via endpoint static resource Spring Boot.
+     */
     private String savePhoto(MultipartFile photo, Long employeeId, String type) throws IOException {
         File uploadDir = new File(UPLOAD_DIR);
         if (!uploadDir.exists()) {
@@ -205,6 +212,8 @@ public class CheckInService {
         String fileName = System.currentTimeMillis() + "_" + employeeId + "_" + type + ".jpg";
         Path filePath = Paths.get(UPLOAD_DIR + fileName);
         Files.write(filePath, photo.getBytes());
-        return UPLOAD_DIR + fileName;
+
+        // ✅ Kembalikan URL relatif — bukan path absolut
+        return UPLOAD_URL + fileName;
     }
 }

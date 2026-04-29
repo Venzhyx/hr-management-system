@@ -6,6 +6,7 @@ import {
   HiOutlineExclamationCircle, HiOutlineUser, HiOutlineLogout,
 } from "react-icons/hi";
 import { useCheckOut } from "../../redux/hooks/useCheckout";
+import { useAttendance } from "../../redux/hooks/useAttendance"; // ✅ IMPORT useAttendance
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ const CheckOutModal = ({ isOpen, onClose, employee, onSuccess }) => {
   const [cameraError, setCameraError] = useState(null);
 
   const { error: submitError, submitCheckOut, getLocation, reset: resetHook } = useCheckOut();
+  const { upsertAttendanceRecord } = useAttendance(); // ✅ GET UPSERT FUNCTION
 
   // ── Live clock ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -173,13 +175,20 @@ const CheckOutModal = ({ isOpen, onClose, employee, onSuccess }) => {
         location:   loc,
         capturedAt: capturedAt || new Date(),
       });
+      
+      // ✅ UPDATE REDUX STORE dengan data attendance yang baru
+      const record = res?.data ?? res;
+      if (record?.id) {
+        upsertAttendanceRecord(record);
+      }
+      
       setStep(STEP.SUCCESS);
       onSuccess?.(res);
     } catch (err) {
       console.error("[CheckOut] Submit error:", err);
       setStep(STEP.ERROR);
     }
-  }, [photoBlob, location, employee, capturedAt, submitCheckOut, onSuccess]);
+  }, [photoBlob, location, employee, capturedAt, submitCheckOut, onSuccess, upsertAttendanceRecord]);
 
   // ── Close ──────────────────────────────────────────────────────────────────
   const handleClose = useCallback(() => {

@@ -20,4 +20,5 @@ public class CheckInResponse {
     private Double distance;
     private Double radius;
     private String locationMessage;
+    private String photoPath; // ✅ TAMBAH: agar frontend bisa tahu URL foto
 }

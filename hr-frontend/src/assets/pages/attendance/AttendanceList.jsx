@@ -5,11 +5,25 @@ import {
   HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineExclamationCircle,
   HiOutlineRefresh, HiOutlineChevronLeft, HiOutlineChevronRight,
   HiOutlineChevronDown, HiOutlineOfficeBuilding, HiOutlineEye,
-  HiOutlineLocationMarker, HiOutlineCamera, HiOutlineX,
+  HiOutlineLocationMarker, HiOutlineCamera, HiOutlineX, HiOutlineArrowLeft, HiOutlineArrowRight,
 } from 'react-icons/hi';
 import { useAttendance } from '../../../redux/hooks/useAttendance';
 
 const PER_PAGE = 10;
+
+// ✅ Base URL backend
+const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080')
+  .replace(/\/api(\/v\d+)?\/?$/, '');
+
+const buildPhotoUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('//')) return `https:${path}`;
+  return `${BASE_URL}${path}`;
+};
+
+// ✅ Fallback image Base64 (no external request)
+const FALLBACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='14' fill='%239ca3af' text-anchor='middle' dy='.3em'%3EFoto Tidak Tersedia%3C/text%3E%3C/svg%3E";
 
 const STATUS_CONFIG = {
   PRESENT: { label: 'Present', color: 'bg-green-100 text-green-700',   icon: <HiOutlineCheckCircle className="w-3.5 h-3.5" /> },
@@ -41,6 +55,18 @@ const formatDate = (dt) => {
   return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const formatDateTime = (dt) => {
+  if (!dt) return '-';
+  const d = new Date(dt);
+  return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 const calcDuration = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return '-';
   const diff = (new Date(checkOut) - new Date(checkIn)) / 60000;
@@ -51,10 +77,9 @@ const calcDuration = (checkIn, checkOut) => {
 const formatCoord = (val) => {
   if (val == null || val === '') return null;
   const n = parseFloat(val);
-  return isNaN(n) ? null : n.toFixed(5);
+  return isNaN(n) ? null : n.toFixed(6);
 };
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const cfg = getStatusConfig(status);
   return (
@@ -64,7 +89,6 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// ─── Work Type Badge ──────────────────────────────────────────────────────────
 const WorkTypeBadge = ({ type }) => {
   const cfg = getWorkTypeConfig(type);
   return (
@@ -74,18 +98,301 @@ const WorkTypeBadge = ({ type }) => {
   );
 };
 
-// ─── Detail Modal ─────────────────────────────────────────────────────────────
+// ─── Photo Preview Modal (Lightbox) ───────────────────────────────────────────
+const PhotoPreviewModal = ({ isOpen, onClose, photos, initialIndex = 0 }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isOpen) return;
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') handlePrev();
+      if (e.key === 'ArrowRight') handleNext();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentIndex]);
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+  };
+
+  if (!isOpen || !photos.length) return null;
+
+  const currentPhoto = photos[currentIndex];
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+      onClick={onClose}
+    >
+      <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+        >
+          <HiOutlineX className="w-6 h-6" />
+        </button>
+
+        {/* Image counter */}
+        <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-full bg-black/50 text-white text-sm">
+          {currentIndex + 1} / {photos.length}
+        </div>
+
+        {/* Main image */}
+        <img
+          src={currentPhoto.url}
+          alt={currentPhoto.alt}
+          className="max-w-[90vw] max-h-[90vh] object-contain"
+          onError={(e) => {
+            e.target.src = FALLBACK_IMAGE;
+          }}
+        />
+
+        {/* Caption */}
+        <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-2 px-4 mx-auto w-fit rounded-full">
+          {currentPhoto.caption}
+        </div>
+
+        {/* Navigation buttons */}
+        {photos.length > 1 && (
+          <>
+            <button
+              onClick={handlePrev}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            >
+              <HiOutlineChevronLeft className="w-8 h-8" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            >
+              <HiOutlineChevronRight className="w-8 h-8" />
+            </button>
+
+            {/* Thumbnails */}
+            <div className="absolute bottom-20 left-0 right-0 flex justify-center gap-2 flex-wrap px-4">
+              {photos.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                    idx === currentIndex ? 'border-white scale-110' : 'border-transparent opacity-50'
+                  }`}
+                >
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Photo Carousel Component ─────────────────────────────────────────────────
+const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  
+  const photos = [];
+  if (checkInPhoto) {
+    photos.push({
+      url: checkInPhoto,
+      type: "Check In",
+      time: checkInTime,
+      label: "Foto Check In",
+      caption: `Check In - ${formatDateTime(checkInTime)}`,
+      alt: "Foto Check In",
+    });
+  }
+  if (checkOutPhoto) {
+    photos.push({
+      url: checkOutPhoto,
+      type: "Check Out",
+      time: checkOutTime,
+      label: "Foto Check Out",
+      caption: `Check Out - ${formatDateTime(checkOutTime)}`,
+      alt: "Foto Check Out",
+    });
+  }
+
+  const openPreview = () => {
+    setPreviewOpen(true);
+  };
+
+  if (photos.length === 0) {
+    return (
+      <div className="bg-gray-100 rounded-xl flex items-center justify-center py-12">
+        <div className="text-center">
+          <HiOutlineCamera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">Tidak ada foto</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentPhoto = photos[currentIndex];
+
+  return (
+    <>
+      <div className="space-y-3">
+        <div className="relative bg-gray-100 rounded-xl overflow-hidden" style={{ aspectRatio: "4/3" }}>
+          <img
+            src={currentPhoto.url}
+            alt={currentPhoto.alt}
+            className="w-full h-full object-cover cursor-pointer transition-transform hover:scale-105"
+            onClick={openPreview}
+            onError={(e) => {
+              e.target.src = FALLBACK_IMAGE;
+            }}
+          />
+          
+          {/* Overlay badge */}
+          <div className="absolute top-3 left-3">
+            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              currentPhoto.type === "Check In" 
+                ? "bg-indigo-600 text-white" 
+                : "bg-emerald-600 text-white"
+            }`}>
+              {currentPhoto.type}
+            </span>
+          </div>
+
+          {/* Zoom indicator */}
+          <div className="absolute bottom-3 right-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openPreview();
+              }}
+              className="px-2 py-1 rounded-lg bg-black/50 hover:bg-black/70 text-white text-xs flex items-center gap-1 transition-colors"
+            >
+              <HiOutlineEye className="w-3 h-3" />
+              Preview
+            </button>
+          </div>
+          
+          {/* Navigation buttons */}
+          {photos.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+                >
+                  <HiOutlineArrowLeft className="w-5 h-5 text-white" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+                >
+                  <HiOutlineArrowRight className="w-5 h-5 text-white" />
+                </button>
+                
+                {/* Indicator dots */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                  {photos.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentIndex(idx);
+                      }}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        idx === currentIndex ? "bg-white w-4" : "bg-white/50"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+        </div>
+        
+        {/* Caption and actions */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-gray-700">
+            {currentPhoto.label} · {formatDateTime(currentPhoto.time)}
+          </p>
+          <button
+            onClick={openPreview}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+          >
+            <HiOutlineEye className="w-3.5 h-3.5" />
+            Lihat besar
+          </button>
+        </div>
+
+        {/* Thumbnail strip */}
+        {photos.length > 1 && (
+          <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+            {photos.map((photo, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIndex(idx)}
+                className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                  idx === currentIndex ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200'
+                }`}
+              >
+                <img
+                  src={photo.url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = FALLBACK_IMAGE;
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Preview Modal */}
+      <PhotoPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        photos={photos}
+        initialIndex={currentIndex}
+      />
+    </>
+  );
+};
+
+// ─── Detail Modal Component ───────────────────────────────────────────────────
 const DetailModal = ({ item, onClose }) => {
   if (!item) return null;
 
   const empName  = item.employee?.name ?? item.employeeName ?? '-';
   const deptName = item.employee?.departmentName ?? item.departmentName ?? item.employee?.department?.name ?? '';
-  const photoIn  = item.checkInPhoto  ?? item.check_in_photo  ?? item.photoIn  ?? item.photo ?? null;
-  const photoOut = item.checkOutPhoto ?? item.check_out_photo ?? item.photoOut ?? null;
-  const lat      = item.latitude  ?? item.lat  ?? null;
-  const lng      = item.longitude ?? item.long ?? item.lng ?? null;
-  const workType = item.workType  ?? item.work_type ?? null;
-  const mapsUrl  = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+  const workType = item.attendanceType ?? null;
+
+  // Build photo URLs
+  const photoIn  = buildPhotoUrl(item.photoPath ?? null);
+  const photoOut = buildPhotoUrl(item.checkOutPhotoPath ?? null);
+
+  const lat    = item.latitude  ?? null;
+  const lng    = item.longitude ?? null;
+  const latOut = item.checkOutLatitude  ?? null;
+  const lngOut = item.checkOutLongitude ?? null;
+
+  const mapsUrl    = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+  const mapsUrlOut = latOut && lngOut ? `https://www.google.com/maps?q=${latOut},${lngOut}` : null;
 
   return (
     <div
@@ -93,37 +400,37 @@ const DetailModal = ({ item, onClose }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
               {empName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="font-semibold text-gray-800 text-sm">{empName}</p>
+              <p className="font-semibold text-gray-800">{empName}</p>
               {deptName && <p className="text-xs text-gray-400">{deptName}</p>}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
             <HiOutlineX className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5 space-y-5">
-          {/* Info grid */}
-          <div className="grid grid-cols-2 gap-3">
+        <div className="p-6 space-y-6">
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { label: 'Tanggal',    value: formatDate(item.date) },
-              { label: 'Status',     value: <StatusBadge status={item.status} /> },
-              { label: 'Check In',   value: formatTime(item.checkIn) },
-              { label: 'Check Out',  value: formatTime(item.checkOut) },
-              { label: 'Durasi',     value: calcDuration(item.checkIn, item.checkOut) },
+              { label: 'Tanggal', value: formatDate(item.date) },
+              { label: 'Status', value: <StatusBadge status={item.status} /> },
+              { label: 'Check In', value: formatTime(item.checkIn) },
+              { label: 'Check Out', value: formatTime(item.checkOut) },
+              { label: 'Durasi', value: calcDuration(item.checkIn, item.checkOut) },
               { label: 'Tipe Kerja', value: workType ? <WorkTypeBadge type={workType} /> : '-' },
             ].map(({ label, value }) => (
               <div key={label} className="bg-gray-50 rounded-xl p-3">
@@ -133,21 +440,20 @@ const DetailModal = ({ item, onClose }) => {
             ))}
           </div>
 
-          {/* Lokasi */}
+          {/* Location Check In */}
           {(lat || lng) && (
             <div className="bg-gray-50 rounded-xl p-3">
               <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
-                <HiOutlineLocationMarker className="w-3.5 h-3.5" />
-                Lokasi Absen
+                <HiOutlineLocationMarker className="w-3.5 h-3.5" /> Lokasi Check In
               </p>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-sm font-mono text-gray-700">
                   {formatCoord(lat)}, {formatCoord(lng)}
                 </p>
                 {mapsUrl && (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
+                  <a 
+                    href={mapsUrl} 
+                    target="_blank" 
                     rel="noopener noreferrer"
                     className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
                   >
@@ -158,31 +464,42 @@ const DetailModal = ({ item, onClose }) => {
             </div>
           )}
 
-          {/* Foto */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Foto Check In',  url: photoIn },
-              { label: 'Foto Check Out', url: photoOut },
-            ].map(({ label, url }) => (
-              <div key={label}>
-                <p className="text-xs text-gray-400 mb-1.5 flex items-center gap-1">
-                  <HiOutlineCamera className="w-3.5 h-3.5" />
-                  {label}
+          {/* Location Check Out */}
+          {(latOut || lngOut) && (
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                <HiOutlineLocationMarker className="w-3.5 h-3.5" /> Lokasi Check Out
+              </p>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm font-mono text-gray-700">
+                  {formatCoord(latOut)}, {formatCoord(lngOut)}
                 </p>
-                {url ? (
-                  <img
-                    src={url}
-                    alt={label}
-                    className="w-full h-36 object-cover rounded-xl border border-gray-200"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                ) : (
-                  <div className="w-full h-36 rounded-xl border border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-xs">
-                    Tidak ada foto
-                  </div>
+                {mapsUrlOut && (
+                  <a 
+                    href={mapsUrlOut} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+                  >
+                    Buka Maps ↗
+                  </a>
                 )}
               </div>
-            ))}
+            </div>
+          )}
+
+          {/* Photos with Carousel */}
+          <div>
+            <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <HiOutlineCamera className="w-4 h-4 text-indigo-500" />
+              Dokumentasi Foto
+            </p>
+            <PhotoCarousel 
+              checkInPhoto={photoIn}
+              checkOutPhoto={photoOut}
+              checkInTime={item.checkIn}
+              checkOutTime={item.checkOut}
+            />
           </div>
         </div>
       </div>
@@ -190,29 +507,24 @@ const DetailModal = ({ item, onClose }) => {
   );
 };
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
+// ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <tr className="animate-pulse">
     {Array.from({ length: 10 }).map((_, i) => (
-      <td key={i} className="px-4 py-3.5">
-        <div className="h-4 bg-gray-100 rounded w-full" />
-      </td>
+      <td key={i} className="px-4 py-3.5"><div className="h-4 bg-gray-100 rounded w-full" /></td>
     ))}
   </tr>
 );
 
 // ─── Employee Dropdown ────────────────────────────────────────────────────────
 const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onChange }) => {
-  const [open, setOpen]     = useState(false);
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const ref                 = useRef(null);
+  const ref = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-        setSearch('');
-      }
+      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch(''); }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -222,9 +534,7 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
     if (!search.trim()) return employees;
     const q = search.toLowerCase();
     return employees.filter(
-      (e) =>
-        e.name?.toLowerCase().includes(q) ||
-        e.employeeIdentificationNumber?.toLowerCase().includes(q)
+      (e) => e.name?.toLowerCase().includes(q) || e.employeeIdentificationNumber?.toLowerCase().includes(q)
     );
   }, [employees, search]);
 
@@ -249,14 +559,10 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
               )}
             </span>
           ) : (
-            <span className="text-gray-400 text-sm">
-              {loadingEmployees ? 'Memuat...' : '— Pilih Karyawan —'}
-            </span>
+            <span className="text-gray-400 text-sm">{loadingEmployees ? 'Memuat...' : '— Pilih Karyawan —'}</span>
           )}
         </div>
-        <HiOutlineChevronDown
-          className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -265,11 +571,8 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
               <HiOutlineSearch className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <input
-                autoFocus
-                type="text"
-                placeholder="Cari nama atau NIK..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                autoFocus type="text" placeholder="Cari nama atau NIK..."
+                value={search} onChange={(e) => setSearch(e.target.value)}
                 className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
               />
             </div>
@@ -293,12 +596,9 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
                         {emp.name?.charAt(0)?.toUpperCase() || '?'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className={`text-sm font-medium truncate ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>
-                          {emp.name}
-                        </p>
+                        <p className={`text-sm font-medium truncate ${isActive ? 'text-indigo-700' : 'text-gray-800'}`}>{emp.name}</p>
                         <p className="text-xs text-gray-400 font-mono truncate">
-                          {emp.employeeIdentificationNumber}
-                          {emp.departmentName && ` · ${emp.departmentName}`}
+                          {emp.employeeIdentificationNumber}{emp.departmentName && ` · ${emp.departmentName}`}
                         </p>
                       </div>
                     </button>
@@ -313,7 +613,7 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
   );
 };
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Main AttendanceList Component ───────────────────────────────────────────
 const AttendanceList = () => {
   const {
     attendances, employees, loading, loadingEmployees, error,
@@ -321,11 +621,11 @@ const AttendanceList = () => {
   } = useAttendance();
 
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [filterStatus, setFilterStatus]         = useState('');
-  const [filterDate, setFilterDate]             = useState('');
-  const [search, setSearch]                     = useState('');
-  const [page, setPage]                         = useState(1);
-  const [detailItem, setDetailItem]             = useState(null);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [detailItem, setDetailItem] = useState(null);
 
   useEffect(() => {
     loadEmployees();
@@ -333,11 +633,14 @@ const AttendanceList = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedEmployee) { setPage(1); loadAttendance(selectedEmployee); }
-    else resetAttendance();
+    if (selectedEmployee) {
+      setPage(1);
+      loadAttendance(selectedEmployee);
+    } else {
+      resetAttendance();
+    }
   }, [selectedEmployee]);
 
-  // Sort terbaru di atas, lalu filter
   const filtered = useMemo(() => {
     const sorted = [...attendances].sort((a, b) => {
       const da = new Date(a.date ?? a.checkIn ?? 0);
@@ -345,16 +648,16 @@ const AttendanceList = () => {
       return db - da;
     });
     return sorted.filter((item) => {
-      const empName     = (item.employee?.name ?? item.employeeName ?? '').toLowerCase();
-      const matchSearch = !search       || empName.includes(search.toLowerCase());
+      const empName = (item.employee?.name ?? item.employeeName ?? '').toLowerCase();
+      const matchSearch = !search || empName.includes(search.toLowerCase());
       const matchStatus = !filterStatus || item.status?.toUpperCase() === filterStatus;
-      const matchDate   = !filterDate   || (item.date ?? '').startsWith(filterDate);
+      const matchDate = !filterDate || (item.date ?? '').startsWith(filterDate);
       return matchSearch && matchStatus && matchDate;
     });
   }, [attendances, search, filterStatus, filterDate]);
 
-  const totalPages  = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const paginated   = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
   const selectedObj = employees.find((e) => String(e.id) === String(selectedEmployee));
 
   const handleReset = useCallback(() => {
@@ -362,12 +665,10 @@ const AttendanceList = () => {
   }, []);
 
   const hasFilter = selectedEmployee || filterStatus || filterDate || search;
-
   const COLUMNS = ['No', 'Karyawan', 'Tanggal', 'Check In', 'Check Out', 'Durasi', 'Tipe', 'Lokasi', 'Status', 'Aksi'];
 
   return (
     <div className="space-y-5 px-4 sm:px-6 py-4 sm:py-6">
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -393,8 +694,6 @@ const AttendanceList = () => {
             selectedEmployee={selectedEmployee}
             onChange={setSelectedEmployee}
           />
-
-          {/* Search */}
           <div className="relative flex-1 min-w-[160px]">
             <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
@@ -405,8 +704,6 @@ const AttendanceList = () => {
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
             />
           </div>
-
-          {/* Status */}
           <div className="relative">
             <select
               value={filterStatus}
@@ -420,8 +717,6 @@ const AttendanceList = () => {
             </select>
             <HiOutlineChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
-
-          {/* Date */}
           <div className="relative">
             <HiOutlineCalendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
@@ -431,7 +726,6 @@ const AttendanceList = () => {
               className="pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
             />
           </div>
-
           {hasFilter && (
             <button
               onClick={handleReset}
@@ -442,7 +736,7 @@ const AttendanceList = () => {
           )}
         </div>
 
-        {/* Info karyawan terpilih */}
+        {/* Selected employee info */}
         {selectedObj && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
             <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 rounded-lg">
@@ -483,10 +777,7 @@ const AttendanceList = () => {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 {COLUMNS.map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
-                  >
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -519,23 +810,20 @@ const AttendanceList = () => {
                 </tr>
               ) : (
                 paginated.map((item, idx) => {
-                  const empName  = item.employee?.name ?? item.employeeName ?? '-';
+                  const empName = item.employee?.name ?? item.employeeName ?? '-';
                   const deptName = item.employee?.departmentName ?? item.departmentName ?? item.employee?.department?.name ?? '';
-                  const initial  = empName !== '-' ? empName.charAt(0).toUpperCase() : '?';
-                  const lat      = item.latitude  ?? item.lat  ?? null;
-                  const lng      = item.longitude ?? item.long ?? item.lng ?? null;
-                  const workType = item.workType  ?? item.work_type ?? null;
-                  const lngFmt   = formatCoord(lng);
-                  const mapsUrl  = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+                  const initial = empName !== '-' ? empName.charAt(0).toUpperCase() : '?';
+                  const lat = item.latitude ?? null;
+                  const lng = item.longitude ?? null;
+                  const workType = item.attendanceType ?? null;
+                  const lngFmt = formatCoord(lng);
+                  const mapsUrl = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
                   return (
                     <tr key={item.id ?? idx} className="hover:bg-indigo-50/30 transition-colors">
-                      {/* No */}
                       <td className="px-4 py-3.5 text-gray-400 tabular-nums text-xs">
                         {(page - 1) * PER_PAGE + idx + 1}
                       </td>
-
-                      {/* Karyawan */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-xs flex-shrink-0">
@@ -547,36 +835,21 @@ const AttendanceList = () => {
                           </div>
                         </div>
                       </td>
-
-                      {/* Tanggal */}
                       <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap text-sm">
                         {formatDate(item.date)}
                       </td>
-
-                      {/* Check In */}
                       <td className="px-4 py-3.5 font-medium text-gray-800 whitespace-nowrap tabular-nums text-sm">
                         {formatTime(item.checkIn)}
                       </td>
-
-                      {/* Check Out */}
                       <td className="px-4 py-3.5 font-medium text-gray-800 whitespace-nowrap tabular-nums text-sm">
                         {formatTime(item.checkOut)}
                       </td>
-
-                      {/* Durasi */}
                       <td className="px-4 py-3.5 text-gray-600 whitespace-nowrap text-sm">
                         {calcDuration(item.checkIn, item.checkOut)}
                       </td>
-
-                      {/* Tipe WFO/WFH/WFA */}
                       <td className="px-4 py-3.5">
-                        {workType
-                          ? <WorkTypeBadge type={workType} />
-                          : <span className="text-gray-300 text-xs">—</span>
-                        }
+                        {workType ? <WorkTypeBadge type={workType} /> : <span className="text-gray-300 text-xs">—</span>}
                       </td>
-
-                      {/* Lokasi (longitude + link maps) */}
                       <td className="px-4 py-3.5">
                         {lngFmt ? (
                           <div className="flex flex-col gap-0.5">
@@ -588,29 +861,21 @@ const AttendanceList = () => {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-[10px] text-indigo-500 hover:text-indigo-700 transition-colors"
                               >
-                                <HiOutlineLocationMarker className="w-3 h-3" />
-                                Maps
+                                <HiOutlineLocationMarker className="w-3 h-3" />Maps
                               </a>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs">—</span>
-                        )}
+                        ) : <span className="text-gray-300 text-xs">—</span>}
                       </td>
-
-                      {/* Status */}
                       <td className="px-4 py-3.5">
                         <StatusBadge status={item.status} />
                       </td>
-
-                      {/* Aksi */}
                       <td className="px-4 py-3.5">
                         <button
                           onClick={() => setDetailItem(item)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
                         >
-                          <HiOutlineEye className="w-3.5 h-3.5" />
-                          Detail
+                          <HiOutlineEye className="w-3.5 h-3.5" />Detail
                         </button>
                       </td>
                     </tr>
@@ -625,12 +890,8 @@ const AttendanceList = () => {
         {!loading && paginated.length > 0 && totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-gray-100">
             <p className="text-xs text-gray-500">
-              Menampilkan{' '}
-              <span className="font-medium text-gray-700">
-                {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)}
-              </span>
-              {' '}dari{' '}
-              <span className="font-medium text-gray-700">{filtered.length}</span> data
+              Menampilkan <span className="font-medium text-gray-700">{(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, filtered.length)}</span>
+              {' '}dari <span className="font-medium text-gray-700">{filtered.length}</span> data
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -640,7 +901,6 @@ const AttendanceList = () => {
               >
                 <HiOutlineChevronLeft className="w-4 h-4" />
               </button>
-
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let p = i + 1;
                 if (totalPages > 5) {
@@ -653,17 +913,12 @@ const AttendanceList = () => {
                   <button
                     key={p}
                     onClick={() => setPage(p)}
-                    className={`w-8 h-8 text-xs rounded-lg border transition-colors ${
-                      p === page
-                        ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
+                    className={`w-8 h-8 text-xs rounded-lg border transition-colors ${p === page ? 'bg-indigo-600 text-white border-indigo-600 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                   >
                     {p}
                   </button>
                 );
               })}
-
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
@@ -677,9 +932,7 @@ const AttendanceList = () => {
       </div>
 
       {/* Detail Modal */}
-      {detailItem && (
-        <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
-      )}
+      {detailItem && <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
     </div>
   );
 };

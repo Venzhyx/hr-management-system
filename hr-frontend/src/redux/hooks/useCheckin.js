@@ -31,7 +31,7 @@ export const useCheckIn = () => {
    * Submit absensi ke backend.
    * GPS bersifat optional — jika null/undefined, field latitude/longitude tidak dikirim.
    *
-   * @param {{ employeeId: string, photoBlob: Blob, location: {latitude,longitude,accuracy}|null, capturedAt: Date }} params
+   * @param {{ employeeId: string, photoBlob: Blob, location: {latitude,longitude,accuracy}|null, capturedAt: Date, workType: string }} params
    */
   const submitCheckIn = useCallback(async ({ employeeId, photoBlob, location, capturedAt, workType }) => {
     setLoading(true);
@@ -45,14 +45,16 @@ export const useCheckIn = () => {
       formData.append("photo", photoBlob, `checkin_${employeeId}_${Date.now()}.jpg`);
       formData.append("checkInTime", (capturedAt || new Date()).toISOString());
       formData.append("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
-      if (workType) formData.append("workType", workType);
+
+      // ✅ FIX: kirim sebagai "attendanceType" sesuai nama field di backend/response API
+      if (workType) formData.append("attendanceType", workType);
 
       // GPS optional
       if (location?.latitude  != null) formData.append("latitude",  String(location.latitude));
       if (location?.longitude != null) formData.append("longitude", String(location.longitude));
       if (location?.accuracy  != null) formData.append("accuracy",  String(location.accuracy));
 
-      console.log("[CheckIn] Mengirim absensi employeeId:", employeeId, "| GPS:", location ? "ada" : "tidak ada");
+      console.log("[CheckIn] Mengirim absensi employeeId:", employeeId, "| GPS:", location ? "ada" : "tidak ada", "| attendanceType:", workType);
 
       const res = await API.post("/attendances/check-in", formData, {
         headers: { "Content-Type": "multipart/form-data" },

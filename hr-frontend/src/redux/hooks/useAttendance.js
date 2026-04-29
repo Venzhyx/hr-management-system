@@ -1,3 +1,4 @@
+// src/redux/hooks/useAttendance.js
 import { useDispatch, useSelector } from "react-redux";
 import { useCallback } from "react";
 import {
@@ -5,6 +6,7 @@ import {
   fetchAllEmployeesForDropdown,
   clearAttendanceError,
   clearAttendanceData,
+  upsertAttendance, // ✅ IMPORT UPSERT
   selectAttendances,
   selectAttendanceLoading,
   selectAttendanceError,
@@ -25,7 +27,6 @@ export const useAttendance = () => {
     dispatch(fetchAllEmployeesForDropdown());
   }, [dispatch]);
 
-  /** Terima employee ID (bukan NIK) */
   const loadAttendance = useCallback((employeeId) => {
     if (employeeId) dispatch(fetchAttendancesByEmployeeId(employeeId));
   }, [dispatch]);
@@ -38,6 +39,11 @@ export const useAttendance = () => {
     dispatch(clearAttendanceData());
   }, [dispatch]);
 
+  // ✅ TAMBAH FUNGSI INI
+  const upsertAttendanceRecord = useCallback((record) => {
+    dispatch(upsertAttendance(record));
+  }, [dispatch]);
+
   return {
     attendances,
     employees,
@@ -48,5 +54,6 @@ export const useAttendance = () => {
     loadAttendance,
     dismissError,
     resetAttendance,
+    upsertAttendanceRecord, // ✅ EXPOSE
   };
 };
