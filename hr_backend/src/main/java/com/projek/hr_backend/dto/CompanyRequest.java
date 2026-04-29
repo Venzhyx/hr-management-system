@@ -27,4 +27,7 @@ public class CompanyRequest {
     private String email;
     
     private String website;
+    private Double latitude;
+    private Double longitude;
+    private String formattedAddress;
 }

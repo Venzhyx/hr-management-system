@@ -71,6 +71,9 @@ public class CompanyService {
         company.setPhone(request.getPhone());
         company.setEmail(request.getEmail());
         company.setWebsite(request.getWebsite());
+        company.setLatitude(request.getLatitude());
+        company.setLongitude(request.getLongitude());
+        company.setFormattedAddress(request.getFormattedAddress());
     }
 
     private CompanyResponse mapToResponse(Company company) {
@@ -87,6 +90,9 @@ public class CompanyService {
         response.setPhone(company.getPhone());
         response.setEmail(company.getEmail());
         response.setWebsite(company.getWebsite());
+        response.setLatitude(company.getLatitude());
+        response.setLongitude(company.getLongitude());
+        response.setFormattedAddress(company.getFormattedAddress());
         response.setCreatedAt(company.getCreatedAt());
         response.setUpdatedAt(company.getUpdatedAt());
 

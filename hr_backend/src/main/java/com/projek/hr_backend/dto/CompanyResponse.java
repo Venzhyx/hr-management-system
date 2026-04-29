@@ -22,6 +22,9 @@ public class CompanyResponse {
     private String phone;
     private String email;
     private String website;
+    private Double latitude;
+    private Double longitude;
+    private String formattedAddress;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

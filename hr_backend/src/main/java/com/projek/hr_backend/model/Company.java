@@ -40,6 +40,15 @@ public class Company {
     private String email;
     
     private String website;
+
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
+    @Column(length = 500)
+    private String formattedAddress;
     
     @CreationTimestamp
     @Column(updatable = false)
