@@ -8,7 +8,8 @@ import {
 } from "react-icons/hi";
 import { useCheckIn } from "../../redux/hooks/useCheckin";
 import { useAttendance } from "../../redux/hooks/useAttendance";
-import WfoRadiusWarning from '../components/WfoRadiusWarning'; // ✅ IMPORT WfoRadiusWarning
+import WfoRadiusWarning from '../components/WfoRadiusWarning';
+import WfhRadiusWarning from '../components/WfhRadiusWarning';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ const fmtCoord = (n) => (typeof n === "number" ? n.toFixed(6) : "-");
 
 const STEP = {
   CAMERA:     "camera",
-  WORK_TYPE:  "work_type",   // NEW: pilih WFH/WFO/WFA + ambil lokasi
+  WORK_TYPE:  "work_type",
   PREVIEW:    "preview",
   SUBMITTING: "submitting",
   SUCCESS:    "success",
@@ -99,7 +100,7 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
   const [photoBlob, setPhotoBlob]     = useState(null);
   const [photoUrl, setPhotoUrl]       = useState(null);
   const [capturedAt, setCapturedAt]   = useState(null);
-  const [workType, setWorkType]       = useState(null);   // "WFO"|"WFH"|"WFA"
+  const [workType, setWorkType]       = useState(null);
   const [location, setLocation]       = useState(null);
   const [locError, setLocError]       = useState(null);
   const [locLoading, setLocLoading]   = useState(false);
@@ -107,8 +108,9 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
   const [facingMode, setFacingMode]   = useState("user");
   const [cameraError, setCameraError] = useState(null);
   
-  // ✅ STATE untuk WFO Radius Warning
-  const [isOutsideRadius, setIsOutsideRadius] = useState(false);
+  // ✅ STATE untuk Radius Warning
+  const [isOutsideWFORadius, setIsOutsideWFORadius] = useState(false);
+  const [isOutsideWFHRadius, setIsOutsideWFHRadius] = useState(false);
   const [userCoords, setUserCoords] = useState(null);
 
   const { error: submitError, submitCheckIn, getLocation, reset: resetHook } = useCheckIn();
@@ -158,12 +160,13 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
       setLocLoading(false);
       setCapturedAt(null);
       setWorkType(null);
-      setIsOutsideRadius(false); // ✅ RESET WFO warning state
-      setUserCoords(null); // ✅ RESET user coords
+      setIsOutsideWFORadius(false);
+      setIsOutsideWFHRadius(false);
+      setUserCoords(null);
       resetHook();
       startCamera("user");
 
-      // GPS diambil sekali saat modal buka — tidak di-reset saat ganti step
+      // GPS diambil sekali saat modal buka
       setLocLoading(true);
       getLocation()
         .then((loc) => {
@@ -181,7 +184,6 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
     }
     return () => stopStream();
   }, [isOpen]); // eslint-disable-line
-
 
   // ── Flip camera ─────────────────────────────────────────────────────────────
   const flipCamera = () => {
@@ -223,23 +225,23 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
         setPhotoBlob(blob);
         setPhotoUrl(URL.createObjectURL(blob));
         stopStream();
-        setStep(STEP.WORK_TYPE); // → ke step pilih tipe kerja + GPS
+        setStep(STEP.WORK_TYPE);
       },
       "image/jpeg",
       0.92
     );
   }, [facingMode, stopStream]);
 
-  // Retake — GPS state sengaja TIDAK di-reset supaya tetap tersedia
+  // Retake
   const retake = useCallback(() => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
     setPhotoUrl(null);
     setPhotoBlob(null);
     setCapturedAt(null);
     setWorkType(null);
-    setIsOutsideRadius(false); // ✅ RESET WFO warning
-    setUserCoords(null); // ✅ RESET user coords
-    // location & locError tetap — GPS sudah diperoleh, tidak perlu ambil ulang
+    setIsOutsideWFORadius(false);
+    setIsOutsideWFHRadius(false);
+    setUserCoords(null);
     setStep(STEP.CAMERA);
     startCamera(facingMode);
   }, [facingMode, photoUrl, startCamera]);
@@ -248,11 +250,14 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
   const handleSubmit = useCallback(async () => {
     if (!photoBlob || !employee?.id || !workType) return;
     
-    // ✅ CEK: Jika WFO dan berada di luar radius, TAMPILKAN WARNING dan BATAL submit
-    if (workType === 'WFO' && isOutsideRadius) {
+    // ✅ CEK radius berdasarkan tipe kerja
+    if (workType === 'WFO' && isOutsideWFORadius) {
       setStep(STEP.ERROR);
-      // Error message akan di-handle oleh komponen WfoRadiusWarning
-      // Tapi kita tetap set error state
+      return;
+    }
+    
+    if (workType === 'WFH' && isOutsideWFHRadius) {
+      setStep(STEP.ERROR);
       return;
     }
     
@@ -267,7 +272,6 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
         workType,
       });
       
-      // ✅ UPDATE REDUX STORE dengan data attendance yang baru
       const record = res?.data ?? res;
       if (record?.id) {
         upsertAttendanceRecord(record);
@@ -279,7 +283,7 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
       console.error("[CheckIn] Submit error:", err);
       setStep(STEP.ERROR);
     }
-  }, [photoBlob, location, employee, capturedAt, workType, submitCheckIn, onSuccess, upsertAttendanceRecord, isOutsideRadius]);
+  }, [photoBlob, location, employee, capturedAt, workType, submitCheckIn, onSuccess, upsertAttendanceRecord, isOutsideWFORadius, isOutsideWFHRadius]);
 
   // ── Close ──────────────────────────────────────────────────────────────────
   const handleClose = useCallback(() => {
@@ -292,10 +296,6 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
 
   const selectedType = WORK_TYPES.find((t) => t.value === workType);
   const selectedColor = selectedType ? COLOR_MAP[selectedType.color] : null;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -409,7 +409,7 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* STEP: WORK TYPE — pilih WFH/WFO/WFA + tampil GPS & waktu           */}
+        {/* STEP: WORK TYPE                                                     */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {step === STEP.WORK_TYPE && (
           <div className="flex flex-col">
@@ -470,13 +470,28 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
                 </div>
               </div>
 
-              {/* ✅ WFO RADIUS WARNING - Ditampilkan hanya jika WFO dipilih */}
+              {/* ✅ WFO RADIUS WARNING */}
               {workType === 'WFO' && (
                 <WfoRadiusWarning
-                  allowOutside={true}  // true = warning saja, tidak blokir
+                  allowOutside={true}
                   onResult={(result) => {
                     console.log('WFO Radius Check Result:', result);
-                    setIsOutsideRadius(!result.withinRadius);
+                    setIsOutsideWFORadius(!result.withinRadius);
+                    setUserCoords({ 
+                      lat: result.userLat, 
+                      lng: result.userLng 
+                    });
+                  }}
+                />
+              )}
+
+              {/* ✅ WFH RADIUS WARNING */}
+              {workType === 'WFH' && (
+                <WfhRadiusWarning
+                  allowOutside={true}
+                  onResult={(result) => {
+                    console.log('WFH Radius Check Result:', result);
+                    setIsOutsideWFHRadius(!result.withinRadius);
                     setUserCoords({ 
                       lat: result.userLat, 
                       lng: result.userLng 
@@ -498,11 +513,14 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
                         type="button"
                         onClick={() => {
                           setWorkType(value);
-                          // Reset WFO warning state saat ganti dari WFO ke tipe lain
+                          // Reset states saat ganti tipe
                           if (value !== 'WFO') {
-                            setIsOutsideRadius(false);
-                            setUserCoords(null);
+                            setIsOutsideWFORadius(false);
                           }
+                          if (value !== 'WFH') {
+                            setIsOutsideWFHRadius(false);
+                          }
+                          setUserCoords(null);
                         }}
                         className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border-2 transition-all
                           ${isSelected
@@ -524,9 +542,14 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
               {/* Tombol Kirim */}
               <button
                 onClick={handleSubmit}
-                disabled={!workType || locLoading || (workType === 'WFO' && isOutsideRadius)}
+                disabled={!workType || locLoading || 
+                  (workType === 'WFO' && isOutsideWFORadius) || 
+                  (workType === 'WFH' && isOutsideWFHRadius)
+                }
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-semibold transition-all shadow-sm
-                  ${!workType || (workType === 'WFO' && isOutsideRadius)
+                  ${!workType || 
+                    (workType === 'WFO' && isOutsideWFORadius) || 
+                    (workType === 'WFH' && isOutsideWFHRadius)
                     ? "bg-gray-300 cursor-not-allowed"
                     : locLoading
                     ? "bg-indigo-300 cursor-wait"
@@ -538,8 +561,10 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
                 <HiOutlineCheckCircle className="w-4 h-4" />
                 {locLoading
                   ? "Menunggu GPS…"
-                  : workType === 'WFO' && isOutsideRadius
+                  : workType === 'WFO' && isOutsideWFORadius
                   ? "Berada di luar radius WFO"
+                  : workType === 'WFH' && isOutsideWFHRadius
+                  ? "Berada di luar radius WFH"
                   : workType
                   ? `Kirim Absen · ${workType}`
                   : "Pilih tipe kehadiran dulu"
@@ -618,8 +643,10 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
             <div className="text-center">
               <p className="text-lg font-bold text-red-600 mb-1">Absen Gagal</p>
               <p className="text-sm text-gray-500 mb-1">
-                {isOutsideRadius && workType === 'WFO' 
+                {(isOutsideWFORadius && workType === 'WFO')
                   ? "Anda berada di luar radius kantor yang diizinkan untuk absen WFO. Silakan pilih tipe kehadiran lain (WFH/WFA) atau pastikan Anda berada di lokasi kantor."
+                  : (isOutsideWFHRadius && workType === 'WFH')
+                  ? "Anda berada di luar radius rumah yang diizinkan untuk absen WFH. Silakan pilih tipe kehadiran lain (WFO/WFA) atau pastikan Anda berada di sekitar rumah."
                   : submitError || "Terjadi kesalahan. Silakan coba lagi."
                 }
               </p>
@@ -636,7 +663,8 @@ const CheckInModal = ({ isOpen, onClose, employee, onSuccess }) => {
               <button
                 onClick={() => { 
                   setStep(STEP.WORK_TYPE);
-                  setIsOutsideRadius(false); // Reset WFO warning
+                  setIsOutsideWFORadius(false);
+                  setIsOutsideWFHRadius(false);
                 }}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-sm"
               >

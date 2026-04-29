@@ -78,6 +78,7 @@ const useNominatim = () => {
 //   onChange = (locationObj) => void
 //   error    = string | null
 // ════════════════════════════════════════════════════════════════════════════
+
 const LocationPicker = ({ value = {}, onChange, error }) => {
   const [query,       setQuery]       = useState(value.formattedAddress || '');
   const [showResults, setShowResults] = useState(false);
@@ -91,15 +92,20 @@ const LocationPicker = ({ value = {}, onChange, error }) => {
   const wrapperRef                     = useRef(null);
   const { results, loading, search, reverse, setResults } = useNominatim();
 
-  // ── Close dropdown on outside click ──────────────────────────────────────
+  // ✅ SYNC dengan value prop dari luar (misalnya saat edit employee)
   useEffect(() => {
-    const handle = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target))
-        setShowResults(false);
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
+    if (value.latitude && value.longitude && value.formattedAddress) {
+      // Jika ada data dari props, update internal state
+      setMarkerPos([value.latitude, value.longitude]);
+      setQuery(value.formattedAddress);
+      setConfirmed(true);
+    } else if (!value.latitude && !value.longitude && !value.formattedAddress) {
+      // Jika kosong, reset
+      setMarkerPos(null);
+      setQuery('');
+      setConfirmed(false);
+    }
+  }, [value.latitude, value.longitude, value.formattedAddress]);
 
   // ── When user types in search box ────────────────────────────────────────
   const handleQueryChange = (e) => {

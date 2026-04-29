@@ -13,6 +13,7 @@ import { useDepartment } from '../../../redux/hooks/useDepartment';
 import { useCompany } from '../../../redux/hooks/useCompany';
 import API from '../../../ApiService/api';
 import { SingleFileUpload, MultiFileUpload } from '../../components/FileComponents';
+import LocationPicker from '../../components/LocationPicker';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const EMPLOYEE_TYPE_OPTIONS = [
@@ -104,6 +105,11 @@ const AddEmployee = () => {
     companyId:'', departmentId:'', joinDate:'', managerId:'', coachId:'',
   });
   const [priv, setPriv]   = useState({ address:'', email:'', phone:'' });
+  const [wfhLocation, setWfhLocation] = useState({
+    homeAddress: '',
+    homeLatitude: null,
+    homeLongitude: null,
+  });
   const [banks, setBanks] = useState([{ bankName:'', accountNumber:'', accountHolder:'' }]);
   const [ins,   setIns]   = useState([{ type:'', provider:'', policyNumber:'' }]);
   const [tax,   setTax]   = useState({ npwp:'', workDistance:0 });
@@ -200,6 +206,10 @@ const AddEmployee = () => {
         departmentId: parseInt(fd.departmentId, 10),
         managerId: fd.managerId ? parseInt(fd.managerId,   10) : null,
         coachId:   fd.coachId   ? parseInt(fd.coachId,     10) : null,
+        // WFH Location
+        homeAddress:   wfhLocation.homeAddress   || null,
+        homeLatitude:  wfhLocation.homeLatitude  || null,
+        homeLongitude: wfhLocation.homeLongitude || null,
         privateAddress: priv.address || null, privateEmail: priv.email || null, privatePhone: priv.phone || null,
         banks: banks.filter(b=>b.bankName&&b.accountNumber&&b.accountHolder),
         insurances: ins.filter(i=>i.type&&i.provider&&i.policyNumber).map(({type,provider,policyNumber})=>({type,provider,policyNumber})),
@@ -365,6 +375,7 @@ const AddEmployee = () => {
           {/* ──── PRIVATE ──── */}
           {tab==='private' && (
             <div className="space-y-8">
+
               {/* private contact */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
@@ -390,6 +401,25 @@ const AddEmployee = () => {
                 </div>
               </section>
 
+              {/* WFH Location */}
+              <section>
+                <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
+                  <HiOutlineHome className="w-5 h-5 mr-2 text-green-500"/> 2.2 WFH / Home Location
+                </h3>
+                <LocationPicker
+                  value={{
+                    latitude:         wfhLocation.homeLatitude,
+                    longitude:        wfhLocation.homeLongitude,
+                    formattedAddress: wfhLocation.homeAddress,
+                  }}
+                  onChange={(loc) => setWfhLocation({
+                    homeAddress:   loc.formattedAddress || '',
+                    homeLatitude:  loc.latitude,
+                    homeLongitude: loc.longitude,
+                  })}
+                />
+              </section>
+
               {/* banks */}
               <section>
                 <div className="flex justify-between items-center mb-3">
@@ -398,7 +428,6 @@ const AddEmployee = () => {
                     className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Bank</span></button>}
                 </div>
                 {banks.map((b,i)=>(
-                  // ← bg-white border
                   <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 relative mb-3">
                     {banks.length>1&&<button type="button" onClick={()=>setBanks(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -437,7 +466,6 @@ const AddEmployee = () => {
                     className="flex items-center space-x-1 text-indigo-600 text-sm"><HiOutlinePlus className="w-4 h-4"/><span>Add Insurance</span></button>}
                 </div>
                 {ins.map((v,i)=>(
-                  // ← bg-white border
                   <div key={i} className="bg-white p-4 rounded-lg border border-gray-200 relative mb-3">
                     {ins.length>1&&<button type="button" onClick={()=>setIns(p=>p.filter((_,j)=>j!==i))} className="absolute top-2 right-2 text-red-500"><HiOutlineTrash className="w-4 h-4"/></button>}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -491,7 +519,7 @@ const AddEmployee = () => {
               {/* emergency */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlinePhone className="w-5 h-5 mr-2 text-red-500"/> 2.2 Emergency
+                  <HiOutlinePhone className="w-5 h-5 mr-2 text-red-500"/> 2.3 Emergency
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -510,7 +538,7 @@ const AddEmployee = () => {
               {/* family */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineUsers className="w-5 h-5 mr-2 text-green-500"/> 2.3 Family Status
+                  <HiOutlineUsers className="w-5 h-5 mr-2 text-green-500"/> 2.4 Family Status
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -531,7 +559,7 @@ const AddEmployee = () => {
               {/* citizenship */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineGlobe className="w-5 h-5 mr-2 text-blue-500"/> 2.4 Citizenship
+                  <HiOutlineGlobe className="w-5 h-5 mr-2 text-blue-500"/> 2.5 Citizenship
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -575,7 +603,7 @@ const AddEmployee = () => {
               {/* education */}
               <section>
                 <h3 className="text-lg font-medium text-gray-700 mb-4 pb-2 border-b border-gray-200 flex items-center">
-                  <HiOutlineAcademicCap className="w-5 h-5 mr-2 text-purple-500"/> 2.5 Education
+                  <HiOutlineAcademicCap className="w-5 h-5 mr-2 text-purple-500"/> 2.6 Education
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
@@ -597,6 +625,7 @@ const AddEmployee = () => {
                   </div>
                 </div>
               </section>
+
             </div>
           )}
 
@@ -631,7 +660,6 @@ const AddEmployee = () => {
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-700">Employee Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ← bg-white untuk semua card settings */}
                 <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Employee Type <span className="text-red-500">*</span>
