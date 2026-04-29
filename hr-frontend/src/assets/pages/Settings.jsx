@@ -10,6 +10,7 @@ import {
   HiOutlineCheck,
   HiOutlineExclamation,
   HiOutlineRefresh,
+  HiOutlineLocationMarker,
 } from 'react-icons/hi';
 import { useAttendanceSettings } from '../../redux/hooks/useAttendanceSettings';
 import { useCalendarEvent }      from '../../redux/hooks/useCalendarEvent';
@@ -33,8 +34,10 @@ const STATUS_OPTIONS = [
   { value: 'INACTIVE', label: 'Inactive' },
 ];
 
-// ─── Shared UI ────────────────────────────────────────────────────────────────
+// Radius preset options (meter)
+const RADIUS_PRESETS = [50, 100, 200, 500, 1000];
 
+// ─── Shared UI ────────────────────────────────────────────────────────────────
 const Toggle = ({ checked, onChange }) => (
   <button type="button" onClick={() => onChange(!checked)}
     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${checked ? 'bg-indigo-600' : 'bg-gray-300'}`}>
@@ -108,9 +111,6 @@ const DeleteConfirm = ({ name, onConfirm, onCancel }) => (
   </div>
 );
 
-// ─── TimeSelect — selalu 24 jam (WIB) ─────────────────────────────────────────
-// value: "HH:mm" atau "HH:mm:ss" — onChange mengembalikan "HH:mm"
-
 const TimeSelect = ({ value, onChange }) => {
   const parts  = (value || '00:00').split(':');
   const hour   = parts[0] ?? '00';
@@ -136,7 +136,6 @@ const TimeSelect = ({ value, onChange }) => {
 };
 
 // ─── Attendance Settings ───────────────────────────────────────────────────────
-
 const AttendanceSettings = ({ showToast }) => {
   const { settings, loading, saving, error, fetchSettings, updateSettings } = useAttendanceSettings();
 
@@ -145,6 +144,7 @@ const AttendanceSettings = ({ showToast }) => {
     extraHoursValidation:           'APPROVED_BY_MANAGER',
     checkInTime:                    '08:00',
     checkOutTime:                   '17:00',
+    wfoRadius:                      100,   // ← baru
   });
 
   useEffect(() => { fetchSettings(); }, []);
@@ -153,9 +153,9 @@ const AttendanceSettings = ({ showToast }) => {
       setForm({
         toleranceTimeInFavorOfEmployee: settings.toleranceTimeInFavorOfEmployee ?? 0,
         extraHoursValidation:           settings.extraHoursValidation ?? 'APPROVED_BY_MANAGER',
-        // Backend kirim "HH:mm:ss" → ambil 5 karakter pertama untuk UI
         checkInTime:  (settings.checkInTime  ?? '08:00:00').slice(0, 5),
         checkOutTime: (settings.checkOutTime ?? '17:00:00').slice(0, 5),
+        wfoRadius:    settings.wfoRadius ?? 100,   // ← baru
       });
     }
   }, [settings]);
@@ -164,8 +164,9 @@ const AttendanceSettings = ({ showToast }) => {
     const result = await updateSettings({
       toleranceTimeInFavorOfEmployee: Number(form.toleranceTimeInFavorOfEmployee),
       extraHoursValidation:           form.extraHoursValidation,
-      checkInTime:                    form.checkInTime,   // slice konversi ke HH:mm:ss di Redux thunk
+      checkInTime:                    form.checkInTime,
       checkOutTime:                   form.checkOutTime,
+      wfoRadius:                      Number(form.wfoRadius),   // ← baru
     });
     if (result.meta.requestStatus === 'fulfilled') {
       showToast('Attendance settings saved', 'success');
@@ -177,10 +178,13 @@ const AttendanceSettings = ({ showToast }) => {
   if (loading) return <SectionCard title="Attendance Settings"><Spinner /></SectionCard>;
   if (error)   return <SectionCard title="Attendance Settings"><ErrorBox message={error} onRetry={fetchSettings} /></SectionCard>;
 
+  // Visual radius ring preview (scale: max 500m → 120px)
+  const previewPx = Math.min(Math.max((form.wfoRadius / 500) * 120, 20), 120);
+
   return (
     <div className="space-y-6">
 
-      {/* ── Extra Hours ──────────────────────────────────────────────────── */}
+      {/* ── Extra Hours ── */}
       <SectionCard title="Extra Hours">
         <div className="space-y-5 max-w-lg">
           <div>
@@ -210,29 +214,117 @@ const AttendanceSettings = ({ showToast }) => {
         </div>
       </SectionCard>
 
-      {/* ── Work Hours ───────────────────────────────────────────────────── */}
+      {/* ── Work Hours ── */}
       <SectionCard title="Work Hours">
         <div className="space-y-6 max-w-lg">
           <div>
             <label className={labelCls}>Default Check-in Time</label>
             <TimeSelect value={form.checkInTime} onChange={v => setForm(f => ({ ...f, checkInTime: v }))} />
             <p className="mt-1 text-xs text-gray-400">
-              Setelah jam ini, tombol absen akan tampil sebagai{' '}
-              <span className="font-medium text-gray-600">Check-in</span>.
+              Setelah jam ini, tombol absen akan tampil sebagai <span className="font-medium text-gray-600">Check-in</span>.
             </p>
           </div>
           <div>
             <label className={labelCls}>Default Check-out Time</label>
             <TimeSelect value={form.checkOutTime} onChange={v => setForm(f => ({ ...f, checkOutTime: v }))} />
             <p className="mt-1 text-xs text-gray-400">
-              Setelah jam ini, tombol absen akan berubah menjadi{' '}
-              <span className="font-medium text-gray-600">Check-out</span>.
+              Setelah jam ini, tombol absen akan berubah menjadi <span className="font-medium text-gray-600">Check-out</span>.
             </p>
           </div>
         </div>
       </SectionCard>
 
-      {/* ── Save ─────────────────────────────────────────────────────────── */}
+      {/* ── WFO Radius ── */}
+      <SectionCard title="WFO Location Radius">
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Left: controls */}
+          <div className="flex-1 space-y-5 max-w-sm">
+            <div>
+              <label className={labelCls}>
+                Radius Check-in WFO
+                <span className="ml-1 text-gray-400 font-normal">(meter)</span>
+              </label>
+
+              {/* Number input */}
+              <div className="flex items-center gap-3 mt-1">
+                <input
+                  type="number"
+                  min={10}
+                  max={5000}
+                  value={form.wfoRadius}
+                  onChange={e => setForm(f => ({ ...f, wfoRadius: e.target.value }))}
+                  className={`${inputCls} w-40`}
+                />
+                <span className="text-sm text-gray-500">meter</span>
+              </div>
+
+              {/* Slider */}
+              <input
+                type="range"
+                min={10}
+                max={2000}
+                step={10}
+                value={form.wfoRadius}
+                onChange={e => setForm(f => ({ ...f, wfoRadius: Number(e.target.value) }))}
+                className="w-full mt-3 accent-indigo-600"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                <span>10 m</span>
+                <span>2000 m</span>
+              </div>
+
+              {/* Quick presets */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {RADIUS_PRESETS.map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, wfoRadius: r }))}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      Number(form.wfoRadius) === r
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600'
+                    }`}
+                  >
+                    {r >= 1000 ? `${r / 1000} km` : `${r} m`}
+                  </button>
+                ))}
+              </div>
+
+              <p className="mt-3 text-xs text-gray-400 leading-relaxed">
+                Karyawan yang check-in WFO dengan jarak lebih dari{' '}
+                <span className="font-semibold text-gray-600">
+                  {form.wfoRadius >= 1000 ? `${form.wfoRadius / 1000} km` : `${form.wfoRadius} m`}
+                </span>{' '}
+                dari lokasi kantor akan mendapat peringatan.
+              </p>
+            </div>
+          </div>
+
+          {/* Right: visual ring preview */}
+          <div className="flex flex-col items-center justify-center gap-3 min-w-[180px]">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Preview</p>
+            <div className="relative flex items-center justify-center" style={{ width: 160, height: 160 }}>
+              {/* Outer ring */}
+              <div
+                className="absolute rounded-full border-2 border-dashed border-indigo-300 bg-indigo-50/40 transition-all duration-300"
+                style={{ width: previewPx * 2, height: previewPx * 2 }}
+              />
+              {/* Office marker */}
+              <div className="relative z-10 w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                <HiOutlineLocationMarker className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              Radius: <span className="font-semibold text-indigo-600">
+                {form.wfoRadius >= 1000 ? `${form.wfoRadius / 1000} km` : `${form.wfoRadius} m`}
+              </span>
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* ── Save ── */}
       <div className="flex justify-start">
         <button onClick={handleSave} disabled={saving}
           className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50">
@@ -244,11 +336,10 @@ const AttendanceSettings = ({ showToast }) => {
 };
 
 // ─── Calendar Settings ────────────────────────────────────────────────────────
-
 const CalendarSettings = ({ showToast }) => {
   const { events, loading, saving, error, fetchEvents, createEvent, updateEvent, deleteEvent } = useCalendarEvent();
-  const [showModal, setShowModal]    = useState(false);
-  const [editEvent, setEditEvent]    = useState(null);
+  const [showModal, setShowModal]       = useState(false);
+  const [editEvent, setEditEvent]       = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ eventDate: '', eventName: '', eventType: 'NATIONAL_HOLIDAY' });
 
@@ -352,11 +443,10 @@ const CalendarSettings = ({ showToast }) => {
 };
 
 // ─── Time Off Settings ────────────────────────────────────────────────────────
-
 const TimeOffSettings = ({ showToast }) => {
   const { types, loading, saving, error, fetchTypes, createType, updateType, deleteType } = useTimeOffType();
-  const [showModal, setShowModal]    = useState(false);
-  const [editType, setEditType]      = useState(null);
+  const [showModal, setShowModal]       = useState(false);
+  const [editType, setEditType]         = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name: '', type: 'LEAVE', maxDaysPerSubmission: 1, status: 'ACTIVE' });
 
@@ -478,7 +568,6 @@ const TimeOffSettings = ({ showToast }) => {
 };
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
-
 const MENU = [
   { key: 'attendance', label: 'Attendance', icon: <HiOutlineClock className="w-5 h-5" /> },
   { key: 'calendar',   label: 'Calendar',   icon: <HiOutlineCalendar className="w-5 h-5" /> },
