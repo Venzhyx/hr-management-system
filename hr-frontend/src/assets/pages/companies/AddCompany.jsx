@@ -17,17 +17,18 @@ import {
   HiOutlineCreditCard
 } from 'react-icons/hi2';
 import API from "../../../ApiService/api";
+import LocationPicker from '../../components/LocationPicker'; // ← komponen baru
 
 // ==================== FIELD VALIDATORS ====================
 const fieldValidators = {
-  companyName: (v) => !v.trim() ? 'Company name is required' : null,
-  address:     (v) => !v.trim() ? 'Address is required' : null,
-  country:     (v) => !v.trim() ? 'Country is required' : null,
-  city:        (v) => !v.trim() ? 'City is required' : null,
-  zip:         (v) => !v.trim() ? 'ZIP code is required' : null,
-  companyId:   (v) => !v.trim() ? 'Company ID is required' : null,
-  phone:       (v) => !v.trim() ? 'Phone number is required' : null,
-  email:       (v) => {
+  companyName:      (v) => !v.trim() ? 'Company name is required' : null,
+  formattedAddress: (v) => !v || !v.trim() ? 'Address is required (pick from map)' : null,
+  country:          (v) => !v.trim() ? 'Country is required' : null,
+  city:             (v) => !v.trim() ? 'City is required' : null,
+  zip:              (v) => !v.trim() ? 'ZIP code is required' : null,
+  companyId:        (v) => !v.trim() ? 'Company ID is required' : null,
+  phone:            (v) => !v.trim() ? 'Phone number is required' : null,
+  email:            (v) => {
     if (!v.trim()) return 'Email is required';
     if (!/\S+@\S+\.\S+/.test(v)) return 'Email is invalid';
     return null;
@@ -111,8 +112,17 @@ const AddCompany = () => {
   const [toast,        setToast]        = useState({ show: false, message: '', type: 'success' });
 
   const [formData, setFormData] = useState({
-    companyName: '', address: '', country: '', city: '',
-    zip: '', companyId: '', phone: '', email: '', website: ''
+    companyName:      '',
+    formattedAddress: '', // dari LocationPicker
+    latitude:         null,
+    longitude:        null,
+    country:          '',
+    city:             '',
+    zip:              '',
+    companyId:        '',
+    phone:            '',
+    email:            '',
+    website:          ''
   });
 
   // ── Validation helpers ────────────────────────────────────────────────────
@@ -121,7 +131,7 @@ const AddCompany = () => {
   const validateAll = () => {
     const errs = {};
     Object.keys(fieldValidators).forEach(name => {
-      const err = validateField(name, formData[name]);
+      const err = validateField(name, formData[name] ?? '');
       if (err) errs[name] = err;
     });
     return errs;
@@ -142,6 +152,24 @@ const AddCompany = () => {
     setTouched(prev => ({ ...prev, [name]: true }));
     const err = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: err || undefined }));
+  };
+
+  // ── LocationPicker callback ───────────────────────────────────────────────
+  const handleLocationChange = (loc) => {
+    setFormData(prev => ({
+      ...prev,
+      formattedAddress: loc.formattedAddress || '',
+      latitude:         loc.latitude,
+      longitude:        loc.longitude,
+      // auto-fill city, country, zip kalau kosong
+      city:    prev.city    || loc.city    || '',
+      country: prev.country || loc.country || '',
+      zip:     prev.zip     || loc.zip     || '',
+    }));
+    // clear address error
+    if (loc.formattedAddress) {
+      setErrors(prev => ({ ...prev, formattedAddress: undefined }));
+    }
   };
 
   const handleLogoChange = (e) => {
@@ -167,7 +195,6 @@ const AddCompany = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mark all as touched
     const allTouched = Object.keys(fieldValidators).reduce((acc, k) => ({ ...acc, [k]: true }), {});
     setTouched(allTouched);
 
@@ -175,8 +202,6 @@ const AddCompany = () => {
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setToast({ show: true, message: 'Please fill in all required fields', type: 'error' });
-      const firstField = Object.keys(validationErrors)[0];
-      document.querySelector(`[name="${firstField}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
@@ -184,15 +209,21 @@ const AddCompany = () => {
     try {
       const logoUrl = logo ? await uploadFile(logo) : null;
       const payload = {
-        companyName: formData.companyName, address: formData.address,
-        country: formData.country, city: formData.city, zip: formData.zip,
-        companyId: formData.companyId, phone: formData.phone,
-        email: formData.email, website: formData.website || null, logo: logoUrl
+        companyName:      formData.companyName,
+        formattedAddress: formData.formattedAddress,
+        latitude:         formData.latitude,
+        longitude:        formData.longitude,
+        country:          formData.country,
+        city:             formData.city,
+        zip:              formData.zip,
+        companyId:        formData.companyId,
+        phone:            formData.phone,
+        email:            formData.email,
+        website:          formData.website || null,
+        logo:             logoUrl
       };
       await API.post("/companies", payload);
       setToast({ show: true, message: `Company ${formData.companyName} has been successfully created`, type: 'success' });
-      setFormData({ companyName: '', address: '', country: '', city: '', zip: '', companyId: '', phone: '', email: '', website: '' });
-      setLogo(null); setLogoPreview(null);
       setTimeout(() => navigate('/companies'), 1500);
     } catch (error) {
       console.error('Create company failed:', error);
@@ -207,7 +238,6 @@ const AddCompany = () => {
 
   const closeToast = () => setToast(prev => ({ ...prev, show: false }));
 
-  // Helper: border class for icon-input fields
   const fieldBorderCls = (name) => errors[name] ? 'border-red-400' : 'border-gray-300';
   const FieldError = ({ name }) => errors[name] ? <p className="mt-1 text-xs text-red-500">{errors[name]}</p> : null;
 
@@ -246,19 +276,23 @@ const AddCompany = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            {/* Address */}
+            {/* ── Location Picker (ganti textarea address) ── */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-              <div className={`flex items-start border rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden ${fieldBorderCls('address')}`}>
-                <div className="px-3 bg-gray-50 py-3 border-r border-gray-300"><HiOutlineMapPin className="w-5 h-5 text-gray-400" /></div>
-                <textarea name="address" value={formData.address} onChange={handleChange} onBlur={handleBlur}
-                  rows="3" placeholder="Jl. Raya No 10, Kelurahan, Kecamatan"
-                  className="flex-1 px-3 py-2 focus:outline-none" />
-              </div>
-              <FieldError name="address" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address / Location *
+              </label>
+              <LocationPicker
+                value={{
+                  latitude:         formData.latitude,
+                  longitude:        formData.longitude,
+                  formattedAddress: formData.formattedAddress,
+                }}
+                onChange={handleLocationChange}
+                error={errors.formattedAddress}
+              />
             </div>
 
-            {/* Country */}
+            {/* Country — auto-filled dari map, bisa di-edit manual */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
               <div className={`flex items-center border rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden ${fieldBorderCls('country')}`}>
@@ -273,7 +307,7 @@ const AddCompany = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
               <div className={`flex items-center border rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden ${fieldBorderCls('city')}`}>
-                <div className="px-3 bg-gray-50 py-2 border-r border-gray-300"><HiOutlineBuildingOffice className="w-5 h-5 text-gray-400" /></div>
+                <div className="px-3 bg-gray-50 py-2 border-r border-gray-300"><HiOutlineMapPin className="w-5 h-5 text-gray-400" /></div>
                 <input type="text" name="city" value={formData.city} onChange={handleChange} onBlur={handleBlur}
                   placeholder="e.g., Bandung" className="flex-1 px-3 py-2 focus:outline-none" />
               </div>
@@ -319,7 +353,7 @@ const AddCompany = () => {
               <div className={`flex items-center border rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden ${fieldBorderCls('email')}`}>
                 <div className="px-3 bg-gray-50 py-2 border-r border-gray-300"><HiOutlineEnvelope className="w-5 h-5 text-gray-400" /></div>
                 <input type="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur}
-                  placeholder="e.g., info@vancourse.com" className="flex-1 px-3 py-2 focus:outline-none" />
+                  placeholder="e.g., info@company.com" className="flex-1 px-3 py-2 focus:outline-none" />
               </div>
               <FieldError name="email" />
             </div>
@@ -330,7 +364,7 @@ const AddCompany = () => {
               <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent overflow-hidden">
                 <div className="px-3 bg-gray-50 py-2 border-r border-gray-300"><HiOutlineLink className="w-5 h-5 text-gray-400" /></div>
                 <input type="url" name="website" value={formData.website} onChange={handleChange}
-                  placeholder="e.g., https://vancourse.com" className="flex-1 px-3 py-2 focus:outline-none" />
+                  placeholder="e.g., https://company.com" className="flex-1 px-3 py-2 focus:outline-none" />
               </div>
             </div>
 
