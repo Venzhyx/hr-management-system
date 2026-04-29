@@ -20,22 +20,20 @@ public class AttendanceSettingsService {
     public AttendanceSettingsResponse getSettings() {
         return repository.findFirstByOrderByIdAsc()
                 .map(this::mapToResponse)
-                .orElse(new AttendanceSettingsResponse(
-                    null,
-                    0,
-                    ExtraHoursValidation.APPROVED_BY_MANAGER,
-                    LocalTime.of(8, 0),
-                    LocalTime.of(17, 0),
-                    null, null,
-                    100.0, 100.0,
-                    null, null
-                ));
+                .orElseGet(() -> createDefaultResponse());
     }
     
     @Transactional
     public AttendanceSettingsResponse updateSettings(AttendanceSettingsRequest request) {
         AttendanceSettings settings = repository.findFirstByOrderByIdAsc()
-                .orElseGet(() -> repository.save(new AttendanceSettings()));
+                .orElseGet(() -> {
+                    AttendanceSettings newSettings = new AttendanceSettings();
+                    newSettings.setCheckInTime(LocalTime.of(8, 0));
+                    newSettings.setCheckOutTime(LocalTime.of(17, 0));
+                    newSettings.setWfoRadius(100);  // ✅ Integer
+                    newSettings.setWfhRadius(100);  // ✅ Integer
+                    return newSettings;
+                });
         
         settings.setToleranceTimeInFavorOfEmployee(request.getToleranceTimeInFavorOfEmployee());
         settings.setExtraHoursValidation(request.getExtraHoursValidation());
@@ -50,17 +48,33 @@ public class AttendanceSettingsService {
         return mapToResponse(repository.save(settings));
     }
     
+    private AttendanceSettingsResponse createDefaultResponse() {
+        return new AttendanceSettingsResponse(
+            null,                           // id
+            0,                              // toleranceTimeInFavorOfEmployee
+            ExtraHoursValidation.APPROVED_BY_MANAGER,  // extraHoursValidation
+            LocalTime.of(8, 0),            // checkInTime
+            LocalTime.of(17, 0),           // checkOutTime
+            null,                          // officeLatitude
+            null,                          // officeLongitude
+            100,                           // wfoRadius (Integer)
+            100,                           // wfhRadius (Integer)
+            null,                          // createdAt
+            null                           // updatedAt
+        );
+    }
+    
     private AttendanceSettingsResponse mapToResponse(AttendanceSettings s) {
         return new AttendanceSettingsResponse(
             s.getId(),
             s.getToleranceTimeInFavorOfEmployee(),
             s.getExtraHoursValidation(),
-            s.getCheckInTime()  != null ? s.getCheckInTime()  : LocalTime.of(8, 0),
+            s.getCheckInTime() != null ? s.getCheckInTime() : LocalTime.of(8, 0),
             s.getCheckOutTime() != null ? s.getCheckOutTime() : LocalTime.of(17, 0),
             s.getOfficeLatitude(),
             s.getOfficeLongitude(),
-            s.getWfoRadius()  != null ? s.getWfoRadius()  : 100.0,
-            s.getWfhRadius()  != null ? s.getWfhRadius()  : 100.0,
+            s.getWfoRadius() != null ? s.getWfoRadius() : 100,   // ✅ Integer
+            s.getWfhRadius() != null ? s.getWfhRadius() : 100,   // ✅ Integer
             s.getCreatedAt(),
             s.getUpdatedAt()
         );
