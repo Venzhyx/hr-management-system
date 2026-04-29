@@ -1,22 +1,10 @@
-/**
- * useWfoRadiusCheck
- *
- * Hook untuk validasi lokasi WFO saat check-in.
- * Mengambil GPS user → hitung jarak ke koordinat kantor → bandingkan dengan radius.
- *
- * Usage:
- *   const { checkLocation, status, distance, error, loading } = useWfoRadiusCheck();
- *
- *   status: 'idle' | 'checking' | 'inside' | 'outside' | 'error'
- *   distance: jarak dalam meter (null jika belum dicek)
- */
+// src/redux/hooks/useWFORadiusCheck.js
+import { useState, useCallback, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCompanies } from '../slices/companySlice'; // ✅ sesuaikan path jika perlu
 
-import { useState, useCallback } from 'react';
-import { useSelector } from 'react-redux';
-
-// ── Haversine formula — jarak antara 2 koordinat dalam meter ─────────────────
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
-  const R    = 6371000; // radius bumi dalam meter
+  const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -26,7 +14,6 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// ── Format jarak untuk ditampilkan ke user ────────────────────────────────────
 export const formatDistance = (meters) => {
   if (meters === null || meters === undefined) return '-';
   if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
@@ -34,33 +21,39 @@ export const formatDistance = (meters) => {
 };
 
 const useWfoRadiusCheck = () => {
-  const [status,   setStatus]   = useState('idle');    // idle | checking | inside | outside | error
-  const [distance, setDistance] = useState(null);      // meter
-  const [userPos,  setUserPos]  = useState(null);      // { lat, lng }
+  const dispatch = useDispatch();
+
+  const [status,   setStatus]   = useState('idle');
+  const [distance, setDistance] = useState(null);
+  const [userPos,  setUserPos]  = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // Ambil settings (wfoRadius) dan company (latitude/longitude) dari Redux
-  const wfoRadius = useSelector(s => s.attendanceSettings?.data?.wfoRadius ?? 100);
-  const companies = useSelector(s => s.companies?.list ?? []);
+  const wfoRadius      = useSelector(s => s.attendanceSettings?.data?.wfoRadius ?? 100);
+  const companies      = useSelector(s => s.companies?.list ?? []);
+  const companyLoading = useSelector(s => s.companies?.loading ?? false);
 
-  // Ambil koordinat kantor dari company pertama yang punya koordinat
+  // ✅ Auto-fetch companies kalau list masih kosong saat hook pertama kali dipakai
+  // Ini fix utama: sebelumnya companies hanya ter-load kalau user buka halaman Company
+  useEffect(() => {
+    if (companies.length === 0 && !companyLoading) {
+      dispatch(fetchCompanies());
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const officeLocation = (() => {
     const company = companies.find(c => c.latitude && c.longitude);
     if (!company) return null;
     return { lat: company.latitude, lng: company.longitude, name: company.companyName };
   })();
 
-  // ── Main check function ───────────────────────────────────────────────────
   const checkLocation = useCallback(() => {
     return new Promise((resolve) => {
-      // Jika tidak ada koordinat kantor, lewati validasi (tidak blokir)
       if (!officeLocation) {
         setStatus('idle');
         setErrorMsg('Koordinat kantor belum diatur. Hubungi admin.');
         resolve({ valid: true, skipped: true, reason: 'no_office_location' });
         return;
       }
-
       if (!navigator.geolocation) {
         setStatus('error');
         setErrorMsg('Browser tidak mendukung GPS.');
@@ -74,43 +67,24 @@ const useWfoRadiusCheck = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude: userLat, longitude: userLng } = position.coords;
-          const dist = haversineDistance(
-            userLat, userLng,
-            officeLocation.lat, officeLocation.lng
-          );
-
+          const dist = haversineDistance(userLat, userLng, officeLocation.lat, officeLocation.lng);
           setUserPos({ lat: userLat, lng: userLng });
           setDistance(dist);
-
           if (dist <= wfoRadius) {
             setStatus('inside');
-            resolve({
-              valid:    true,
-              distance: dist,
-              userLat,
-              userLng,
-              withinRadius: true,
-            });
+            resolve({ valid: true, distance: dist, userLat, userLng, withinRadius: true });
           } else {
             setStatus('outside');
-            resolve({
-              valid:    false,
-              distance: dist,
-              userLat,
-              userLng,
-              withinRadius: false,
-              radiusLimit: wfoRadius,
-              officeName:  officeLocation.name,
-            });
+            resolve({ valid: false, distance: dist, userLat, userLng, withinRadius: false, radiusLimit: wfoRadius, officeName: officeLocation.name });
           }
         },
         (err) => {
           setStatus('error');
           const msg =
-            err.code === err.PERMISSION_DENIED     ? 'Akses lokasi ditolak. Izinkan akses GPS di browser.' :
-            err.code === err.POSITION_UNAVAILABLE  ? 'Lokasi tidak tersedia saat ini.' :
-            err.code === err.TIMEOUT               ? 'Timeout: gagal mendapatkan lokasi.' :
-            'Gagal mendapatkan lokasi.';
+            err.code === err.PERMISSION_DENIED    ? 'Akses lokasi ditolak. Izinkan akses GPS di browser.' :
+            err.code === err.POSITION_UNAVAILABLE ? 'Lokasi tidak tersedia saat ini.' :
+            err.code === err.TIMEOUT              ? 'Timeout: gagal mendapatkan lokasi.' :
+                                                    'Gagal mendapatkan lokasi.';
           setErrorMsg(msg);
           resolve({ valid: false, reason: 'gps_error', message: msg });
         },
@@ -127,18 +101,19 @@ const useWfoRadiusCheck = () => {
   }, []);
 
   return {
-    checkLocation,   // call ini saat user pilih WFO → returns Promise
+    checkLocation,
     reset,
-    status,          // 'idle' | 'checking' | 'inside' | 'outside' | 'error'
-    distance,        // number (meter) | null
-    userPos,         // { lat, lng } | null
-    errorMsg,        // string | null
-    wfoRadius,       // radius saat ini (meter)
-    officeLocation,  // { lat, lng, name } | null
-    isChecking:      status === 'checking',
-    isInside:        status === 'inside',
-    isOutside:       status === 'outside',
-    isError:         status === 'error',
+    status,
+    distance,
+    userPos,
+    errorMsg,
+    wfoRadius,
+    officeLocation,
+    companyLoading,
+    isChecking:  status === 'checking',
+    isInside:    status === 'inside',
+    isOutside:   status === 'outside',
+    isError:     status === 'error',
   };
 };
 

@@ -200,7 +200,7 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
 
   return (
     <>
-      <nav className={`fixed top-0 right-0 left-0 lg:left-64 h-16 sm:h-20 z-30 transition-all duration-500 ${
+      <nav className={`relative top-0 right-0 left-0  h-16 sm:h-20 z-30 transition-all duration-500 ${
         isScrolled
           ? 'bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20'
           : 'bg-white border-b border-gray-200 shadow-sm'
