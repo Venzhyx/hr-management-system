@@ -19,8 +19,8 @@ public class AttendanceSettingsResponse {
     private LocalTime checkOutTime;
     private Double officeLatitude;
     private Double officeLongitude;
-    private Double wfoRadius;
-    private Double wfhRadius;
+    private Integer wfoRadius;
+    private Integer wfhRadius;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
