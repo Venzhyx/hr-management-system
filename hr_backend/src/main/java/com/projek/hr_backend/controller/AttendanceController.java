@@ -49,10 +49,15 @@ public class AttendanceController {
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) String attendanceType,
-            @RequestParam(required = false) String workType) throws IOException {
+            @RequestParam(required = false) String workType,
+            @RequestParam(required = false) Double accuracy,
+            @RequestParam(required = false) String deviceInfo,
+            jakarta.servlet.http.HttpServletRequest httpRequest) throws IOException {
         String type = attendanceType != null ? attendanceType : workType;
         if (type == null) type = "WFO";
-        CheckInResponse response = checkInService.checkIn(employeeId, photo, latitude, longitude, type);
+        CheckInResponse response = checkInService.checkIn(
+                employeeId, photo, latitude, longitude, type,
+                accuracy, deviceInfo, httpRequest);
         return ResponseEntity.ok(new ApiResponse<>(true, "Check-in berhasil", response));
     }
 

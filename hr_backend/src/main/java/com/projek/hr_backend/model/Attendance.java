@@ -69,6 +69,27 @@ public class Attendance {
     @Column(name = "is_location_validated")
     private Boolean isLocationValidated;
 
+    @Column(name = "is_suspicious")
+    private Boolean isSuspicious = false;
+
+    @Column(name = "suspicious_reason")
+    private String suspiciousReason;
+
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    @Column(name = "ip_latitude")
+    private Double ipLatitude;
+
+    @Column(name = "ip_longitude")
+    private Double ipLongitude;
+
+    @Column(name = "gps_accuracy")
+    private Double gpsAccuracy;
+
+    @Column(name = "device_info", columnDefinition = "TEXT")
+    private String deviceInfo;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "attendance_type", length = 10)
     private AttendanceType attendanceType;
