@@ -4,6 +4,7 @@ import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.*;
+import com.lowagie.text.BaseColor;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.PayslipComponentRepository;
@@ -364,7 +365,10 @@ public class PayslipPdfService {
         Font footerFont  = new Font(Font.HELVETICA, 9, Font.NORMAL, COLOR_TEXT_MUTED);
         Font statusFont  = new Font(Font.HELVETICA, 9, Font.BOLD,   COLOR_PRIMARY);
 
-        LineSeparator line = new LineSeparator(0.5f, 100, COLOR_BORDER, Element.ALIGN_CENTER, -2);
+        // Garis pemisah menggunakan BaseColor (bukan java.awt.Color)
+        BaseColor borderBaseColor = new BaseColor(
+                COLOR_BORDER.getRed(), COLOR_BORDER.getGreen(), COLOR_BORDER.getBlue());
+        LineSeparator line = new LineSeparator(0.5f, 100, borderBaseColor, Element.ALIGN_CENTER, -2);
         doc.add(new Chunk(line));
         doc.add(Chunk.NEWLINE);
 

@@ -276,7 +276,6 @@ public class PayrollReportExcelService {
         style.setBorderTop(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
-        style.setBorderColor(BorderSide.BOTTOM, new XSSFColor(new byte[]{(byte)203, (byte)213, (byte)225}, null));
         XSSFFont font = wb.createFont();
         font.setFontHeightInPoints((short) 10);
         style.setFont(font);
@@ -291,7 +290,6 @@ public class PayrollReportExcelService {
         style.setBorderTop(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
-        style.setBorderColor(BorderSide.BOTTOM, new XSSFColor(new byte[]{(byte)203, (byte)213, (byte)225}, null));
         // Format angka dengan pemisah ribuan
         DataFormat fmt = wb.createDataFormat();
         style.setDataFormat(fmt.getFormat("#,##0"));
