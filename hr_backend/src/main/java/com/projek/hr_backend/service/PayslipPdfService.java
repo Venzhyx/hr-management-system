@@ -4,7 +4,7 @@ import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.*;
-import com.lowagie.text.BaseColor;
+import com.lowagie.text.pdf.draw.LineSeparator;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.PayslipComponentRepository;
@@ -362,13 +362,15 @@ public class PayslipPdfService {
     // ─── Section: Footer ─────────────────────────────────────────────────────
 
     private void addFooter(Document doc, Payslip payslip, PayrollPeriod period) {
-        Font footerFont  = new Font(Font.HELVETICA, 9, Font.NORMAL, COLOR_TEXT_MUTED);
-        Font statusFont  = new Font(Font.HELVETICA, 9, Font.BOLD,   COLOR_PRIMARY);
+        Font footerFont = new Font(Font.HELVETICA, 9, Font.NORMAL, COLOR_TEXT_MUTED);
+        Font statusFont = new Font(Font.HELVETICA, 9, Font.BOLD,   COLOR_PRIMARY);
 
-        // Garis pemisah menggunakan BaseColor (bukan java.awt.Color)
-        BaseColor borderBaseColor = new BaseColor(
-                COLOR_BORDER.getRed(), COLOR_BORDER.getGreen(), COLOR_BORDER.getBlue());
-        LineSeparator line = new LineSeparator(0.5f, 100, borderBaseColor, Element.ALIGN_CENTER, -2);
+        // LineSeparator dari com.lowagie.text.pdf.draw — menerima java.awt.Color langsung
+        LineSeparator line = new LineSeparator();
+        line.setLineWidth(0.5f);
+        line.setPercentage(100);
+        line.setLineColor(COLOR_BORDER);
+        line.setAlignment(Element.ALIGN_CENTER);
         doc.add(new Chunk(line));
         doc.add(Chunk.NEWLINE);
 
