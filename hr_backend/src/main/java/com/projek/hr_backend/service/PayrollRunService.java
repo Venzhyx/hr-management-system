@@ -9,6 +9,7 @@ import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,39 @@ public class PayrollRunService {
     private final EmployeeSalaryComponentRepository employeeSalaryComponentRepository;
     private final OvertimeRepository                overtimeRepository;
     private final AttendanceRepository              attendanceRepository;
+
+    // ─── Query Runs ───────────────────────────────────────────────────────────
+
+    /**
+     * Ambil semua payroll period, diurutkan terbaru dulu.
+     * Setiap period sudah include semua payslip-nya.
+     */
+    @Transactional(readOnly = true)
+    public List<PayrollPeriodResponse> getAllRuns() {
+        return payrollPeriodRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .stream()
+                .map(period -> {
+                    List<Payslip> payslips = payslipRepository.findByPayrollPeriodId(period.getId());
+                    return buildPeriodResponse(period, payslips,
+                            payslips.size(), payslips.size(), 0, 0);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Ambil detail satu payroll period beserta semua payslip-nya.
+     */
+    @Transactional(readOnly = true)
+    public PayrollPeriodResponse getRunDetail(Long periodId) {
+        PayrollPeriod period = payrollPeriodRepository.findById(periodId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payroll period not found with id: " + periodId));
+
+        List<Payslip> payslips = payslipRepository.findByPayrollPeriodId(period.getId());
+        return buildPeriodResponse(period, payslips,
+                payslips.size(), payslips.size(), 0, 0);
+    }
 
     // ─── Run Payroll ──────────────────────────────────────────────────────────
 

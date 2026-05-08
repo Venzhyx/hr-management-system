@@ -108,8 +108,6 @@ public class PayrollController {
     /**
      * POST /api/payroll/run
      * Jalankan payroll untuk bulan dan tahun tertentu.
-     * Generate payslip untuk semua employee yang punya salary aktif.
-     * Body: { "month": 4, "year": 2026 }
      */
     @PostMapping("/run")
     public ResponseEntity<ApiResponse<PayrollPeriodResponse>> runPayroll(
@@ -119,6 +117,28 @@ public class PayrollController {
                 .body(ApiResponse.success(
                         "Payroll run completed. Generated " + response.getTotalPayslips()
                         + " payslip(s) for " + response.getPeriodLabel(), response));
+    }
+
+    /**
+     * GET /api/payroll/runs
+     * Ambil semua payroll period yang pernah di-run, diurutkan terbaru dulu.
+     * Dipakai FE untuk menampilkan daftar payroll di IndexPayroll.
+     */
+    @GetMapping("/runs")
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponse>>> getAllPayrollRuns() {
+        List<PayrollPeriodResponse> response = payrollRunService.getAllRuns();
+        return ResponseEntity.ok(ApiResponse.success("Payroll runs retrieved successfully", response));
+    }
+
+    /**
+     * GET /api/payroll/runs/{periodId}
+     * Ambil detail satu payroll period beserta semua payslip-nya.
+     */
+    @GetMapping("/runs/{periodId}")
+    public ResponseEntity<ApiResponse<PayrollPeriodResponse>> getPayrollRunDetail(
+            @PathVariable Long periodId) {
+        PayrollPeriodResponse response = payrollRunService.getRunDetail(periodId);
+        return ResponseEntity.ok(ApiResponse.success("Payroll run detail retrieved successfully", response));
     }
 
     // ─── Payslip ──────────────────────────────────────────────────────────────
@@ -143,8 +163,7 @@ public class PayrollController {
 
     /**
      * GET /api/payroll/payslips/{payslipId}/pdf
-     * Export payslip sebagai file PDF.
-     * Data diambil dari snapshot — tidak ada kalkulasi ulang.
+     * Export satu payslip sebagai PDF.
      */
     @GetMapping("/payslips/{payslipId}/pdf")
     public ResponseEntity<byte[]> exportPayslipPdf(@PathVariable Long payslipId) {
@@ -154,6 +173,31 @@ public class PayrollController {
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment",
             "payslip-" + payslipId + ".pdf");
+        headers.setContentLength(pdf.length);
+
+        return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
+    }
+
+    /**
+     * GET /api/payroll/reports/pdf?month=4&year=2026
+     * Export semua payslip dalam satu periode — satu file PDF multi-halaman.
+     * Setiap karyawan mendapat 1 halaman.
+     */
+    @GetMapping("/reports/pdf")
+    public ResponseEntity<byte[]> exportAllPayslipsPdf(
+            @RequestParam @Min(1) @Max(12) int month,
+            @RequestParam @Min(2000) int year) {
+
+        byte[] pdf = payslipPdfService.generateAllPayslipsPdf(month, year);
+
+        String periodLabel = Month.of(month)
+                .getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toLowerCase()
+                + "-" + year;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment",
+            "payroll-payslips-" + periodLabel + ".pdf");
         headers.setContentLength(pdf.length);
 
         return new ResponseEntity<>(pdf, headers, HttpStatus.OK);

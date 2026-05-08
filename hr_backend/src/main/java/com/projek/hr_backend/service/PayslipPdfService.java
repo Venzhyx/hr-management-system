@@ -4,10 +4,12 @@ import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.*;
+import com.projek.hr_backend.exception.BadRequestException;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.PayslipComponentRepository;
 import com.projek.hr_backend.repository.PayslipRepository;
+import com.projek.hr_backend.repository.PayrollPeriodRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class PayslipPdfService {
 
     private final PayslipRepository          payslipRepository;
     private final PayslipComponentRepository payslipComponentRepository;
+    private final PayrollPeriodRepository    payrollPeriodRepository;
 
     // ── Palette ───────────────────────────────────────────────────────────────
     private static final Color C_DARK_GREEN  = new Color(56,  87,  35);
@@ -61,6 +64,7 @@ public class PayslipPdfService {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /** PDF untuk satu payslip. */
     @Transactional(readOnly = true)
     public byte[] generatePayslipPdf(Long payslipId) {
         Payslip payslip = payslipRepository.findByIdForExport(payslipId)
@@ -73,7 +77,66 @@ public class PayslipPdfService {
         return buildPdf(payslip, components);
     }
 
-    // ── PDF Builder ───────────────────────────────────────────────────────────
+    /**
+     * PDF semua payslip dalam satu periode — satu file multi-halaman.
+     * Setiap karyawan mendapat 1 halaman penuh.
+     */
+    @Transactional(readOnly = true)
+    public byte[] generateAllPayslipsPdf(int month, int year) {
+        PayrollPeriod period = payrollPeriodRepository.findByMonthAndYear(month, year)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payroll period not found for " + buildPeriodLabel(month, year)));
+
+        List<Payslip> payslips = payslipRepository.findByPayrollPeriodIdForExport(period.getId());
+
+        if (payslips.isEmpty()) {
+            throw new BadRequestException(
+                    "No payslip data found for period " + buildPeriodLabel(month, year));
+        }
+
+        return buildAllPayslipsPdf(payslips);
+    }
+
+    // ── PDF Builder — all payslips in one period ──────────────────────────────
+
+    private byte[] buildAllPayslipsPdf(List<Payslip> payslips) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Document doc = new Document(PageSize.A4, 50, 50, 40, 40);
+        PdfWriter.getInstance(doc, out);
+        doc.open();
+
+        for (int i = 0; i < payslips.size(); i++) {
+            Payslip payslip = payslips.get(i);
+            List<PayslipComponent> components =
+                    payslipComponentRepository.findByPayslipId(payslip.getId());
+
+            Employee      emp    = payslip.getEmployee();
+            Department    dept   = emp.getDepartment();
+            Company       co     = emp.getCompany();
+            PayrollPeriod period = payslip.getPayrollPeriod();
+
+            String coName      = co != null ? co.getCompanyName().toUpperCase() : "HR MANAGEMENT SYSTEM";
+            String periodLabel = buildPeriodLabel(period.getMonth(), period.getYear()).toUpperCase();
+
+            // Halaman baru untuk setiap karyawan (kecuali yang pertama)
+            if (i > 0) {
+                doc.newPage();
+            }
+
+            addTitleBlock(doc, coName, periodLabel);
+            addSpacer(doc, 6);
+            addIdentityBlock(doc, emp, dept);
+            addSpacer(doc, 8);
+            addMainTable(doc, payslip, components);
+            addSpacer(doc, 12);
+            addFooter(doc, payslip, period);
+        }
+
+        doc.close();
+        return out.toByteArray();
+    }
+
+    // ── PDF Builder — single payslip ─────────────────────────────────────────
 
     private byte[] buildPdf(Payslip payslip, List<PayslipComponent> components) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
