@@ -17,10 +17,12 @@ import {
   HiOutlineCalendar,
   HiOutlineEye,
   HiOutlineChevronDown,
+  HiOutlineAdjustments,
+  HiOutlineUserGroup,
 } from 'react-icons/hi';
 import usePayroll from '../../../redux/hooks/usePayroll';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
-import { payrollApi } from '../../../ApiService/payrollApi'; // sesuaikan path jika berbeda
+import { payrollApi } from '../../../ApiService/payrollApi';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MONTHS = [
@@ -66,24 +68,38 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub, subColor }
   </div>
 );
 
+// ── Quick Action Card ─────────────────────────────────────────────────────────
+const QuickActionCard = ({ icon: Icon, iconBg, iconColor, label, desc, onClick }) => (
+  <button
+    onClick={onClick}
+    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3
+               hover:border-indigo-200 hover:shadow-md transition-all duration-200 text-left group w-full"
+  >
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}
+                     group-hover:scale-105 transition-transform duration-200`}>
+      <Icon className={`w-5 h-5 ${iconColor}`} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="text-xs font-semibold text-gray-800 truncate group-hover:text-indigo-700 transition-colors">{label}</p>
+      <p className="text-[11px] text-gray-400 truncate mt-0.5">{desc}</p>
+    </div>
+    <HiOutlineChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 flex-shrink-0 transition-colors" />
+  </button>
+);
+
 // ── Avatar ────────────────────────────────────────────────────────────────────
 const Avatar = ({ name, photo, size = 'md' }) => {
   const [imgError, setImgError] = useState(false);
-  const dim   = size === 'lg' ? 'w-10 h-10' : 'w-8 h-8';
-  const text  = size === 'lg' ? 'text-sm'   : 'text-xs';
+  const dim     = size === 'lg' ? 'w-10 h-10' : 'w-8 h-8';
+  const text    = size === 'lg' ? 'text-sm'   : 'text-xs';
   const initial = (name ?? 'U').trim().charAt(0).toUpperCase();
 
   if (photo && !imgError) {
     return (
-      <img
-        src={photo}
-        alt={name}
-        onError={() => setImgError(true)}
-        className={`${dim} rounded-full object-cover ring-2 ring-white shadow-sm flex-shrink-0`}
-      />
+      <img src={photo} alt={name} onError={() => setImgError(true)}
+        className={`${dim} rounded-full object-cover ring-2 ring-white shadow-sm flex-shrink-0`} />
     );
   }
-
   return (
     <div className={`${dim} rounded-full bg-indigo-100 flex items-center justify-center
                      text-indigo-600 font-bold ${text} flex-shrink-0 select-none ring-2 ring-white shadow-sm`}>
@@ -102,15 +118,14 @@ const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
   const totalEarning   = payslip.totalEarning   ?? (payslip.basicSalary ?? 0);
   const totalDeduction = payslip.totalDeduction ?? 0;
 
-  const photo      = emp?.photo       ?? null;
-  const jobTitle   = emp?.jobTitle    ?? emp?.position ?? payslip.jobTitle    ?? '-';
-  const department = emp?.departmentName ?? emp?.department ?? payslip.department ?? null;
-  const employeeId = emp?.employeeCode ?? payslip.employeeId ?? '-';
-  const joinDate   = emp?.joinDate    ?? payslip.joinDate    ?? '-';
+  const photo      = emp?.photo          ?? null;
+  const jobTitle   = emp?.jobTitle       ?? emp?.position    ?? payslip.jobTitle   ?? '-';
+  const department = emp?.departmentName ?? emp?.department  ?? payslip.department ?? null;
+  const employeeId = emp?.employeeCode   ?? payslip.employeeId ?? '-';
+  const joinDate   = emp?.joinDate       ?? payslip.joinDate   ?? '-';
 
   return (
     <div className="flex flex-col h-full bg-white border-l border-gray-100">
-      {/* Panel header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
         <h3 className="font-semibold text-gray-800 text-sm">Detail Payslip</h3>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -119,22 +134,16 @@ const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-        {/* Employee info */}
         <div className="flex items-center gap-3">
           <Avatar name={payslip.employeeName} photo={photo} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-gray-900 text-sm truncate">{payslip.employeeName ?? '-'}</p>
             <p className="text-xs text-gray-400 truncate">{jobTitle}</p>
-            {department && (
-              <p className="text-xs text-indigo-500 font-medium truncate">{department}</p>
-            )}
+            {department && <p className="text-xs text-indigo-500 font-medium truncate">{department}</p>}
           </div>
-          <div className="flex-shrink-0">
-            <StatusBadge status={payslip.status} />
-          </div>
+          <div className="flex-shrink-0"><StatusBadge status={payslip.status} /></div>
         </div>
 
-        {/* Meta info grid */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Periode',     value: payslip.periodLabel ?? '-' },
@@ -148,7 +157,6 @@ const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
           ))}
         </div>
 
-        {/* Attendance pills */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Total Absen', value: `${payslip.totalAbsent ?? 0} hari`,       color: 'text-red-600' },
@@ -162,7 +170,6 @@ const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
           ))}
         </div>
 
-        {/* Earnings */}
         <div>
           <p className="text-xs font-bold text-green-600 uppercase tracking-wide mb-2">Earnings</p>
           <div className="space-y-2">
@@ -183,18 +190,18 @@ const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
           </div>
         </div>
 
-        {/* Deductions */}
         <div>
           <p className="text-xs font-bold text-red-500 uppercase tracking-wide mb-2">Deductions</p>
           <div className="space-y-2">
-            {deductions.length === 0 ? (
-              <p className="text-xs text-gray-400">Tidak ada potongan</p>
-            ) : deductions.map((c, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-gray-600">{c.componentName}</span>
-                <span className="font-medium text-gray-800">{formatRp(c.amount)}</span>
-              </div>
-            ))}
+            {deductions.length === 0
+              ? <p className="text-xs text-gray-400">Tidak ada potongan</p>
+              : deductions.map((c, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-gray-600">{c.componentName}</span>
+                    <span className="font-medium text-gray-800">{formatRp(c.amount)}</span>
+                  </div>
+                ))
+            }
             <div className="flex justify-between text-sm font-semibold border-t border-gray-100 pt-2 mt-1">
               <span className="text-red-600">Total Deductions</span>
               <span className="text-red-500">{formatRp(totalDeduction)}</span>
@@ -202,14 +209,12 @@ const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
           </div>
         </div>
 
-        {/* Net salary highlight */}
         <div className="bg-gray-50 rounded-2xl p-4 text-center">
           <p className="text-xs text-gray-400 font-medium mb-1">NET SALARY</p>
           <p className="text-2xl font-bold text-indigo-600">{formatRp(payslip.netSalary)}</p>
         </div>
       </div>
 
-      {/* Download button */}
       <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
         <button
           onClick={() => onDownload(payslip.id, payslip.employeeName, payslip.periodLabel)}
@@ -280,7 +285,6 @@ const PayrollIndex = () => {
   const totalDeduction = allSlips.reduce((s, p) => s + Number(p.totalDeduction ?? 0), 0);
   const pendingCount   = allSlips.filter(p => (p.status ?? '').toUpperCase() === 'DRAFT').length;
 
-  // ── Download PDF per payslip (blob) ──────────────────────────────────────
   const handleDownload = async (payslipId, employeeName, periodLabel) => {
     setDownloading(true);
     try {
@@ -344,6 +348,8 @@ const PayrollIndex = () => {
                 <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
               </div>
 
+              <div className="w-px h-6 bg-gray-200" />
+
               {/* Export Excel */}
               <button className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50
                                  text-sm font-medium px-3.5 py-2 rounded-xl transition-colors">
@@ -357,6 +363,8 @@ const PayrollIndex = () => {
                 <HiOutlineDocumentDownload className="w-4 h-4 text-gray-500" />
                 Download PDF
               </button>
+
+              <div className="w-px h-6 bg-gray-200" />
 
               {/* Generate Payroll CTA */}
               <button
@@ -372,7 +380,7 @@ const PayrollIndex = () => {
         </div>
 
         {/* Stat cards */}
-        <div className="px-6 pt-5 pb-1 flex-shrink-0">
+        <div className="px-6 pt-5 pb-3 flex-shrink-0">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
             <StatCard
               icon={HiOutlineUsers}
@@ -409,40 +417,52 @@ const PayrollIndex = () => {
           </div>
         </div>
 
+        {/* ── Quick Actions: Employee Salary & Salary Components ────────── */}
+        <div className="px-6 pb-3 flex-shrink-0">
+          <div className="grid grid-cols-2 gap-3">
+            <QuickActionCard
+              icon={HiOutlineUserGroup}
+              iconBg="bg-sky-100" iconColor="text-sky-600"
+              label="Gaji Karyawan"
+              desc="Atur gaji pokok & komponen per karyawan"
+              onClick={() => navigate('/payroll/employee-salary')}
+            />
+            <QuickActionCard
+              icon={HiOutlineAdjustments}
+              iconBg="bg-violet-100" iconColor="text-violet-600"
+              label="Komponen Gaji"
+              desc="Kelola tunjangan, potongan & komponen lainnya"
+              onClick={() => navigate('/payroll/components')}
+            />
+          </div>
+        </div>
+
         {/* Table section */}
-        <div className="flex-1 px-6 py-4 overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 px-6 pb-4 overflow-hidden flex flex-col min-h-0">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col flex-1 min-h-0">
 
             {/* Table toolbar */}
             <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-100 flex-wrap flex-shrink-0">
               <h2 className="text-sm font-semibold text-gray-700">Daftar Payroll</h2>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Search */}
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
-                    type="text"
-                    placeholder="Cari karyawan..."
+                    type="text" placeholder="Cari karyawan..."
                     value={search}
                     onChange={e => { setSearch(e.target.value); setPage(1); }}
                     className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
                                focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 w-44"
                   />
                 </div>
-
-                {/* Status filter */}
                 <div className="relative">
-                  <select
-                    value={filterStatus}
-                    onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+                  <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
                     className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-xl
-                               bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer"
-                  >
+                               bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
                     {statusOptions.map(s => <option key={s}>{s}</option>)}
                   </select>
                   <HiOutlineFilter className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 </div>
-
                 <button className="p-2 border border-gray-200 rounded-xl text-gray-400 hover:bg-gray-50 transition-colors">
                   <HiOutlineDotsVertical className="w-4 h-4" />
                 </button>
@@ -455,11 +475,9 @@ const PayrollIndex = () => {
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b border-gray-100">
                     {['Karyawan','Basic Salary','Allowance','Deduction','Net Salary','Status','Aksi'].map((h, i) => (
-                      <th
-                        key={h}
+                      <th key={h}
                         className={`px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide
-                                    ${i === 0 ? 'text-left' : 'text-right'}`}
-                      >
+                                    ${i === 0 ? 'text-left' : 'text-right'}`}>
                         {h}
                       </th>
                     ))}
@@ -480,21 +498,16 @@ const PayrollIndex = () => {
                     const department = emp?.departmentName ?? emp?.department ?? null;
 
                     return (
-                      <tr
-                        key={p.id}
-                        onClick={() => setSelectedPayslip(p)}
+                      <tr key={p.id} onClick={() => setSelectedPayslip(p)}
                         className={`hover:bg-indigo-50/40 transition-colors cursor-pointer
-                                    ${selectedPayslip?.id === p.id ? 'bg-indigo-50' : ''}`}
-                      >
+                                    ${selectedPayslip?.id === p.id ? 'bg-indigo-50' : ''}`}>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <Avatar name={p.employeeName} photo={photo} />
                             <div className="min-w-0">
                               <p className="font-semibold text-gray-800 text-xs truncate">{p.employeeName ?? '-'}</p>
                               <p className="text-[11px] text-gray-400 truncate">{jobTitle}</p>
-                              {department && (
-                                <p className="text-[11px] text-indigo-400 font-medium truncate">{department}</p>
-                              )}
+                              {department && <p className="text-[11px] text-indigo-400 font-medium truncate">{department}</p>}
                             </div>
                           </div>
                         </td>
@@ -502,11 +515,8 @@ const PayrollIndex = () => {
                         <td className="px-5 py-3.5 text-right text-gray-600 text-xs whitespace-nowrap">{formatRp(p.totalEarning)}</td>
                         <td className="px-5 py-3.5 text-right text-gray-600 text-xs whitespace-nowrap">{formatRp(p.totalDeduction)}</td>
                         <td className="px-5 py-3.5 text-right font-bold text-gray-900 text-xs whitespace-nowrap">{formatRp(p.netSalary)}</td>
+                        <td className="px-5 py-3.5 text-right"><StatusBadge status={p.status} /></td>
                         <td className="px-5 py-3.5 text-right">
-                          <StatusBadge status={p.status} />
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          {/* Tombol mata → navigate ke halaman detail payslip */}
                           <button
                             onClick={e => { e.stopPropagation(); navigate(`/payroll/slips/${p.id}`); }}
                             className="text-gray-400 hover:text-indigo-600 transition-colors"
@@ -528,58 +538,40 @@ const PayrollIndex = () => {
                 Menampilkan {filtered.length === 0 ? 0 : (page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} dari {filtered.length} karyawan
               </p>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                   className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50
-                             disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
+                             disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                   <HiOutlineChevronLeft className="w-3.5 h-3.5" />
                 </button>
 
                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                   const pg = i + 1;
                   return (
-                    <button
-                      key={pg}
-                      onClick={() => setPage(pg)}
+                    <button key={pg} onClick={() => setPage(pg)}
                       className={`w-7 h-7 text-xs rounded-lg border transition-colors font-medium
-                                  ${page === pg
-                                    ? 'bg-indigo-600 text-white border-indigo-600'
-                                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
-                    >
+                                  ${page === pg ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                       {pg}
                     </button>
                   );
                 })}
                 {totalPages > 5 && <span className="text-gray-400 text-xs">...</span>}
                 {totalPages > 5 && (
-                  <button
-                    onClick={() => setPage(totalPages)}
+                  <button onClick={() => setPage(totalPages)}
                     className={`w-7 h-7 text-xs rounded-lg border transition-colors font-medium
-                                ${page === totalPages
-                                  ? 'bg-indigo-600 text-white border-indigo-600'
-                                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
-                  >
+                                ${page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                     {totalPages}
                   </button>
                 )}
 
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                   className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50
-                             disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
+                             disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                   <HiOutlineChevronRight className="w-3.5 h-3.5" />
                 </button>
 
-                <select
-                  value={perPage}
-                  onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
+                <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
                   className="ml-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-gray-50
-                             focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer"
-                >
+                             focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
                   {[10, 25, 50].map(n => <option key={n} value={n}>{n} / halaman</option>)}
                 </select>
               </div>
@@ -589,10 +581,8 @@ const PayrollIndex = () => {
       </div>
 
       {/* ── Detail Panel (right side) ──────────────────────────────────────── */}
-      <div
-        className={`flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out
-                    ${selectedPayslip ? 'w-80 xl:w-96' : 'w-0'}`}
-      >
+      <div className={`flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out
+                       ${selectedPayslip ? 'w-80 xl:w-96' : 'w-0'}`}>
         {selectedPayslip && (
           <DetailPanel
             payslip={selectedPayslip}
