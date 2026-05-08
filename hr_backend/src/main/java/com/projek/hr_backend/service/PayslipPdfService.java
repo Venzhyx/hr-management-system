@@ -4,7 +4,6 @@ import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.*;
-import com.lowagie.text.pdf.draw.LineSeparator;
 import com.projek.hr_backend.exception.ResourceNotFoundException;
 import com.projek.hr_backend.model.*;
 import com.projek.hr_backend.repository.PayslipComponentRepository;
@@ -19,7 +18,22 @@ import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
+/**
+ * Generates a formal, government-document-style payslip PDF.
+ *
+ * Layout reference: PPh 21 form (PERHITUNGAN PPH 21)
+ *  - Centered italic+bold title in a bordered box
+ *  - Identity block (NIK / Nama / Jabatan / Departemen)
+ *  - Single full-width table:
+ *      • column header row       → dark-green bg, white bold
+ *      • section rows (A/B/C)    → dark-green bg, white bold, 2-col span
+ *      • data rows               → alternating white / light-gray
+ *      • subtotal rows           → medium-green bg, white bold
+ *      • net-salary row          → dark-green bg, white bold, larger font
+ *  - Signature area + printed note
+ */
 @Service
 @RequiredArgsConstructor
 public class PayslipPdfService {
@@ -27,25 +41,31 @@ public class PayslipPdfService {
     private final PayslipRepository          payslipRepository;
     private final PayslipComponentRepository payslipComponentRepository;
 
-    // ─── Warna & Font ────────────────────────────────────────────────────────
-    private static final Color COLOR_PRIMARY    = new Color(37, 99, 235);   // biru
-    private static final Color COLOR_HEADER_BG  = new Color(239, 246, 255); // biru muda
-    private static final Color COLOR_EARNING    = new Color(22, 163, 74);   // hijau
-    private static final Color COLOR_DEDUCTION  = new Color(220, 38, 38);   // merah
-    private static final Color COLOR_LIGHT_GRAY = new Color(248, 250, 252);
-    private static final Color COLOR_BORDER     = new Color(203, 213, 225);
-    private static final Color COLOR_TEXT_MUTED = new Color(100, 116, 139);
+    // ── Palette ───────────────────────────────────────────────────────────────
+    private static final Color C_DARK_GREEN  = new Color(56,  87,  35);
+    private static final Color C_MED_GREEN   = new Color(84, 130,  53);
+    private static final Color C_TITLE_GREEN = new Color(0,   97,   0);
+    private static final Color C_WHITE       = Color.WHITE;
+    private static final Color C_LIGHT_GRAY  = new Color(242, 242, 242);
+    private static final Color C_BORDER      = new Color(180, 180, 180);
+    private static final Color C_BLACK       = Color.BLACK;
+    private static final Color C_MUTED       = new Color(130, 130, 130);
 
-    private static final NumberFormat CURRENCY_FORMAT =
+    private static final NumberFormat IDR =
             NumberFormat.getNumberInstance(new Locale("id", "ID"));
 
-    // ─── Public API ──────────────────────────────────────────────────────────
+    // ── Font helpers ──────────────────────────────────────────────────────────
+    private Font fBold (int sz, Color c) { return new Font(Font.HELVETICA, sz, Font.BOLD,        c); }
+    private Font fNorm (int sz, Color c) { return new Font(Font.HELVETICA, sz, Font.NORMAL,      c); }
+    private Font fBoldI(int sz, Color c) { return new Font(Font.HELVETICA, sz, Font.BOLDITALIC,  c); }
+
+    // ── Public API ────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public byte[] generatePayslipPdf(Long payslipId) {
         Payslip payslip = payslipRepository.findByIdForExport(payslipId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                    "Payslip not found with id: " + payslipId));
+                        "Payslip not found with id: " + payslipId));
 
         List<PayslipComponent> components =
                 payslipComponentRepository.findByPayslipId(payslipId);
@@ -53,349 +73,306 @@ public class PayslipPdfService {
         return buildPdf(payslip, components);
     }
 
-    // ─── PDF Builder ─────────────────────────────────────────────────────────
+    // ── PDF Builder ───────────────────────────────────────────────────────────
 
     private byte[] buildPdf(Payslip payslip, List<PayslipComponent> components) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        Document doc = new Document(PageSize.A4, 40, 40, 40, 40);
+        Document doc = new Document(PageSize.A4, 50, 50, 40, 40);
         PdfWriter.getInstance(doc, out);
         doc.open();
 
-        Employee   employee = payslip.getEmployee();
-        Department dept     = employee.getDepartment();
-        Company    company  = employee.getCompany();
+        Employee      emp    = payslip.getEmployee();
+        Department    dept   = emp.getDepartment();
+        Company       co     = emp.getCompany();
         PayrollPeriod period = payslip.getPayrollPeriod();
 
-        String companyName = company != null ? company.getCompanyName() : "HR Management System";
-        String periodLabel = buildPeriodLabel(period.getMonth(), period.getYear());
+        String coName      = co != null ? co.getCompanyName().toUpperCase() : "HR MANAGEMENT SYSTEM";
+        String periodLabel = buildPeriodLabel(period.getMonth(), period.getYear()).toUpperCase();
 
-        // ── Header ──────────────────────────────────────────────────────────
-        addHeader(doc, companyName, periodLabel);
+        // ① Title
+        addTitleBlock(doc, coName, periodLabel);
+        addSpacer(doc, 6);
 
-        doc.add(Chunk.NEWLINE);
+        // ② Identity
+        addIdentityBlock(doc, emp, dept);
+        addSpacer(doc, 8);
 
-        // ── Employee Info ────────────────────────────────────────────────────
-        addEmployeeInfo(doc, employee, dept);
+        // ③ Main table
+        addMainTable(doc, payslip, components);
+        addSpacer(doc, 12);
 
-        doc.add(Chunk.NEWLINE);
-
-        // ── Salary Summary ───────────────────────────────────────────────────
-        addSalarySummary(doc, payslip);
-
-        doc.add(Chunk.NEWLINE);
-
-        // ── Component Detail Table ───────────────────────────────────────────
-        if (!components.isEmpty()) {
-            addComponentTable(doc, components);
-            doc.add(Chunk.NEWLINE);
-        }
-
-        // ── Attendance Summary ───────────────────────────────────────────────
-        addAttendanceSummary(doc, payslip);
-
-        doc.add(Chunk.NEWLINE);
-
-        // ── Footer ───────────────────────────────────────────────────────────
+        // ④ Signature + footer
         addFooter(doc, payslip, period);
 
         doc.close();
         return out.toByteArray();
     }
 
-    // ─── Section: Header ─────────────────────────────────────────────────────
+    // ── ① Title Block ─────────────────────────────────────────────────────────
 
-    private void addHeader(Document doc, String companyName, String periodLabel) {
-        // Background header
-        PdfPTable headerTable = new PdfPTable(2);
-        headerTable.setWidthPercentage(100);
-        headerTable.setWidths(new float[]{2f, 1f});
+    private void addTitleBlock(Document doc, String coName, String periodLabel) {
+        PdfPTable box = new PdfPTable(1);
+        box.setWidthPercentage(100);
 
-        // Kiri: company name + title
-        PdfPCell leftCell = new PdfPCell();
-        leftCell.setBorder(Rectangle.NO_BORDER);
-        leftCell.setBackgroundColor(COLOR_PRIMARY);
-        leftCell.setPadding(16);
+        PdfPCell cell = new PdfPCell();
+        cell.setBorderColor(C_BORDER);
+        cell.setBorderWidth(1.2f);
+        cell.setPaddingTop(10);
+        cell.setPaddingBottom(10);
 
-        Font companyFont = new Font(Font.HELVETICA, 14, Font.BOLD, Color.WHITE);
-        Font titleFont   = new Font(Font.HELVETICA, 20, Font.BOLD, Color.WHITE);
-        Font subFont     = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(186, 230, 253));
+        Paragraph line1 = new Paragraph("PERHITUNGAN PAYSLIP " + periodLabel, fBoldI(13, C_TITLE_GREEN));
+        line1.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(line1);
 
-        leftCell.addElement(new Paragraph(companyName, companyFont));
-        leftCell.addElement(new Paragraph("PAYSLIP", titleFont));
-        leftCell.addElement(new Paragraph("Period: " + periodLabel, subFont));
+        Paragraph line2 = new Paragraph(coName, fBold(10, C_BLACK));
+        line2.setAlignment(Element.ALIGN_CENTER);
+        line2.setSpacingBefore(3);
+        cell.addElement(line2);
 
-        // Kanan: label PAYSLIP besar
-        PdfPCell rightCell = new PdfPCell();
-        rightCell.setBorder(Rectangle.NO_BORDER);
-        rightCell.setBackgroundColor(new Color(29, 78, 216));
-        rightCell.setPadding(16);
-        rightCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-        rightCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-
-        Font bigFont = new Font(Font.HELVETICA, 28, Font.BOLD, new Color(219, 234, 254));
-        Paragraph bigLabel = new Paragraph("PAY\nSLIP", bigFont);
-        bigLabel.setAlignment(Element.ALIGN_CENTER);
-        rightCell.addElement(bigLabel);
-
-        headerTable.addCell(leftCell);
-        headerTable.addCell(rightCell);
-        doc.add(headerTable);
+        box.addCell(cell);
+        doc.add(box);
     }
 
-    // ─── Section: Employee Info ───────────────────────────────────────────────
+    // ── ② Identity Block ──────────────────────────────────────────────────────
 
-    private void addEmployeeInfo(Document doc, Employee employee, Department dept) {
-        Font sectionFont = new Font(Font.HELVETICA, 11, Font.BOLD, COLOR_PRIMARY);
-        Font labelFont   = new Font(Font.HELVETICA, 9,  Font.NORMAL, COLOR_TEXT_MUTED);
-        Font valueFont   = new Font(Font.HELVETICA, 10, Font.BOLD,   Color.BLACK);
+    private void addIdentityBlock(Document doc, Employee emp, Department dept) {
+        PdfPTable t = new PdfPTable(new float[]{2.2f, 0.3f, 3.5f});
+        t.setWidthPercentage(58);
+        t.setHorizontalAlignment(Element.ALIGN_LEFT);
 
-        Paragraph sectionTitle = new Paragraph("EMPLOYEE INFORMATION", sectionFont);
-        sectionTitle.setSpacingBefore(4);
-        sectionTitle.setSpacingAfter(6);
-        doc.add(sectionTitle);
+        addIdRow(t, "NIK",            emp.getId() != null ? String.valueOf(emp.getId()) : "-");
+        addIdRow(t, "Nama Karyawan",  emp.getName());
+        addIdRow(t, "Jabatan",        emp.getJobTitle());
+        addIdRow(t, "Departemen",     dept != null ? dept.getDepartmentName() : "-");
+        addIdRow(t, "Email Kerja",    emp.getWorkEmail());
+        addIdRow(t, "No. Telepon",    emp.getWorkPhone());
 
-        PdfPTable table = new PdfPTable(4);
-        table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.2f, 2f, 1.2f, 2f});
-        table.setSpacingBefore(4);
-
-        addInfoRow(table, "Employee Name", employee.getName(),
-                          "Employee ID",   String.valueOf(employee.getId()),
-                          labelFont, valueFont);
-        addInfoRow(table, "Position",      employee.getJobTitle(),
-                          "Department",    dept != null ? dept.getDepartmentName() : "-",
-                          labelFont, valueFont);
-        addInfoRow(table, "Work Email",    employee.getWorkEmail(),
-                          "Work Phone",    employee.getWorkPhone(),
-                          labelFont, valueFont);
-
-        doc.add(table);
+        doc.add(t);
     }
 
-    private void addInfoRow(PdfPTable table,
-                            String label1, String value1,
-                            String label2, String value2,
-                            Font labelFont, Font valueFont) {
-        table.addCell(infoLabelCell(label1, labelFont));
-        table.addCell(infoValueCell(value1, valueFont));
-        table.addCell(infoLabelCell(label2, labelFont));
-        table.addCell(infoValueCell(value2, valueFont));
+    private void addIdRow(PdfPTable t, String label, String value) {
+        t.addCell(noBorder(new Phrase(label, fNorm(9, C_BLACK))));
+        t.addCell(noBorder(new Phrase(":", fNorm(9, C_BLACK))));
+        t.addCell(noBorder(new Phrase(value != null ? value : "-", fNorm(9, C_BLACK))));
     }
 
-    private PdfPCell infoLabelCell(String text, Font font) {
-        PdfPCell cell = new PdfPCell(new Phrase(text, font));
-        cell.setBackgroundColor(COLOR_HEADER_BG);
-        cell.setPadding(6);
-        cell.setBorderColor(COLOR_BORDER);
-        return cell;
-    }
+    // ── ③ Main Table ──────────────────────────────────────────────────────────
 
-    private PdfPCell infoValueCell(String text, Font font) {
-        PdfPCell cell = new PdfPCell(new Phrase(text != null ? text : "-", font));
-        cell.setBackgroundColor(Color.WHITE);
-        cell.setPadding(6);
-        cell.setBorderColor(COLOR_BORDER);
-        return cell;
-    }
+    private void addMainTable(Document doc, Payslip payslip,
+                               List<PayslipComponent> components) {
+        List<PayslipComponent> earnings =
+                components.stream()
+                        .filter(c -> c.getType() == PayslipComponentType.EARNING)
+                        .collect(Collectors.toList());
+        List<PayslipComponent> deductions =
+                components.stream()
+                        .filter(c -> c.getType() == PayslipComponentType.DEDUCTION)
+                        .collect(Collectors.toList());
 
-    // ─── Section: Salary Summary ──────────────────────────────────────────────
+        PdfPTable t = new PdfPTable(new float[]{4.5f, 2f});
+        t.setWidthPercentage(100);
 
-    private void addSalarySummary(Document doc, Payslip payslip) {
-        Font sectionFont = new Font(Font.HELVETICA, 11, Font.BOLD, COLOR_PRIMARY);
-        Paragraph title = new Paragraph("SALARY SUMMARY", sectionFont);
-        title.setSpacingAfter(6);
-        doc.add(title);
+        // Column headers
+        t.addCell(colHeader("Keterangan", Element.ALIGN_LEFT));
+        t.addCell(colHeader("Penghasilan / Potongan", Element.ALIGN_CENTER));
 
-        PdfPTable table = new PdfPTable(2);
-        table.setWidthPercentage(60);
-        table.setHorizontalAlignment(Element.ALIGN_LEFT);
-        table.setWidths(new float[]{2f, 1.5f});
+        // ─── A. PENGHASILAN ───────────────────────────────────────────────
+        t.addCell(sectionCell("A.  PENGHASILAN"));
+        t.addCell(sectionCell(""));
 
-        Font labelFont  = new Font(Font.HELVETICA, 10, Font.NORMAL, Color.BLACK);
-        Font valueFont  = new Font(Font.HELVETICA, 10, Font.NORMAL, Color.BLACK);
-        Font totalLabel = new Font(Font.HELVETICA, 11, Font.BOLD,   Color.WHITE);
-        Font totalValue = new Font(Font.HELVETICA, 11, Font.BOLD,   Color.WHITE);
+        int r = 0;
+        t.addCell(dataL("     Gaji / Upah Pokok", r));
+        t.addCell(dataR(rp(payslip.getBasicSalary()), r++));
 
-        addSummaryRow(table, "Basic Salary",     formatRp(payslip.getBasicSalary()),    labelFont, valueFont, false);
-        addSummaryRow(table, "Overtime Pay",      formatRp(payslip.getOvertimePay()),    labelFont, valueFont, false);
-        addSummaryRow(table, "Total Earnings",    formatRp(payslip.getTotalEarning()),   labelFont, valueFont, false);
-        addSummaryRow(table, "Total Deductions",  formatRp(payslip.getTotalDeduction()), labelFont, valueFont, false);
+        t.addCell(dataL("     Lembur / Overtime", r));
+        t.addCell(dataR(rp(payslip.getOvertimePay()), r++));
 
-        // Net salary row — highlighted
-        PdfPCell netLabel = new PdfPCell(new Phrase("NET SALARY", totalLabel));
-        netLabel.setBackgroundColor(COLOR_PRIMARY);
-        netLabel.setPadding(8);
-        netLabel.setBorder(Rectangle.NO_BORDER);
-
-        PdfPCell netValue = new PdfPCell(new Phrase(formatRp(payslip.getNetSalary()), totalValue));
-        netValue.setBackgroundColor(COLOR_PRIMARY);
-        netValue.setPadding(8);
-        netValue.setBorder(Rectangle.NO_BORDER);
-        netValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
-        table.addCell(netLabel);
-        table.addCell(netValue);
-
-        doc.add(table);
-    }
-
-    private void addSummaryRow(PdfPTable table, String label, String value,
-                               Font labelFont, Font valueFont, boolean highlight) {
-        PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
-        labelCell.setBackgroundColor(highlight ? COLOR_HEADER_BG : Color.WHITE);
-        labelCell.setPadding(7);
-        labelCell.setBorderColor(COLOR_BORDER);
-
-        PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
-        valueCell.setBackgroundColor(highlight ? COLOR_HEADER_BG : Color.WHITE);
-        valueCell.setPadding(7);
-        valueCell.setBorderColor(COLOR_BORDER);
-        valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
-        table.addCell(labelCell);
-        table.addCell(valueCell);
-    }
-
-    // ─── Section: Component Detail Table ─────────────────────────────────────
-
-    private void addComponentTable(Document doc, List<PayslipComponent> components) {
-        Font sectionFont  = new Font(Font.HELVETICA, 11, Font.BOLD,   COLOR_PRIMARY);
-        Font headerFont   = new Font(Font.HELVETICA, 10, Font.BOLD,   Color.WHITE);
-        Font earningFont  = new Font(Font.HELVETICA, 10, Font.NORMAL, COLOR_EARNING);
-        Font deductFont   = new Font(Font.HELVETICA, 10, Font.NORMAL, COLOR_DEDUCTION);
-        Font normalFont   = new Font(Font.HELVETICA, 10, Font.NORMAL, Color.BLACK);
-
-        Paragraph title = new Paragraph("SALARY COMPONENTS", sectionFont);
-        title.setSpacingAfter(6);
-        doc.add(title);
-
-        PdfPTable table = new PdfPTable(3);
-        table.setWidthPercentage(100);
-        table.setWidths(new float[]{3f, 1.2f, 1.5f});
-
-        // Header row
-        String[] headers = {"Component Name", "Type", "Amount"};
-        for (String h : headers) {
-            PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-            cell.setBackgroundColor(COLOR_PRIMARY);
-            cell.setPadding(8);
-            cell.setBorder(Rectangle.NO_BORDER);
-            cell.setHorizontalAlignment(h.equals("Amount") ? Element.ALIGN_RIGHT : Element.ALIGN_LEFT);
-            table.addCell(cell);
+        for (PayslipComponent c : earnings) {
+            t.addCell(dataL("     " + c.getComponentName(), r));
+            t.addCell(dataR(rp(c.getAmount()), r++));
         }
 
-        // Data rows
-        boolean alternate = false;
-        for (PayslipComponent comp : components) {
-            boolean isEarning = comp.getType() == PayslipComponentType.EARNING;
-            Font    typeFont  = isEarning ? earningFont : deductFont;
-            Color   rowBg     = alternate ? COLOR_LIGHT_GRAY : Color.WHITE;
+        t.addCell(subtotalL("     Jumlah Penghasilan Bruto"));
+        t.addCell(subtotalR(rp(payslip.getTotalEarning())));
 
-            PdfPCell nameCell = new PdfPCell(new Phrase(comp.getComponentName(), normalFont));
-            nameCell.setBackgroundColor(rowBg);
-            nameCell.setPadding(7);
-            nameCell.setBorderColor(COLOR_BORDER);
+        // ─── B. POTONGAN ──────────────────────────────────────────────────
+        t.addCell(sectionCell("B.  POTONGAN"));
+        t.addCell(sectionCell(""));
 
-            PdfPCell typeCell = new PdfPCell(new Phrase(comp.getType().name(), typeFont));
-            typeCell.setBackgroundColor(rowBg);
-            typeCell.setPadding(7);
-            typeCell.setBorderColor(COLOR_BORDER);
-
-            PdfPCell amtCell = new PdfPCell(new Phrase(formatRp(comp.getAmount()), normalFont));
-            amtCell.setBackgroundColor(rowBg);
-            amtCell.setPadding(7);
-            amtCell.setBorderColor(COLOR_BORDER);
-            amtCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
-            table.addCell(nameCell);
-            table.addCell(typeCell);
-            table.addCell(amtCell);
-
-            alternate = !alternate;
+        r = 0;
+        if (deductions.isEmpty()) {
+            t.addCell(dataL("     -", r));
+            t.addCell(dataR("-", r++));
+        } else {
+            for (PayslipComponent c : deductions) {
+                t.addCell(dataL("     " + c.getComponentName(), r));
+                t.addCell(dataR(rp(c.getAmount()), r++));
+            }
         }
 
-        doc.add(table);
+        t.addCell(subtotalL("     Jumlah Potongan"));
+        t.addCell(subtotalR(rp(payslip.getTotalDeduction())));
+
+        // ─── C. KEHADIRAN ─────────────────────────────────────────────────
+        t.addCell(sectionCell("C.  KEHADIRAN"));
+        t.addCell(sectionCell(""));
+
+        t.addCell(dataL("     Hari Tidak Masuk (Absent)", 0));
+        t.addCell(dataR(payslip.getTotalAbsent() + " hari", 0));
+
+        t.addCell(dataL("     Keterlambatan (Late)", 1));
+        t.addCell(dataR(payslip.getTotalLate() + " kali", 1));
+
+        t.addCell(dataL("     Jam Lembur (Overtime)", 0));
+        t.addCell(dataR(String.format("%.1f jam", payslip.getTotalOvertimeHours()), 0));
+
+        // ─── GAJI BERSIH ──────────────────────────────────────────────────
+        t.addCell(netCell("GAJI BERSIH  (TAKE HOME PAY)", Element.ALIGN_LEFT));
+        t.addCell(netCell(rp(payslip.getNetSalary()), Element.ALIGN_RIGHT));
+
+        doc.add(t);
     }
 
-    // ─── Section: Attendance Summary ─────────────────────────────────────────
+    // ── Cell Factories ────────────────────────────────────────────────────────
 
-    private void addAttendanceSummary(Document doc, Payslip payslip) {
-        Font sectionFont = new Font(Font.HELVETICA, 11, Font.BOLD,   COLOR_PRIMARY);
-        Font labelFont   = new Font(Font.HELVETICA, 10, Font.NORMAL, COLOR_TEXT_MUTED);
-        Font valueFont   = new Font(Font.HELVETICA, 10, Font.BOLD,   Color.BLACK);
-
-        Paragraph title = new Paragraph("ATTENDANCE SUMMARY", sectionFont);
-        title.setSpacingAfter(6);
-        doc.add(title);
-
-        PdfPTable table = new PdfPTable(6);
-        table.setWidthPercentage(80);
-        table.setHorizontalAlignment(Element.ALIGN_LEFT);
-
-        String[] labels = {"Absent Days", "Late Days", "Overtime Hours"};
-        String[] values = {
-            String.valueOf(payslip.getTotalAbsent()),
-            String.valueOf(payslip.getTotalLate()),
-            String.format("%.1f hrs", payslip.getTotalOvertimeHours())
-        };
-
-        for (int i = 0; i < labels.length; i++) {
-            PdfPCell lc = new PdfPCell(new Phrase(labels[i], labelFont));
-            lc.setBackgroundColor(COLOR_HEADER_BG);
-            lc.setPadding(7);
-            lc.setBorderColor(COLOR_BORDER);
-
-            PdfPCell vc = new PdfPCell(new Phrase(values[i], valueFont));
-            vc.setBackgroundColor(Color.WHITE);
-            vc.setPadding(7);
-            vc.setBorderColor(COLOR_BORDER);
-            vc.setHorizontalAlignment(Element.ALIGN_CENTER);
-
-            table.addCell(lc);
-            table.addCell(vc);
-        }
-
-        doc.add(table);
+    private PdfPCell colHeader(String text, int align) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fBold(9, C_WHITE)));
+        c.setBackgroundColor(C_DARK_GREEN);
+        c.setPadding(6); c.setPaddingLeft(7);
+        c.setBorderColor(C_BORDER);
+        c.setHorizontalAlignment(align);
+        return c;
     }
 
-    // ─── Section: Footer ─────────────────────────────────────────────────────
+    private PdfPCell sectionCell(String text) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fBold(9, C_WHITE)));
+        c.setBackgroundColor(C_DARK_GREEN);
+        c.setPadding(5); c.setPaddingLeft(7);
+        c.setBorderColor(C_BORDER);
+        return c;
+    }
+
+    private PdfPCell dataL(String text, int row) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fNorm(9, C_BLACK)));
+        c.setBackgroundColor(row % 2 == 0 ? C_WHITE : C_LIGHT_GRAY);
+        c.setPadding(4); c.setPaddingLeft(7);
+        c.setBorderColor(C_BORDER);
+        return c;
+    }
+
+    private PdfPCell dataR(String text, int row) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fNorm(9, C_BLACK)));
+        c.setBackgroundColor(row % 2 == 0 ? C_WHITE : C_LIGHT_GRAY);
+        c.setPadding(4);
+        c.setBorderColor(C_BORDER);
+        c.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        return c;
+    }
+
+    private PdfPCell subtotalL(String text) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fBold(9, C_WHITE)));
+        c.setBackgroundColor(C_MED_GREEN);
+        c.setPadding(5); c.setPaddingLeft(7);
+        c.setBorderColor(C_BORDER);
+        return c;
+    }
+
+    private PdfPCell subtotalR(String text) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fBold(9, C_WHITE)));
+        c.setBackgroundColor(C_MED_GREEN);
+        c.setPadding(5);
+        c.setBorderColor(C_BORDER);
+        c.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        return c;
+    }
+
+    private PdfPCell netCell(String text, int align) {
+        PdfPCell c = new PdfPCell(new Phrase(text, fBold(10, C_WHITE)));
+        c.setBackgroundColor(C_DARK_GREEN);
+        c.setPadding(8); c.setPaddingLeft(7);
+        c.setBorderColor(C_BORDER);
+        c.setHorizontalAlignment(align);
+        return c;
+    }
+
+    private PdfPCell noBorder(Phrase phrase) {
+        PdfPCell c = new PdfPCell(phrase);
+        c.setBorder(Rectangle.NO_BORDER);
+        c.setPaddingTop(2); c.setPaddingBottom(2);
+        return c;
+    }
+
+    // ── ④ Footer / Signature ──────────────────────────────────────────────────
 
     private void addFooter(Document doc, Payslip payslip, PayrollPeriod period) {
-        Font footerFont = new Font(Font.HELVETICA, 9, Font.NORMAL, COLOR_TEXT_MUTED);
-        Font statusFont = new Font(Font.HELVETICA, 9, Font.BOLD,   COLOR_PRIMARY);
-
-        // LineSeparator dari com.lowagie.text.pdf.draw — menerima java.awt.Color langsung
-        LineSeparator line = new LineSeparator();
-        line.setLineWidth(0.5f);
-        line.setPercentage(100);
-        line.setLineColor(COLOR_BORDER);
-        line.setAlignment(Element.ALIGN_CENTER);
-        doc.add(new Chunk(line));
-        doc.add(Chunk.NEWLINE);
-
         String generatedAt = payslip.getGeneratedAt() != null
-            ? payslip.getGeneratedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))
-            : "-";
+                ? payslip.getGeneratedAt()
+                        .format(DateTimeFormatter.ofPattern("dd MMMM yyyy, HH:mm",
+                                new Locale("id", "ID")))
+                : "-";
 
-        Paragraph footer = new Paragraph();
-        footer.add(new Chunk("Generated At: " + generatedAt + "   |   ", footerFont));
-        footer.add(new Chunk("Payroll Status: ", footerFont));
-        footer.add(new Chunk(period.getStatus().name(), statusFont));
-        footer.add(new Chunk("   |   This is a system-generated document.", footerFont));
-        footer.setAlignment(Element.ALIGN_CENTER);
-        doc.add(footer);
+        // Signature row
+        PdfPTable sig = new PdfPTable(new float[]{1f, 1f, 1f});
+        sig.setWidthPercentage(100);
+
+        sig.addCell(sigCell("Diterima oleh,", "Karyawan", payslip.getEmployee().getName()));
+        sig.addCell(sigCell("Mengetahui,", "Atasan Langsung", ""));
+        sig.addCell(sigCell("Disetujui oleh,", "HRD / Payroll", ""));
+
+        doc.add(sig);
+
+        // Printed-on note
+        Paragraph note = new Paragraph(
+                "Dokumen ini dicetak secara otomatis oleh sistem pada " + generatedAt
+                + "  |  Status Payroll: " + period.getStatus().name(),
+                fNorm(7, C_MUTED));
+        note.setAlignment(Element.ALIGN_CENTER);
+        note.setSpacingBefore(8);
+        doc.add(note);
     }
 
-    // ─── Util ─────────────────────────────────────────────────────────────────
+    private PdfPCell sigCell(String role, String unit, String name) {
+        PdfPCell c = new PdfPCell();
+        c.setBorderColor(C_BORDER);
+        c.setPadding(8);
+        c.setMinimumHeight(72);
+        c.setHorizontalAlignment(Element.ALIGN_CENTER);
 
-    private String formatRp(java.math.BigDecimal amount) {
-        if (amount == null) return "Rp 0";
-        return "Rp " + CURRENCY_FORMAT.format(amount);
+        Paragraph top = new Paragraph(role, fNorm(8, C_BLACK));
+        top.setAlignment(Element.ALIGN_CENTER);
+        c.addElement(top);
+
+        Paragraph sub = new Paragraph(unit, fBold(8, C_BLACK));
+        sub.setAlignment(Element.ALIGN_CENTER);
+        c.addElement(sub);
+
+        // Spacer for signature space
+        c.addElement(new Paragraph("\n\n", fNorm(8, C_WHITE)));
+
+        String label = name.isEmpty() ? "(__________________________)" : name;
+        Paragraph nm = new Paragraph(label, name.isEmpty() ? fNorm(8, C_BLACK) : fBold(8, C_BLACK));
+        nm.setAlignment(Element.ALIGN_CENTER);
+        c.addElement(nm);
+
+        return c;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private void addSpacer(Document doc, float height) {
+        Paragraph sp = new Paragraph(" ");
+        sp.setSpacingAfter(height);
+        doc.add(sp);
+    }
+
+    private String rp(java.math.BigDecimal v) {
+        if (v == null) return "-";
+        return IDR.format(v) + ",00";
     }
 
     private String buildPeriodLabel(int month, int year) {
         return java.time.Month.of(month)
-                .getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH) + " " + year;
+                .getDisplayName(java.time.format.TextStyle.FULL, Locale.forLanguageTag("id"))
+                + " " + year;
     }
 }
