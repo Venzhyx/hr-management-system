@@ -23,7 +23,7 @@ export const payrollApi = {
     return response.data;
   },
 
-  // DELETE /payroll/components/{id}  (soft delete / deactivate)
+  // DELETE /payroll/components/{id}
   deleteSalaryComponent: async (id) => {
     const response = await API.delete(`${BASE}/components/${id}`);
     return response.data;
@@ -57,15 +57,21 @@ export const payrollApi = {
 
   // ─── Payroll Run ──────────────────────────────────────────────────────────
 
-  // POST /payroll/run  { month, year }
+  // POST /payroll/run
   runPayroll: async (data) => {
     const response = await API.post(`${BASE}/run`, data);
     return response.data;
   },
 
-  // GET /payroll/runs  — list semua payroll run (perlu ditambah di backend)
+  // GET /payroll/runs
   getPayrollRuns: async () => {
     const response = await API.get(`${BASE}/runs`);
+    return response.data;
+  },
+
+  // GET /payroll/runs/{periodId}
+  getPayrollRunDetail: async (periodId) => {
+    const response = await API.get(`${BASE}/runs/${periodId}`);
     return response.data;
   },
 
@@ -83,7 +89,7 @@ export const payrollApi = {
     return response.data;
   },
 
-  // GET /payroll/payslips/{payslipId}/pdf  → blob
+  // GET /payroll/payslips/{payslipId}/pdf
   downloadPayslipPdf: async (payslipId) => {
     const response = await API.get(`${BASE}/payslips/${payslipId}/pdf`, {
       responseType: "blob",
@@ -93,7 +99,16 @@ export const payrollApi = {
 
   // ─── Report ───────────────────────────────────────────────────────────────
 
-  // GET /payroll/reports/excel?month=&year=  → blob
+  // GET /payroll/reports/pdf?month=&year=
+  downloadPayrollPdf: async (month, year) => {
+    const response = await API.get(`${BASE}/reports/pdf`, {
+      params: { month, year },
+      responseType: "blob",
+    });
+    return response;
+  },
+
+  // GET /payroll/reports/excel?month=&year=
   downloadPayrollExcel: async (month, year) => {
     const response = await API.get(`${BASE}/reports/excel`, {
       params: { month, year },

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineUsers,
@@ -8,8 +8,6 @@ import {
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
   HiOutlineSearch,
-  HiOutlineFilter,
-  HiOutlineDotsVertical,
   HiOutlineDownload,
   HiOutlineDocumentDownload,
   HiOutlinePlusCircle,
@@ -17,14 +15,22 @@ import {
   HiOutlineCalendar,
   HiOutlineEye,
   HiOutlineChevronDown,
-  HiOutlineAdjustments,
+  HiOutlineRefresh,
+  HiOutlineCollection,
   HiOutlineUserGroup,
+  HiOutlinePencil,
+  HiOutlineTrash,
+  HiOutlineCheckCircle,
+  HiOutlineBan,
+  HiOutlineExclamation,
+  HiOutlineCash,
 } from 'react-icons/hi';
 import usePayroll from '../../../redux/hooks/usePayroll';
-import { useEmployee } from '../../../redux/hooks/useEmployee';
 import { payrollApi } from '../../../ApiService/payrollApi';
+import { useEmployee } from '../../../redux/hooks/useEmployee';
+import { useOvertime } from '../../../redux/hooks/useOvertime';
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
   'Juli','Agustus','September','Oktober','November','Desember',
@@ -34,235 +40,471 @@ const formatRp = (val) => {
   if (val == null || val === '') return 'Rp 0';
   return 'Rp ' + Number(val).toLocaleString('id-ID');
 };
+const formatRpShort = (val) => {
+  if (val == null) return 'Rp 0';
+  const n = Number(val);
+  if (n >= 1_000_000_000) return 'Rp ' + (n / 1_000_000_000).toFixed(1) + ' M';
+  if (n >= 1_000_000)     return 'Rp ' + (n / 1_000_000).toFixed(1) + ' Jt';
+  return 'Rp ' + n.toLocaleString('id-ID');
+};
 
-const now = new Date();
+const AVATAR_PALETTE = [
+  'bg-violet-500','bg-blue-500','bg-emerald-500','bg-rose-500',
+  'bg-amber-500','bg-cyan-500','bg-pink-500','bg-indigo-500',
+  'bg-teal-500','bg-orange-500',
+];
+const avatarColor = (name = '') => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+};
+const initials = (name = '') =>
+  name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+const getEmpPhoto = (emp) =>
+  emp?.photo ?? emp?.photoUrl ?? emp?.profilePhoto ?? emp?.profilePicture ??
+  emp?.avatarUrl ?? emp?.avatar ?? emp?.imageUrl ?? emp?.image ?? null;
 
+// ─── Status config ─────────────────────────────────────────────────────────────
+const STATUS_CONFIG = {
+  DRAFT:     { pill: 'bg-amber-50 text-amber-700 border-amber-200',       dot: 'bg-amber-400',   label: 'Draft'    },
+  FINALIZED: { pill: 'bg-blue-50 text-blue-700 border-blue-200',          dot: 'bg-blue-400',    label: 'Finalized'},
+  APPROVED:  { pill: 'bg-green-50 text-green-700 border-green-200',       dot: 'bg-green-400',   label: 'Approved' },
+  PAID:      { pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-400', label: 'Paid'     },
+};
+
+// ─── StatusBadge ──────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
-  const normalized = (status ?? '').toString().trim().toUpperCase();
-  const styles = {
-    DRAFT:     'bg-yellow-50 text-yellow-700 border border-yellow-200',
-    FINALIZED: 'bg-blue-50   text-blue-700   border border-blue-200',
-    APPROVED:  'bg-green-50  text-green-700  border border-green-200',
-    PAID:      'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  };
-  if (!normalized) return null;
+  const s = STATUS_CONFIG[status] ?? { pill: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400', label: status ?? 'Unknown' };
   return (
-    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${styles[normalized] ?? 'bg-gray-100 text-gray-500'}`}>
-      {normalized}
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border whitespace-nowrap ${s.pill}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      {s.label}
     </span>
   );
 };
 
-const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub, subColor }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm flex-1 min-w-0 overflow-hidden">
-    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-      <Icon className={`w-6 h-6 ${iconColor}`} />
+// ─── Avatar ────────────────────────────────────────────────────────────────────
+const Avatar = ({ name = '', photo = null, size = 'sm' }) => {
+  const [imgError, setImgError] = useState(false);
+  const sz = size === 'lg' ? 'w-10 h-10 text-sm' : 'w-8 h-8 text-xs';
+  if (photo && !imgError) {
+    return (
+      <img src={photo} alt={name} onError={() => setImgError(true)}
+        className={`${sz} rounded-full object-cover flex-shrink-0`} />
+    );
+  }
+  return (
+    <div className={`${sz} rounded-full ${avatarColor(name)} text-white flex items-center justify-center font-bold flex-shrink-0`}>
+      {initials(name)}
     </div>
-    <div className="min-w-0 flex-1 overflow-hidden">
-      <p className="text-xs text-gray-400 font-medium mb-0.5 truncate">{label}</p>
-      <p className="text-sm font-bold text-gray-900 truncate leading-tight">{value}</p>
+  );
+};
+
+// ─── ConfirmModal ──────────────────────────────────────────────────────────────
+const ConfirmModal = ({ open, title, message, confirmLabel, confirmClass, onConfirm, onCancel, loading }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+            <HiOutlineExclamation className="w-5 h-5 text-orange-500" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm">{title}</h3>
+            <p className="text-sm text-gray-500 mt-1">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button onClick={onCancel} disabled={loading}
+            className="flex-1 px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium disabled:opacity-50">
+            Batal
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            className={`flex-1 px-4 py-2.5 text-sm text-white rounded-xl font-semibold disabled:opacity-50 transition-colors ${confirmClass}`}>
+            {loading ? 'Memproses...' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── QuickActionCards ─────────────────────────────────────────────────────────
+const QuickActionCards = ({ onEmployeeSalary, onSalaryComponent }) => (
+  <div className="grid grid-cols-2 gap-3">
+    <button onClick={onEmployeeSalary}
+      className="group bg-white rounded-2xl border border-gray-100 p-4 shadow-sm text-left
+                 hover:border-indigo-200 hover:shadow-md transition-all duration-200">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center
+                        group-hover:bg-indigo-600 transition-colors duration-200">
+          <HiOutlineUserGroup className="w-4.5 h-4.5 text-indigo-600 group-hover:text-white transition-colors duration-200" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-gray-800 leading-tight">Employee Salary</p>
+          <p className="text-[10px] text-gray-400">Atur gaji per karyawan</p>
+        </div>
+      </div>
+      <p className="text-[10px] text-indigo-500 font-semibold group-hover:underline">Kelola gaji →</p>
+    </button>
+    <button onClick={onSalaryComponent}
+      className="group bg-white rounded-2xl border border-gray-100 p-4 shadow-sm text-left
+                 hover:border-emerald-200 hover:shadow-md transition-all duration-200">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center
+                        group-hover:bg-emerald-600 transition-colors duration-200">
+          <HiOutlineCollection className="w-4.5 h-4.5 text-emerald-600 group-hover:text-white transition-colors duration-200" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-gray-800 leading-tight">Salary Component</p>
+          <p className="text-[10px] text-gray-400">Tunjangan & potongan</p>
+        </div>
+      </div>
+      <p className="text-[10px] text-emerald-500 font-semibold group-hover:underline">Kelola komponen →</p>
+    </button>
+  </div>
+);
+
+// ─── StatCard ─────────────────────────────────────────────────────────────────
+const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub, subColor, compact }) => (
+  <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm min-w-0 transition-all duration-300">
+    <div className={`rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${iconBg} ${compact ? 'w-10 h-10' : 'w-12 h-12'}`}>
+      <Icon className={`transition-all duration-300 ${iconColor} ${compact ? 'w-5 h-5' : 'w-6 h-6'}`} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="text-[11px] text-gray-400 font-medium truncate">{label}</p>
+      <p className={`font-bold text-gray-900 truncate transition-all duration-300 ${compact ? 'text-sm' : 'text-lg'}`}>{value}</p>
       {sub && <p className={`text-[11px] mt-0.5 font-medium truncate ${subColor ?? 'text-gray-400'}`}>{sub}</p>}
     </div>
   </div>
 );
 
-// ── Quick Action Card ─────────────────────────────────────────────────────────
-const QuickActionCard = ({ icon: Icon, iconBg, iconColor, label, desc, onClick }) => (
-  <button
-    onClick={onClick}
-    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3
-               hover:border-indigo-200 hover:shadow-md transition-all duration-200 text-left group w-full"
-  >
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}
-                     group-hover:scale-105 transition-transform duration-200`}>
-      <Icon className={`w-5 h-5 ${iconColor}`} />
-    </div>
-    <div className="min-w-0 flex-1">
-      <p className="text-xs font-semibold text-gray-800 truncate group-hover:text-indigo-700 transition-colors">{label}</p>
-      <p className="text-[11px] text-gray-400 truncate mt-0.5">{desc}</p>
-    </div>
-    <HiOutlineChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 flex-shrink-0 transition-colors" />
-  </button>
-);
+// ─── DetailPanel ──────────────────────────────────────────────────────────────
+const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onDelete, onEdit, actionLoading }) => {
+  const earnings   = payslip?.components?.filter(c => c.type === 'EARNING')   ?? [];
+  const deductions = payslip?.components?.filter(c => c.type === 'DEDUCTION') ?? [];
+  const totalEarning   = Number(payslip?.totalEarning   ?? payslip?.basicSalary ?? 0);
+  const totalDeduction = Number(payslip?.totalDeduction ?? 0);
+  const emp   = empMap?.[String(payslip?.employeeId)];
+  const photo = getEmpPhoto(emp);
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
-const Avatar = ({ name, photo, size = 'md' }) => {
-  const [imgError, setImgError] = useState(false);
-  const dim     = size === 'lg' ? 'w-10 h-10' : 'w-8 h-8';
-  const text    = size === 'lg' ? 'text-sm'   : 'text-xs';
-  const initial = (name ?? 'U').trim().charAt(0).toUpperCase();
-
-  if (photo && !imgError) {
-    return (
-      <img src={photo} alt={name} onError={() => setImgError(true)}
-        className={`${dim} rounded-full object-cover ring-2 ring-white shadow-sm flex-shrink-0`} />
-    );
-  }
-  return (
-    <div className={`${dim} rounded-full bg-indigo-100 flex items-center justify-center
-                     text-indigo-600 font-bold ${text} flex-shrink-0 select-none ring-2 ring-white shadow-sm`}>
-      {initial}
-    </div>
-  );
-};
-
-// ── Detail panel ──────────────────────────────────────────────────────────────
-const DetailPanel = ({ payslip, emp, onClose, onDownload, downloading }) => {
-  if (!payslip) return null;
-
-  const earnings   = payslip.components?.filter(c => c.type === 'EARNING')   ?? [];
-  const deductions = payslip.components?.filter(c => c.type === 'DEDUCTION') ?? [];
-
-  const totalEarning   = payslip.totalEarning   ?? (payslip.basicSalary ?? 0);
-  const totalDeduction = payslip.totalDeduction ?? 0;
-
-  const photo      = emp?.photo          ?? null;
-  const jobTitle   = emp?.jobTitle       ?? emp?.position    ?? payslip.jobTitle   ?? '-';
-  const department = emp?.departmentName ?? emp?.department  ?? payslip.department ?? null;
-  const employeeId = emp?.employeeCode   ?? payslip.employeeId ?? '-';
-  const joinDate   = emp?.joinDate       ?? payslip.joinDate   ?? '-';
+  const isDraft    = payslip?.status === 'DRAFT';
+  const isApproved = payslip?.status === 'APPROVED';
+  const isPaid     = payslip?.status === 'PAID';
+  const canEdit    = isDraft;
+  const canApprove = isDraft;
+  const canDelete  = isDraft;
 
   return (
-    <div className="flex flex-col h-full bg-white border-l border-gray-100">
+    <div className="flex flex-col h-full bg-white w-full">
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-        <h3 className="font-semibold text-gray-800 text-sm">Detail Payslip</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-          <HiOutlineX className="w-5 h-5" />
+        <h3 className="font-bold text-gray-800 text-sm">Detail Payslip</h3>
+        <button onClick={onClose}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
+          <HiOutlineX className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Employee */}
         <div className="flex items-center gap-3">
-          <Avatar name={payslip.employeeName} photo={photo} size="lg" />
+          <Avatar name={payslip?.employeeName} photo={photo} size="lg" />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-gray-900 text-sm truncate">{payslip.employeeName ?? '-'}</p>
-            <p className="text-xs text-gray-400 truncate">{jobTitle}</p>
-            {department && <p className="text-xs text-indigo-500 font-medium truncate">{department}</p>}
+            <p className="font-bold text-gray-900 text-sm truncate">{payslip?.employeeName ?? '-'}</p>
+            <p className="text-xs text-gray-400 truncate">{payslip?.jobTitle ?? '-'}</p>
           </div>
-          <div className="flex-shrink-0"><StatusBadge status={payslip.status} /></div>
+          <StatusBadge status={payslip?.status} />
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        {/* Meta */}
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'Periode',     value: payslip.periodLabel ?? '-' },
-            { label: 'Employee ID', value: employeeId },
-            { label: 'Join Date',   value: joinDate },
+            { label: 'Periode',     value: payslip?.periodLabel ?? '-' },
+            { label: 'Employee ID', value: payslip?.employeeId ? `EMP${String(payslip.employeeId).padStart(3,'0')}` : '-' },
+            { label: 'Join Date',   value: payslip?.joinDate ?? '-' },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-gray-50 rounded-xl p-3 overflow-hidden">
-              <p className="text-[10px] text-gray-400 mb-1">{label}</p>
+            <div key={label} className="bg-gray-50 rounded-xl p-2.5">
+              <p className="text-[10px] text-gray-400 mb-0.5">{label}</p>
               <p className="text-xs font-semibold text-gray-700 truncate">{value}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        {/* Attendance */}
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'Total Absen', value: `${payslip.totalAbsent ?? 0} hari`,       color: 'text-red-600' },
-            { label: 'Telat',       value: `${payslip.totalLate ?? 0} hari`,         color: 'text-orange-500' },
-            { label: 'Lembur',      value: `${payslip.totalOvertimeHours ?? 0} jam`, color: 'text-blue-600' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-gray-400 mb-1">{label}</p>
-              <p className={`text-sm font-bold ${color}`}>{value}</p>
+            { label: 'Absen',  value: payslip?.totalAbsent        ?? 0, unit: 'hari', color: 'text-rose-600',  bg: 'bg-rose-50'  },
+            { label: 'Telat',  value: payslip?.totalLate          ?? 0, unit: 'kali', color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Lembur', value: payslip?.totalOvertimeHours ?? 0, unit: 'jam',  color: 'text-blue-600',  bg: 'bg-blue-50'  },
+          ].map(({ label, value, unit, color, bg }) => (
+            <div key={label} className={`${bg} rounded-xl p-2.5 text-center`}>
+              <p className="text-[10px] text-gray-400 mb-0.5">{label}</p>
+              <p className={`text-base font-bold ${color}`}>{value}</p>
+              <p className="text-[10px] text-gray-400">{unit}</p>
             </div>
           ))}
         </div>
 
+        {/* Earnings */}
         <div>
-          <p className="text-xs font-bold text-green-600 uppercase tracking-wide mb-2">Earnings</p>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Gaji Pokok</span>
-              <span className="font-medium text-gray-800">{formatRp(payslip.basicSalary)}</span>
+          <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-2">Earnings</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Gaji Pokok</span>
+              <span className="font-semibold text-gray-800">{formatRp(payslip?.basicSalary)}</span>
             </div>
             {earnings.map((c, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-gray-600">{c.componentName}</span>
-                <span className="font-medium text-gray-800">{formatRp(c.amount)}</span>
+              <div key={i} className="flex justify-between text-xs">
+                <span className="text-gray-500">{c.componentName}</span>
+                <span className="font-semibold text-gray-800">{formatRp(c.amount)}</span>
               </div>
             ))}
-            <div className="flex justify-between text-sm font-semibold border-t border-gray-100 pt-2 mt-1">
+            <div className="flex justify-between text-xs font-bold border-t border-gray-100 pt-2">
               <span className="text-green-700">Total Earnings</span>
               <span className="text-green-600">{formatRp(totalEarning)}</span>
             </div>
           </div>
         </div>
 
+        {/* Deductions */}
         <div>
-          <p className="text-xs font-bold text-red-500 uppercase tracking-wide mb-2">Deductions</p>
-          <div className="space-y-2">
+          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-2">Deductions</p>
+          <div className="space-y-1.5">
             {deductions.length === 0
-              ? <p className="text-xs text-gray-400">Tidak ada potongan</p>
+              ? <p className="text-xs text-gray-400 italic">Tidak ada potongan</p>
               : deductions.map((c, i) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{c.componentName}</span>
-                    <span className="font-medium text-gray-800">{formatRp(c.amount)}</span>
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="text-gray-500">{c.componentName}</span>
+                    <span className="font-semibold text-gray-800">{formatRp(c.amount)}</span>
                   </div>
                 ))
             }
-            <div className="flex justify-between text-sm font-semibold border-t border-gray-100 pt-2 mt-1">
-              <span className="text-red-600">Total Deductions</span>
-              <span className="text-red-500">{formatRp(totalDeduction)}</span>
+            <div className="flex justify-between text-xs font-bold border-t border-gray-100 pt-2">
+              <span className="text-rose-600">Total Deductions</span>
+              <span className="text-rose-500">{formatRp(totalDeduction)}</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-50 rounded-2xl p-4 text-center">
-          <p className="text-xs text-gray-400 font-medium mb-1">NET SALARY</p>
-          <p className="text-2xl font-bold text-indigo-600">{formatRp(payslip.netSalary)}</p>
+        {/* Net Salary */}
+        <div className="bg-indigo-600 rounded-2xl p-4 text-center">
+          <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mb-1">Net Salary</p>
+          <p className="text-white text-2xl font-bold">{formatRp(payslip?.netSalary)}</p>
         </div>
+
+        {/* Status info */}
+        {(isApproved || isPaid) && (
+          <div className={`rounded-xl p-3 text-xs flex items-center gap-2 ${isPaid ? 'bg-emerald-50 text-emerald-700' : 'bg-green-50 text-green-700'}`}>
+            <HiOutlineCheckCircle className="w-4 h-4 flex-shrink-0" />
+            <span>
+              {isPaid
+                ? 'Payslip ini sudah dibayarkan dan tidak dapat diubah.'
+                : 'Payslip ini sudah di-approve dan tidak dapat diedit.'}
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
-        <button
-          onClick={() => onDownload(payslip.id, payslip.employeeName, payslip.periodLabel)}
-          disabled={downloading}
+      {/* Actions */}
+      <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+        {/* Download */}
+        <button onClick={() => onDownload(payslip?.id)}
           className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700
-                     text-white text-sm font-semibold py-3 rounded-xl transition-colors shadow-sm
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {downloading
-            ? <HiOutlineClock className="w-5 h-5 animate-spin" />
-            : <HiOutlineDocumentDownload className="w-5 h-5" />
-          }
-          {downloading ? 'Mengunduh...' : 'Download Payslip PDF'}
+                     text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
+          <HiOutlineDocumentDownload className="w-4 h-4" />
+          Download Payslip PDF
         </button>
+
+        {/* DRAFT actions */}
+        {canEdit && (
+          <button onClick={() => onEdit(payslip)}
+            className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100
+                       text-blue-700 text-sm font-semibold py-2.5 rounded-xl transition-colors border border-blue-200">
+            <HiOutlinePencil className="w-4 h-4" />
+            Edit Payslip
+          </button>
+        )}
+        {canApprove && (
+          <button onClick={() => onApprove(payslip)} disabled={actionLoading}
+            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700
+                       text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            <HiOutlineCheckCircle className="w-4 h-4" />
+            {actionLoading ? 'Memproses...' : 'Approve Payslip'}
+          </button>
+        )}
+        {canDelete && (
+          <button onClick={() => onDelete(payslip)}
+            className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100
+                       text-red-600 text-sm font-semibold py-2.5 rounded-xl transition-colors border border-red-200">
+            <HiOutlineTrash className="w-4 h-4" />
+            Hapus Payslip
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ─── PayrollIndex ─────────────────────────────────────────────────────────────
 const PayrollIndex = () => {
   const navigate = useNavigate();
-  const { run, loading }              = usePayroll();
+  const { run, loading, approve, deletePayslip, actionLoading } = usePayroll();
   const { employees, fetchEmployees } = useEmployee();
+  const { fetchOvertimes } = useOvertime({ role: 'admin' });
 
-  const [currentMonth,    setCurrentMonth]    = useState(now.getMonth());
-  const [currentYear,     setCurrentYear]     = useState(now.getFullYear());
-  const [search,          setSearch]          = useState('');
-  const [filterStatus,    setFilterStatus]    = useState('Semua Status');
-  const [selectedPayslip, setSelectedPayslip] = useState(null);
-  const [page,            setPage]            = useState(1);
-  const [perPage,         setPerPage]         = useState(10);
-  const [downloading,     setDownloading]     = useState(false);
+  const empMap = useMemo(() => {
+    const m = {};
+    (employees ?? []).forEach(e => { m[String(e.id)] = e; });
+    return m;
+  }, [employees]);
+
+  const now = new Date();
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth());
+  const [currentYear,  setCurrentYear]  = useState(now.getFullYear());
+  const [search,       setSearch]       = useState('');
+  const [filterStatus, setFilterStatus] = useState('Semua Status');
+  const [page,         setPage]         = useState(1);
+  const [perPage,      setPerPage]      = useState(10);
+
+  // Panel
+  const [panelData,    setPanelData]    = useState(null);
+  const [panelMounted, setPanelMounted] = useState(false);
+  const [panelIn,      setPanelIn]      = useState(false);
+
+  // Confirm modal
+  const [confirmModal, setConfirmModal] = useState({
+    open: false, type: null, payslip: null, loading: false,
+  });
+
+  // Approve all
+  const [approveAllLoading, setApproveAllLoading] = useState(false);
+  const [approveAllModal,   setApproveAllModal]   = useState(false);
 
   useEffect(() => {
     run.fetchAll();
     fetchEmployees();
+    fetchOvertimes();
   }, []);
 
-  const empMap = useMemo(() => {
-    const map = {};
-    (employees || []).forEach((e) => { map[String(e.id)] = e; });
-    return map;
-  }, [employees]);
+  // ── LOGGING: Monitor run.history changes ─────────────────────────────────
+  useEffect(() => {
+    console.log('=== PAYROLL DEBUG LOGS ===');
+    console.log('1. run.history:', run.history);
+    console.log('2. run.history length:', run.history?.length);
+    console.log('3. Current month (0-indexed):', currentMonth, '| Month name:', MONTHS[currentMonth], '| Year:', currentYear);
+  }, [run.history, currentMonth, currentYear]);
 
-  const history  = run.history ?? [];
-  const lastRun  = history[0]  ?? null;
-  const allSlips = lastRun?.payslips ?? [];
+  const openPanel = useCallback((p) => {
+    setPanelData(p);
+    setPanelMounted(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setPanelIn(true)));
+  }, []);
+
+  const closePanel = useCallback(() => {
+    setPanelIn(false);
+    setTimeout(() => { setPanelMounted(false); setPanelData(null); }, 320);
+  }, []);
+
+  const history = run.history ?? [];
+
+  // ── LOGGING: Detail history data ─────────────────────────────────────────
+  console.log('4. history array:', history);
+  if (history.length > 0) {
+    console.log('5. First history item structure:', {
+      ...history[0],
+      payslipsCount: history[0].payslips?.length,
+      firstPayslip: history[0].payslips?.[0]
+    });
+  }
+
+  const currentRun = history.find(r => {
+    const m = r.month ?? r.periodMonth ?? null;
+    const y = r.year  ?? r.periodYear  ?? null;
+    
+    // ── LOGGING for each run ──────────────────────────────────────────────
+    console.log(`   Checking run: month=${m}, year=${y}, periodLabel=${r.periodLabel}`);
+    
+    if (m != null && y != null) {
+      const match = Number(m) === currentMonth + 1 && Number(y) === currentYear;
+      console.log(`     - Using month/year: expected month=${currentMonth + 1}, year=${currentYear}, match=${match}`);
+      return match;
+    }
+    if (r.periodLabel) {
+      const label = r.periodLabel.toLowerCase();
+      const monthMatch = label.includes(MONTHS[currentMonth].toLowerCase());
+      const yearMatch = label.includes(String(currentYear));
+      const match = monthMatch && yearMatch;
+      console.log(`     - Using periodLabel: "${r.periodLabel}", monthMatch=${monthMatch}, yearMatch=${yearMatch}, match=${match}`);
+      return match;
+    }
+    console.log(`     - No month/year/periodLabel found in run`);
+    return false;
+  }) ?? history[0] ?? null;
+
+  // ── LOGGING: Current run result ──────────────────────────────────────────
+  console.log('6. currentRun found:', currentRun ? 'YES' : 'NO');
+  if (currentRun) {
+    console.log('7. currentRun details:', {
+      id: currentRun.id,
+      status: currentRun.status,
+      periodLabel: currentRun.periodLabel,
+      month: currentRun.month,
+      year: currentRun.year,
+      periodMonth: currentRun.periodMonth,
+      periodYear: currentRun.periodYear,
+      totalEmployees: currentRun.totalEmployees,
+      payslipsCount: currentRun.payslips?.length || 0
+    });
+  } else {
+    console.log('7. currentRun is NULL - checking if any run exists in history');
+    if (history.length > 0) {
+      console.log('   History exists but no match found. Available periods:');
+      history.forEach((run, idx) => {
+        console.log(`     [${idx}] periodLabel=${run.periodLabel}, month=${run.month}, year=${run.year}, periodMonth=${run.periodMonth}, periodYear=${run.periodYear}`);
+      });
+    } else {
+      console.log('   No runs in history at all');
+    }
+  }
+
+  const lastRun = currentRun;
+  
+  // Inject status from parent run if missing
+  const allSlips = (currentRun?.payslips ?? []).map(p => ({
+    ...p,
+    status: p.status ?? currentRun?.status ?? 'DRAFT',
+  }));
+
+  // ── LOGGING: All slips data ──────────────────────────────────────────────
+  console.log('8. allSlips count:', allSlips.length);
+  if (allSlips.length > 0) {
+    console.log('9. Sample payslip (first):', {
+      id: allSlips[0].id,
+      employeeName: allSlips[0].employeeName,
+      status: allSlips[0].status,
+      basicSalary: allSlips[0].basicSalary,
+      netSalary: allSlips[0].netSalary
+    });
+    console.log('10. Status distribution:');
+    const statusCount = {};
+    allSlips.forEach(slip => {
+      statusCount[slip.status] = (statusCount[slip.status] || 0) + 1;
+    });
+    console.log('    ', statusCount);
+  } else {
+    console.log('9. No payslips found for this period');
+  }
+
+  // ── LOGGING: Status pill calculation ─────────────────────────────────────
+  console.log('11. lastRun?.status:', lastRun?.status);
+  console.log('12. Status pill will show:', 
+    lastRun?.status === 'APPROVED' ? 'APPROVED (green)' :
+    lastRun?.status === 'PAID' ? 'PAID (emerald)' :
+    'DRAFT (amber)'
+  );
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
@@ -274,46 +516,173 @@ const PayrollIndex = () => {
   };
 
   const filtered = allSlips.filter(p => {
-    const matchSearch = !search || (p.employeeName ?? '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === 'Semua Status' || (p.status ?? '').toUpperCase() === filterStatus;
-    return matchSearch && matchStatus;
+    const ms = !search || p.employeeName?.toLowerCase().includes(search.toLowerCase());
+    const mf = filterStatus === 'Semua Status' || p.status === filterStatus;
+    return ms && mf;
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated  = filtered.slice((page - 1) * perPage, page * perPage);
 
   const totalNet       = allSlips.reduce((s, p) => s + Number(p.netSalary      ?? 0), 0);
   const totalDeduction = allSlips.reduce((s, p) => s + Number(p.totalDeduction ?? 0), 0);
-  const pendingCount   = allSlips.filter(p => (p.status ?? '').toUpperCase() === 'DRAFT').length;
+  const draftCount     = allSlips.filter(p => p.status === 'DRAFT').length;
 
-  const handleDownload = async (payslipId, employeeName, periodLabel) => {
-    setDownloading(true);
+  const compact       = panelMounted;
+  const statusOptions = ['Semua Status', 'DRAFT', 'FINALIZED', 'APPROVED', 'PAID'];
+
+  // ── LOGGING setiap kali draftCount berubah ────────────────────────────────
+  useEffect(() => {
+    console.log('13. Draft count updated:', draftCount);
+    console.log('14. Total payslips with DRAFT status:', allSlips.filter(p => p.status === 'DRAFT').length);
+  }, [draftCount, allSlips]);
+
+  // ── Approve single payslip ─────────────────────────────────────────────────
+  const handleApproveClick = (payslip) => {
+    setConfirmModal({ open: true, type: 'approve', payslip, loading: false });
+  };
+  const handleApproveConfirm = async () => {
+    setConfirmModal(s => ({ ...s, loading: true }));
     try {
-      const response = await payrollApi.downloadPayslipPdf(payslipId);
-      const blob = response.data instanceof Blob
-        ? response.data
-        : new Blob([response.data], { type: 'application/pdf' });
-      const url  = window.URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `payslip-${employeeName ?? payslipId}-${periodLabel ?? ''}.pdf`.replace(/\s+/g, '-');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      await approve?.(confirmModal.payslip?.id);
+      await run.fetchAll();
+      // Update panel data jika terbuka
+      if (panelData?.id === confirmModal.payslip?.id) {
+        setPanelData(prev => ({ ...prev, status: 'APPROVED' }));
+      }
     } catch (err) {
-      console.error('Download PDF gagal:', err);
+      console.error('Approve failed:', err);
     } finally {
-      setDownloading(false);
+      setConfirmModal({ open: false, type: null, payslip: null, loading: false });
     }
   };
 
-  const statusOptions = ['Semua Status', 'DRAFT', 'FINALIZED', 'APPROVED', 'PAID'];
+  // ── Delete single payslip ──────────────────────────────────────────────────
+  const handleDeleteClick = (payslip) => {
+    setConfirmModal({ open: true, type: 'delete', payslip, loading: false });
+  };
+  const handleDeleteConfirm = async () => {
+    setConfirmModal(s => ({ ...s, loading: true }));
+    try {
+      await deletePayslip?.(confirmModal.payslip?.id);
+      await run.fetchAll();
+      if (panelData?.id === confirmModal.payslip?.id) closePanel();
+    } catch (err) {
+      console.error('Delete failed:', err);
+    } finally {
+      setConfirmModal({ open: false, type: null, payslip: null, loading: false });
+    }
+  };
+
+  // ── Approve ALL draft ──────────────────────────────────────────────────────
+  const handleApproveAll = async () => {
+    setApproveAllLoading(true);
+    try {
+      const drafts = allSlips.filter(p => p.status === 'DRAFT');
+      for (const p of drafts) {
+        await approve?.(p.id);
+      }
+      await run.fetchAll();
+      closePanel();
+    } catch (err) {
+      console.error('Approve all failed:', err);
+    } finally {
+      setApproveAllLoading(false);
+      setApproveAllModal(false);
+    }
+  };
+
+  // ── Edit payslip ───────────────────────────────────────────────────────────
+  const handleEdit = (payslip) => {
+    navigate(`/payroll/slips/${payslip.id}/edit`);
+  };
+
+  // ── Download ───────────────────────────────────────────────────────────────
+  const [dlExcel, setDlExcel] = useState(false);
+  const [dlPdf,   setDlPdf]   = useState(false);
+
+  const triggerDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportExcel = async () => {
+    if (dlExcel) return;
+    setDlExcel(true);
+    try {
+      const res  = await payrollApi.downloadPayrollExcel(currentMonth + 1, currentYear);
+      const blob = res.data instanceof Blob ? res.data
+        : new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      triggerDownload(blob, `payroll-${MONTHS[currentMonth]}-${currentYear}.xlsx`);
+    } catch (err) {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+      alert(`Export Excel gagal: ${msg}`);
+    } finally { setDlExcel(false); }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (dlPdf) return;
+    setDlPdf(true);
+    try {
+      const res  = await payrollApi.downloadPayrollPdf(currentMonth + 1, currentYear);
+      const blob = res.data instanceof Blob ? res.data
+        : new Blob([res.data], { type: 'application/pdf' });
+      triggerDownload(blob, `payroll-${MONTHS[currentMonth]}-${currentYear}.pdf`);
+    } catch (err) {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+      alert(`Download PDF gagal: ${msg}`);
+    } finally { setDlPdf(false); }
+  };
+
+  const buildPages = () => {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || Math.abs(i - page) <= 1) pages.push(i);
+      else if (pages[pages.length - 1] !== '…') pages.push('…');
+    }
+    return pages;
+  };
 
   return (
     <div className="flex h-full w-full bg-gray-50 overflow-hidden">
 
-      {/* ── Main content ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300">
+      {/* ── Confirm Modal ─────────────────────────────────────────────────── */}
+      <ConfirmModal
+        open={confirmModal.open}
+        loading={confirmModal.loading}
+        title={
+          confirmModal.type === 'approve'
+            ? `Approve payslip ${confirmModal.payslip?.employeeName}?`
+            : `Hapus payslip ${confirmModal.payslip?.employeeName}?`
+        }
+        message={
+          confirmModal.type === 'approve'
+            ? 'Setelah di-approve, payslip tidak dapat diedit kembali.'
+            : 'Payslip yang dihapus tidak dapat dikembalikan.'
+        }
+        confirmLabel={confirmModal.type === 'approve' ? 'Approve' : 'Hapus'}
+        confirmClass={confirmModal.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+        onConfirm={confirmModal.type === 'approve' ? handleApproveConfirm : handleDeleteConfirm}
+        onCancel={() => setConfirmModal({ open: false, type: null, payslip: null, loading: false })}
+      />
+
+      {/* Approve All Modal */}
+      <ConfirmModal
+        open={approveAllModal}
+        loading={approveAllLoading}
+        title={`Approve semua ${draftCount} payslip DRAFT?`}
+        message="Semua payslip berstatus DRAFT akan diubah menjadi APPROVED. Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Approve Semua"
+        confirmClass="bg-green-600 hover:bg-green-700"
+        onConfirm={handleApproveAll}
+        onCancel={() => setApproveAllModal(false)}
+      />
+
+      {/* ── Main content ───────────────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Top bar */}
         <div className="bg-white border-b border-gray-100 px-6 py-4 flex-shrink-0">
@@ -322,56 +691,63 @@ const PayrollIndex = () => {
               <h1 className="text-xl font-bold text-gray-900">Payroll</h1>
               <p className="text-sm text-gray-400 mt-0.5">Kelola penggajian karyawan perusahaan Anda</p>
             </div>
-
             <div className="flex items-center gap-2 flex-wrap">
               {/* Month navigator */}
               <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                <button onClick={prevMonth} className="text-gray-400 hover:text-gray-600 p-0.5 rounded">
+                <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
                   <HiOutlineChevronLeft className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-1.5 px-2">
                   <HiOutlineCalendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-700 min-w-[90px] text-center">
+                  <span className="text-sm font-semibold text-gray-700 min-w-[96px] text-center">
                     {MONTHS[currentMonth]} {currentYear}
                   </span>
                   <HiOutlineChevronDown className="w-3.5 h-3.5 text-gray-400" />
                 </div>
-                <button onClick={nextMonth} className="text-gray-400 hover:text-gray-600 p-0.5 rounded">
+                <button onClick={nextMonth} className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
                   <HiOutlineChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Status badge */}
+              {/* Status pill */}
               <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                <span className="text-sm text-gray-500">Status:</span>
-                <span className="text-sm font-bold text-yellow-600">{lastRun?.status ?? 'DRAFT'}</span>
-                <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                <span className="text-xs text-gray-500">Status:</span>
+                <span className={`text-xs font-bold ${
+                  lastRun?.status === 'APPROVED' ? 'text-green-600' :
+                  lastRun?.status === 'PAID'     ? 'text-emerald-600' :
+                  'text-amber-600'
+                }`}>{lastRun?.status ?? 'DRAFT'}</span>
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  lastRun?.status === 'APPROVED' ? 'bg-green-400' :
+                  lastRun?.status === 'PAID'     ? 'bg-emerald-400' :
+                  'bg-amber-400'
+                }`} />
               </div>
 
-              <div className="w-px h-6 bg-gray-200" />
+              {/* Approve All — only visible if there are DRAFTs */}
+              {draftCount > 0 && (
+                <button
+                  onClick={() => setApproveAllModal(true)}
+                  disabled={approveAllLoading}
+                  className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  <HiOutlineCheckCircle className="w-4 h-4" />
+                  Approve All ({draftCount})
+                </button>
+              )}
 
-              {/* Export Excel */}
-              <button className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50
-                                 text-sm font-medium px-3.5 py-2 rounded-xl transition-colors">
-                <HiOutlineDownload className="w-4 h-4 text-green-600" />
-                Export Excel
+              <button onClick={handleExportExcel} disabled={dlExcel || allSlips.length === 0}
+                className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium px-3.5 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                {dlExcel ? <HiOutlineRefresh className="w-4 h-4 text-green-600 animate-spin" /> : <HiOutlineDownload className="w-4 h-4 text-green-600" />}
+                {dlExcel ? 'Mengunduh...' : 'Export Excel'}
               </button>
-
-              {/* Download PDF */}
-              <button className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50
-                                 text-sm font-medium px-3.5 py-2 rounded-xl transition-colors">
-                <HiOutlineDocumentDownload className="w-4 h-4 text-gray-500" />
-                Download PDF
+              <button onClick={handleDownloadPdf} disabled={dlPdf || allSlips.length === 0}
+                className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium px-3.5 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                {dlPdf ? <HiOutlineRefresh className="w-4 h-4 text-gray-500 animate-spin" /> : <HiOutlineDocumentDownload className="w-4 h-4 text-gray-500" />}
+                {dlPdf ? 'Mengunduh...' : 'Download PDF'}
               </button>
-
-              <div className="w-px h-6 bg-gray-200" />
-
-              {/* Generate Payroll CTA */}
-              <button
-                onClick={() => navigate('/payroll/run')}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white
-                           text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm"
-              >
+              <button onClick={() => navigate('/payroll/run')}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
                 <HiOutlinePlusCircle className="w-4 h-4" />
                 Generate Payroll
               </button>
@@ -381,149 +757,181 @@ const PayrollIndex = () => {
 
         {/* Stat cards */}
         <div className="px-6 pt-5 pb-3 flex-shrink-0">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
-              icon={HiOutlineUsers}
-              iconBg="bg-indigo-100" iconColor="text-indigo-600"
+              icon={HiOutlineUsers} iconBg="bg-indigo-100" iconColor="text-indigo-600"
               label="Total Karyawan"
-              value={loading ? '...' : String(lastRun?.totalEmployees ?? allSlips.length)}
+              value={loading ? '…' : (lastRun?.totalEmployees ?? allSlips.length)}
               sub={`Aktif ${lastRun?.totalEmployees ?? allSlips.length} orang`}
-              subColor="text-indigo-500"
+              subColor="text-indigo-500" compact={compact}
             />
             <StatCard
-              icon={HiOutlineCurrencyDollar}
-              iconBg="bg-green-100" iconColor="text-green-600"
+              icon={HiOutlineCurrencyDollar} iconBg="bg-green-100" iconColor="text-green-600"
               label="Total Gaji"
-              value={loading ? '...' : formatRp(totalNet)}
+              value={loading ? '…' : (compact ? formatRpShort(totalNet) : formatRp(totalNet))}
               sub={`Dari ${allSlips.length} karyawan`}
-              subColor="text-green-500"
+              subColor="text-green-500" compact={compact}
             />
             <StatCard
-              icon={HiOutlineMinusCircle}
-              iconBg="bg-orange-100" iconColor="text-orange-500"
+              icon={HiOutlineMinusCircle} iconBg="bg-orange-100" iconColor="text-orange-500"
               label="Total Potongan"
-              value={loading ? '...' : formatRp(totalDeduction)}
-              sub={totalNet ? `${((totalDeduction / totalNet) * 100).toFixed(1)}% dari total` : '0%'}
-              subColor="text-orange-400"
+              value={loading ? '…' : (compact ? formatRpShort(totalDeduction) : formatRp(totalDeduction))}
+              sub={totalNet ? `${((totalDeduction / totalNet) * 100).toFixed(2)}% dari total gaji` : '0%'}
+              subColor="text-orange-400" compact={compact}
             />
             <StatCard
-              icon={HiOutlineClock}
-              iconBg="bg-purple-100" iconColor="text-purple-600"
-              label="Pending Payroll"
-              value={loading ? '...' : String(pendingCount)}
-              sub={pendingCount > 0 ? 'Belum di-approve' : 'Semua sudah diproses'}
-              subColor={pendingCount > 0 ? 'text-purple-500' : 'text-gray-400'}
+              icon={HiOutlineClock} iconBg="bg-purple-100" iconColor="text-purple-600"
+              label="Pending (DRAFT)"
+              value={loading ? '…' : draftCount}
+              sub={draftCount > 0 ? 'Menunggu approval' : 'Semua diproses'}
+              subColor={draftCount > 0 ? 'text-amber-500' : 'text-gray-400'} compact={compact}
             />
           </div>
         </div>
 
-        {/* ── Quick Actions: Employee Salary & Salary Components ────────── */}
+        {/* Quick actions */}
         <div className="px-6 pb-3 flex-shrink-0">
-          <div className="grid grid-cols-2 gap-3">
-            <QuickActionCard
-              icon={HiOutlineUserGroup}
-              iconBg="bg-sky-100" iconColor="text-sky-600"
-              label="Gaji Karyawan"
-              desc="Atur gaji pokok & komponen per karyawan"
-              onClick={() => navigate('/payroll/employee-salary')}
-            />
-            <QuickActionCard
-              icon={HiOutlineAdjustments}
-              iconBg="bg-violet-100" iconColor="text-violet-600"
-              label="Komponen Gaji"
-              desc="Kelola tunjangan, potongan & komponen lainnya"
-              onClick={() => navigate('/payroll/components')}
-            />
-          </div>
+          <QuickActionCards
+            onEmployeeSalary={() => navigate('/payroll/employee-salary')}
+            onSalaryComponent={() => navigate('/payroll/components')}
+          />
         </div>
 
-        {/* Table section */}
-        <div className="flex-1 px-6 pb-4 overflow-hidden flex flex-col min-h-0">
+        {/* Table */}
+        <div className="flex-1 px-6 py-4 overflow-hidden flex flex-col min-h-0">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col flex-1 min-h-0">
 
-            {/* Table toolbar */}
+            {/* Toolbar */}
             <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-gray-100 flex-wrap flex-shrink-0">
-              <h2 className="text-sm font-semibold text-gray-700">Daftar Payroll</h2>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-gray-700">Daftar Payroll</h2>
+                {draftCount > 0 && (
+                  <span className="text-[11px] bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
+                    {draftCount} DRAFT
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
-                    type="text" placeholder="Cari karyawan..."
-                    value={search}
+                    type="text" placeholder="Cari karyawan..." value={search}
                     onChange={e => { setSearch(e.target.value); setPage(1); }}
                     className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
-                               focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 w-44"
+                               focus:outline-none focus:ring-2 focus:ring-indigo-300 w-44"
                   />
                 </div>
-                <div className="relative">
-                  <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-                    className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-xl
-                               bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
-                    {statusOptions.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                  <HiOutlineFilter className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                </div>
-                <button className="p-2 border border-gray-200 rounded-xl text-gray-400 hover:bg-gray-50 transition-colors">
-                  <HiOutlineDotsVertical className="w-4 h-4" />
-                </button>
+                <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+                  className="pl-3 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
+                             focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
+                  {statusOptions.map(s => <option key={s}>{s}</option>)}
+                </select>
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table body */}
             <div className="flex-1 overflow-auto">
-              <table className="w-full text-sm min-w-[640px]">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="border-b border-gray-100">
-                    {['Karyawan','Basic Salary','Allowance','Deduction','Net Salary','Status','Aksi'].map((h, i) => (
-                      <th key={h}
-                        className={`px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide
-                                    ${i === 0 ? 'text-left' : 'text-right'}`}>
-                        {h}
-                      </th>
+              <table className="w-full text-sm min-w-[680px]">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/70">
+                    {[
+                      ['Karyawan',     'text-left' ],
+                      ['Basic Salary', 'text-right'],
+                      ['Allowance',    'text-right'],
+                      ['Deduction',    'text-right'],
+                      ['Net Salary',   'text-right'],
+                      ['Status',       'text-center'],
+                      ['Aksi',         'text-right'],
+                    ].map(([h, a]) => (
+                      <th key={h} className={`px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider ${a}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
-                        <p className="font-medium">Tidak ada data payroll</p>
-                        <p className="text-xs mt-1">Jalankan Generate Payroll terlebih dahulu</p>
+                      <td colSpan={7} className="px-5 py-14 text-center">
+                        <div className="text-4xl mb-3">📋</div>
+                        <p className="font-semibold text-gray-500">
+                          {history.length > 0 && allSlips.length === 0
+                            ? `Tidak ada payroll untuk ${MONTHS[currentMonth]} ${currentYear}`
+                            : 'Tidak ada data payroll'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {history.length > 0 && allSlips.length === 0
+                            ? 'Pilih bulan lain atau generate payroll baru'
+                            : 'Jalankan Generate Payroll terlebih dahulu'}
+                        </p>
                       </td>
                     </tr>
                   ) : paginated.map((p) => {
-                    const emp        = empMap[String(p.employeeId)];
-                    const photo      = emp?.photo ?? null;
-                    const jobTitle   = emp?.jobTitle ?? emp?.position ?? p.jobTitle ?? '-';
-                    const department = emp?.departmentName ?? emp?.department ?? null;
+                    const isSelected = panelData?.id === p.id;
+                    const emp   = empMap[String(p.employeeId)];
+                    const photo = getEmpPhoto(emp);
+                    const dept  = emp?.departmentName ?? emp?.department ?? null;
+                    const title = emp?.jobTitle ?? emp?.position ?? p.jobTitle ?? '-';
+                    const isDraft = p.status === 'DRAFT';
 
                     return (
-                      <tr key={p.id} onClick={() => setSelectedPayslip(p)}
-                        className={`hover:bg-indigo-50/40 transition-colors cursor-pointer
-                                    ${selectedPayslip?.id === p.id ? 'bg-indigo-50' : ''}`}>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
+                      <tr key={p.id}
+                        onClick={() => isSelected ? closePanel() : openPanel(p)}
+                        className={`border-b border-gray-50 cursor-pointer transition-colors duration-100
+                                    ${isSelected ? 'bg-indigo-50/80' : 'hover:bg-gray-50/80'}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
                             <Avatar name={p.employeeName} photo={photo} />
                             <div className="min-w-0">
-                              <p className="font-semibold text-gray-800 text-xs truncate">{p.employeeName ?? '-'}</p>
-                              <p className="text-[11px] text-gray-400 truncate">{jobTitle}</p>
-                              {department && <p className="text-[11px] text-indigo-400 font-medium truncate">{department}</p>}
+                              <p className="font-semibold text-gray-800 text-xs leading-tight truncate">{p.employeeName ?? '-'}</p>
+                              <p className="text-[11px] text-gray-400 truncate">{title}</p>
+                              {dept && <p className="text-[10px] text-indigo-400 font-medium truncate">{dept}</p>}
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5 text-right text-gray-600 text-xs whitespace-nowrap">{formatRp(p.basicSalary)}</td>
-                        <td className="px-5 py-3.5 text-right text-gray-600 text-xs whitespace-nowrap">{formatRp(p.totalEarning)}</td>
-                        <td className="px-5 py-3.5 text-right text-gray-600 text-xs whitespace-nowrap">{formatRp(p.totalDeduction)}</td>
-                        <td className="px-5 py-3.5 text-right font-bold text-gray-900 text-xs whitespace-nowrap">{formatRp(p.netSalary)}</td>
-                        <td className="px-5 py-3.5 text-right"><StatusBadge status={p.status} /></td>
-                        <td className="px-5 py-3.5 text-right">
-                          <button
-                            onClick={e => { e.stopPropagation(); navigate(`/payroll/slips/${p.id}`); }}
-                            className="text-gray-400 hover:text-indigo-600 transition-colors"
-                            title="Lihat Detail"
-                          >
-                            <HiOutlineEye className="w-4 h-4" />
-                          </button>
+                        <td className="px-4 py-3 text-right text-xs text-gray-600">{formatRp(p.basicSalary)}</td>
+                        <td className="px-4 py-3 text-right text-xs text-gray-600">{formatRp(p.totalEarning)}</td>
+                        <td className="px-4 py-3 text-right text-xs text-gray-600">{formatRp(p.totalDeduction)}</td>
+                        <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">{formatRp(p.netSalary)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <StatusBadge status={p.status} />
+                        </td>
+                        <td className="px-4 py-3">
+                          {/* Inline action buttons — only show when DRAFT */}
+                          <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                            {/* Eye / detail — always visible */}
+                            <button
+                              onClick={() => isSelected ? closePanel() : openPanel(p)}
+                              title="Lihat detail"
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all
+                                          ${isSelected ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}>
+                              <HiOutlineEye className="w-3.5 h-3.5" />
+                            </button>
+
+                            {isDraft && (
+                              <>
+                                {/* Edit */}
+                                <button
+                                  onClick={() => handleEdit(p)}
+                                  title="Edit payslip"
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                                  <HiOutlinePencil className="w-3.5 h-3.5" />
+                                </button>
+                                {/* Approve */}
+                                <button
+                                  onClick={() => handleApproveClick(p)}
+                                  title="Approve"
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all">
+                                  <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                                </button>
+                                {/* Delete */}
+                                <button
+                                  onClick={() => handleDeleteClick(p)}
+                                  title="Hapus"
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all">
+                                  <HiOutlineTrash className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -535,43 +943,34 @@ const PayrollIndex = () => {
             {/* Pagination */}
             <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 flex-wrap gap-2 flex-shrink-0">
               <p className="text-xs text-gray-400">
-                Menampilkan {filtered.length === 0 ? 0 : (page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} dari {filtered.length} karyawan
+                Menampilkan&nbsp;
+                <span className="font-semibold text-gray-600">
+                  {filtered.length === 0 ? 0 : (page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)}
+                </span>
+                &nbsp;dari&nbsp;<span className="font-semibold text-gray-600">{filtered.length}</span>&nbsp;karyawan
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50
-                             disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors">
                   <HiOutlineChevronLeft className="w-3.5 h-3.5" />
                 </button>
-
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  const pg = i + 1;
-                  return (
+                {buildPages().map((pg, i) =>
+                  pg === '…' ? (
+                    <span key={`e${i}`} className="w-7 text-center text-xs text-gray-400">…</span>
+                  ) : (
                     <button key={pg} onClick={() => setPage(pg)}
-                      className={`w-7 h-7 text-xs rounded-lg border transition-colors font-medium
+                      className={`w-7 h-7 text-xs rounded-lg border font-medium transition-colors
                                   ${page === pg ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                       {pg}
                     </button>
-                  );
-                })}
-                {totalPages > 5 && <span className="text-gray-400 text-xs">...</span>}
-                {totalPages > 5 && (
-                  <button onClick={() => setPage(totalPages)}
-                    className={`w-7 h-7 text-xs rounded-lg border transition-colors font-medium
-                                ${page === totalPages ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                    {totalPages}
-                  </button>
+                  )
                 )}
-
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50
-                             disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  className="p-1.5 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors">
                   <HiOutlineChevronRight className="w-3.5 h-3.5" />
                 </button>
-
                 <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
-                  className="ml-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-gray-50
-                             focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
+                  className="ml-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-gray-50 focus:outline-none cursor-pointer">
                   {[10, 25, 50].map(n => <option key={n} value={n}>{n} / halaman</option>)}
                 </select>
               </div>
@@ -580,18 +979,22 @@ const PayrollIndex = () => {
         </div>
       </div>
 
-      {/* ── Detail Panel (right side) ──────────────────────────────────────── */}
-      <div className={`flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out
-                       ${selectedPayslip ? 'w-80 xl:w-96' : 'w-0'}`}>
-        {selectedPayslip && (
-          <DetailPanel
-            payslip={selectedPayslip}
-            emp={empMap[String(selectedPayslip.employeeId)] ?? null}
-            onClose={() => setSelectedPayslip(null)}
-            onDownload={handleDownload}
-            downloading={downloading}
-          />
-        )}
+      {/* ── Detail Panel ───────────────────────────────────────────────────── */}
+      <div className={`flex-shrink-0 border-l border-gray-100 overflow-hidden transition-all duration-300 ease-in-out ${panelMounted ? 'w-80 xl:w-96' : 'w-0'}`}>
+        <div className={`h-full w-80 xl:w-96 transition-transform duration-300 ease-in-out ${panelIn ? 'translate-x-0' : 'translate-x-full'}`}>
+          {panelMounted && (
+            <DetailPanel
+              payslip={panelData}
+              onClose={closePanel}
+              onDownload={(id) => navigate(`/payroll/slips/${id}/pdf`)}
+              empMap={empMap}
+              onApprove={handleApproveClick}
+              onDelete={handleDeleteClick}
+              onEdit={handleEdit}
+              actionLoading={actionLoading}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

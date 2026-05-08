@@ -9,11 +9,12 @@ import {
   HiOutlineEye,
   HiOutlineRefresh,
   HiCheck,
+  HiOutlineInformationCircle,
 } from 'react-icons/hi';
 import usePayroll from '../../../redux/hooks/usePayroll';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
   'Juli','Agustus','September','Oktober','November','Desember',
@@ -22,7 +23,7 @@ const now = new Date();
 const formatRp = (val) =>
   val == null ? 'Rp 0' : 'Rp ' + Number(val).toLocaleString('id-ID');
 
-// ─── Step Bar ─────────────────────────────────────────────────────────────────
+// ─── Step Bar ──────────────────────────────────────────────────────────────────
 const STEPS = ['Pilih Periode', 'Preview Payroll', 'Review & Konfirmasi', 'Selesai'];
 
 const StepBar = ({ current }) => (
@@ -52,7 +53,7 @@ const StepBar = ({ current }) => (
   </div>
 );
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+// ─── Avatar ────────────────────────────────────────────────────────────────────
 const Avatar = ({ name, photo }) => {
   const [err, setErr] = useState(false);
   const initial = (name ?? 'U').charAt(0).toUpperCase();
@@ -103,7 +104,7 @@ const Step1 = ({ month, setMonth, year, setYear, onNext, onCancel }) => (
       <p className="font-semibold text-blue-900 mb-2">Informasi</p>
       <p>• Pastikan semua data kehadiran sudah lengkap</p>
       <p>• Komponen gaji dan potongan sudah terisi</p>
-      <p>• Payroll yang sudah di-approve tidak dapat diedit</p>
+      <p>• Payroll akan disimpan sebagai <strong>DRAFT</strong> dan masih bisa diedit sebelum di-approve</p>
     </div>
 
     <div className="flex justify-between items-center pt-2">
@@ -122,9 +123,6 @@ const Step1 = ({ month, setMonth, year, setYear, onNext, onCancel }) => (
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 2 — Preview Payroll
-// Memanggil run.execute() untuk mendapat data preview. Hasilnya disimpan ke
-// `previewData` (prop dari parent). Tombol "Lanjutkan" hanya pindah step,
-// TIDAK memanggil execute lagi.
 // ─────────────────────────────────────────────────────────────────────────────
 const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview, onNext, onBack }) => {
   const periodLabel = `${MONTHS[month - 1]} ${year}`;
@@ -139,7 +137,6 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-800">Preview Payroll – {periodLabel}</h2>
-        {/* Tombol refresh untuk re-run preview jika diperlukan */}
         <button onClick={onRunPreview} disabled={loading}
           className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-40 transition-colors">
           <HiOutlineRefresh className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -147,7 +144,7 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </button>
       </div>
 
-      {/* Loading state */}
+      {/* Loading */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <HiOutlineClock className="w-7 h-7 text-blue-400 animate-spin" />
@@ -155,7 +152,7 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </div>
       )}
 
-      {/* Error state */}
+      {/* Error */}
       {!loading && error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 flex items-start gap-2.5">
           <HiOutlineExclamation className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -170,7 +167,7 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </div>
       )}
 
-      {/* Belum ada data — belum pernah di-load */}
+      {/* Empty */}
       {!loading && !error && !previewData && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center space-y-3">
           <p className="text-sm text-gray-500">Klik tombol di bawah untuk memuat preview payroll</p>
@@ -183,7 +180,7 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </div>
       )}
 
-      {/* Ada data — tampilkan summary + table */}
+      {/* Data */}
       {!loading && !error && previewData && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -269,26 +266,23 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 3 — Review & Konfirmasi
-// Hanya menampilkan data dari previewData. Tombol konfirmasi TIDAK memanggil
-// execute lagi — hanya pindah ke step 4.
 // ─────────────────────────────────────────────────────────────────────────────
 const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
   const periodLabel = `${MONTHS[month - 1]} ${year}`;
   const payslips    = previewData?.payslips ?? [];
 
-  const totalGaji     = payslips.reduce((s, p) => s + Number(p.totalEarning   ?? p.basicSalary ?? 0), 0);
-  const totalPotongan = payslips.reduce((s, p) => s + Number(p.totalDeduction ?? 0), 0);
-  const totalNet      = payslips.reduce((s, p) => s + Number(p.netSalary      ?? 0), 0);
-  const totalKaryawan = previewData?.totalEmployees ?? payslips.length;
+  const totalGaji        = payslips.reduce((s, p) => s + Number(p.totalEarning   ?? p.basicSalary ?? 0), 0);
+  const totalPotongan    = payslips.reduce((s, p) => s + Number(p.totalDeduction ?? 0), 0);
+  const totalNet         = payslips.reduce((s, p) => s + Number(p.netSalary      ?? 0), 0);
+  const totalKaryawan    = previewData?.totalEmployees ?? payslips.length;
+  const totalBasicSalary = payslips.reduce((s, p) => s + Number(p.basicSalary ?? 0), 0);
 
-  // Agregat komponen dari semua payslip
   const allComponents    = payslips.flatMap(p => p.components ?? []);
   const sumByName        = (arr) => {
     const map = {};
     arr.forEach(c => { map[c.componentName] = (map[c.componentName] ?? 0) + Number(c.amount ?? 0); });
     return Object.entries(map);
   };
-  const totalBasicSalary = payslips.reduce((s, p) => s + Number(p.basicSalary ?? 0), 0);
   const earningSummary   = sumByName(allComponents.filter(c => c.type === 'EARNING'));
   const deductionSummary = sumByName(allComponents.filter(c => c.type === 'DEDUCTION'));
 
@@ -296,7 +290,7 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
       <div>
         <h2 className="text-base font-semibold text-gray-800">Review & Konfirmasi</h2>
-        <p className="text-sm text-gray-400 mt-0.5">Periksa kembali detail payroll sebelum dikonfirmasi.</p>
+        <p className="text-sm text-gray-400 mt-0.5">Periksa kembali detail payroll sebelum disimpan sebagai DRAFT.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -322,7 +316,6 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
         {/* Kanan: rincian komponen */}
         <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-3">
           <p className="font-semibold text-gray-800">Rincian Komponen</p>
-
           <div>
             <p className="text-green-600 font-semibold mb-1.5 flex justify-between">
               <span>Earning (Total)</span><span>{formatRp(totalGaji)}</span>
@@ -341,7 +334,6 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
               }
             </div>
           </div>
-
           <div className="border-t border-gray-200 pt-3">
             <p className="text-red-500 font-semibold mb-1.5 flex justify-between">
               <span>Deduction (Total)</span><span>{formatRp(totalPotongan)}</span>
@@ -360,9 +352,30 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
         </div>
       </div>
 
-      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3.5 text-sm text-yellow-800 flex items-start gap-2.5">
-        <HiOutlineExclamation className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <p>Setelah dikonfirmasi, payroll akan masuk ke status <strong>APPROVED</strong> dan siap untuk dibayarkan.</p>
+      {/* ── INFO: Payroll akan DRAFT, bukan langsung APPROVED ── */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-sm text-blue-800 flex items-start gap-2.5">
+        <HiOutlineInformationCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500" />
+        <div className="space-y-0.5">
+          <p className="font-semibold">Payroll akan disimpan sebagai <span className="text-amber-600">DRAFT</span></p>
+          <p className="text-xs text-blue-700">
+            Setelah disimpan, kamu masih bisa mengedit tunjangan, potongan, lembur, dan absensi sebelum melakukan Approve.
+          </p>
+        </div>
+      </div>
+
+      {/* Flow info */}
+      <div className="flex items-center gap-2 text-xs text-gray-400 justify-center flex-wrap">
+        {['Generate → DRAFT', 'Edit jika perlu', 'Approve → APPROVED', 'Mark as Paid → PAID'].map((s, i, arr) => (
+          <React.Fragment key={s}>
+            <span className={`px-2.5 py-1 rounded-lg font-medium ${
+              i === 0 ? 'bg-amber-100 text-amber-700' :
+              i === 2 ? 'bg-green-100 text-green-700' :
+              i === 3 ? 'bg-emerald-100 text-emerald-700' :
+              'bg-gray-100 text-gray-500'
+            }`}>{s}</span>
+            {i < arr.length - 1 && <span className="text-gray-300">→</span>}
+          </React.Fragment>
+        ))}
       </div>
 
       <div className="flex justify-between items-center pt-2">
@@ -370,12 +383,11 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
           className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
           Kembali
         </button>
-        {/* onConfirm hanya navigate ke step 4, tidak memanggil API lagi */}
         <button onClick={onConfirm}
-          className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold bg-green-600
-                     hover:bg-green-700 text-white rounded-xl transition-colors shadow-sm">
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold bg-amber-500
+                     hover:bg-amber-600 text-white rounded-xl transition-colors shadow-sm">
           <HiOutlineCheckCircle className="w-4 h-4" />
-          Konfirmasi & Lanjutkan
+          Simpan sebagai DRAFT
         </button>
       </div>
     </div>
@@ -383,9 +395,9 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STEP 4 — Selesai (data dari previewData — response langsung dari API run)
+// STEP 4 — Selesai (status DRAFT)
 // ─────────────────────────────────────────────────────────────────────────────
-const Step4 = ({ month, year, previewData, onReset, onViewSlips }) => {
+const Step4 = ({ month, year, previewData, onReset, onViewList }) => {
   const periodLabel   = `${MONTHS[month - 1]} ${year}`;
   const totalKaryawan = previewData?.totalEmployees ?? previewData?.successCount ?? 0;
   const netSalary     = previewData?.netSalary
@@ -394,15 +406,16 @@ const Step4 = ({ month, year, previewData, onReset, onViewSlips }) => {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center space-y-6">
       <div className="flex justify-center">
-        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-          <HiOutlineCheckCircle className="w-9 h-9 text-green-500" />
+        <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+          <HiOutlineCheckCircle className="w-9 h-9 text-amber-500" />
         </div>
       </div>
 
       <div>
         <h2 className="text-xl font-bold text-gray-900">Payroll Berhasil Dibuat!</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Payroll untuk periode {periodLabel} telah berhasil dibuat dan disetujui.
+          Payroll periode <strong>{periodLabel}</strong> tersimpan sebagai <strong className="text-amber-600">DRAFT</strong>.
+          Silakan review dan approve di halaman Payroll.
         </p>
       </div>
 
@@ -411,31 +424,44 @@ const Step4 = ({ month, year, previewData, onReset, onViewSlips }) => {
           ['Periode',        periodLabel],
           ['Total Karyawan', `${totalKaryawan} Orang`],
           ['Net Salary',     formatRp(netSalary)],
-          ['Status',         '__badge__'],
+          ['Status',         '__draft__'],
           ['Tanggal',        new Date().toLocaleString('id-ID', {
             day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit',
           })],
         ].map(([label, val]) => (
           <div key={label} className="flex justify-between gap-4">
             <span className="text-gray-500">{label}</span>
-            {val === '__badge__'
-              ? <span className="text-green-600 font-bold bg-green-100 px-2 py-0.5 rounded-lg text-xs">APPROVED</span>
+            {val === '__draft__'
+              ? <span className="text-amber-600 font-bold bg-amber-100 px-2 py-0.5 rounded-lg text-xs">DRAFT</span>
               : <span className="font-semibold text-gray-800">{val}</span>
             }
           </div>
         ))}
       </div>
 
+      {/* Next steps */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-left max-w-sm mx-auto space-y-2">
+        <p className="font-semibold text-blue-800 text-xs">Langkah selanjutnya:</p>
+        {[
+          '1. Buka halaman Payroll untuk melihat daftar karyawan',
+          '2. Edit payslip jika ada data yang perlu disesuaikan',
+          '3. Klik Approve untuk mengubah status menjadi APPROVED',
+          '4. Mark as Paid setelah pembayaran dilakukan',
+        ].map(s => (
+          <p key={s} className="text-xs text-blue-700">{s}</p>
+        ))}
+      </div>
+
       <div className="flex gap-3 justify-center pt-2">
         <button onClick={onReset}
           className="px-4 py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
-          Kembali ke Daftar Payroll
+          Buat Payroll Lain
         </button>
-        <button onClick={onViewSlips}
-          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-blue-600
-                     hover:bg-blue-700 text-white rounded-xl transition-colors">
+        <button onClick={onViewList}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-indigo-600
+                     hover:bg-indigo-700 text-white rounded-xl transition-colors">
           <HiOutlineEye className="w-4 h-4" />
-          Lihat Detail Payroll
+          Review & Approve Payroll
         </button>
       </div>
     </div>
@@ -450,40 +476,33 @@ const RunPayrollPage = () => {
   const { run, actionLoading, actionError, clearError } = usePayroll();
   const { employees, fetchEmployees } = useEmployee();
 
-  const [step,        setStep]        = useState(1);
-  const [month,       setMonth]       = useState(now.getMonth() + 1);
-  const [year,        setYear]        = useState(now.getFullYear());
-  // previewData menyimpan response dari run.execute() — dipakai di step 2, 3, dan 4
-  const [previewData, setPreviewData] = useState(null);
+  const [step,         setStep]         = useState(1);
+  const [month,        setMonth]        = useState(now.getMonth() + 1);
+  const [year,         setYear]         = useState(now.getFullYear());
+  const [previewData,  setPreviewData]  = useState(null);
   const [previewError, setPreviewError] = useState(null);
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
+  useEffect(() => { fetchEmployees(); }, []);
 
-  // empMap: id → employee object (untuk avatar & jabatan di preview table)
   const empMap = useMemo(() => {
     const map = {};
     (employees ?? []).forEach(e => { map[String(e.id)] = e; });
     return map;
   }, [employees]);
 
-  // Dipanggil dari Step 2 (tombol "Generate Preview" / "Refresh")
-  // Menjalankan run.execute() dan menyimpan hasilnya ke state lokal
   const handleRunPreview = async () => {
     setPreviewError(null);
     clearError?.();
     const res = await run.execute(month, year);
     if (res?.meta?.requestStatus === 'fulfilled') {
-      // run.result sudah diisi oleh redux setelah fulfilled
       setPreviewData(run.result ?? res.payload);
     } else {
-      // Tangkap error jika ada
       setPreviewError(actionError ?? res?.error?.message ?? 'Gagal memproses payroll');
     }
   };
 
-  // Step 3 konfirmasi → TIDAK memanggil API lagi, langsung ke step 4
+  // Step 3 konfirmasi → simpan sebagai DRAFT, ke step 4
+  // (run.execute() sudah dipanggil di step 2 — backend menyimpan sebagai DRAFT)
   const handleConfirm = () => {
     setStep(4);
   };
@@ -493,10 +512,9 @@ const RunPayrollPage = () => {
     clearError?.();
     setPreviewData(null);
     setPreviewError(null);
-    navigate('/payroll');
+    setStep(1);
   };
 
-  // Jika periode berubah di step 1, reset preview supaya tidak stale
   const handleMonthChange = (val) => {
     setMonth(val);
     setPreviewData(null);
@@ -509,7 +527,8 @@ const RunPayrollPage = () => {
   };
 
   const handleBack = () => {
-    if (step === 1 || step === 4) navigate('/payroll');
+    if (step === 1) navigate('/payroll');
+    else if (step === 4) navigate('/payroll');
     else setStep(s => s - 1);
   };
 
@@ -566,7 +585,7 @@ const RunPayrollPage = () => {
           month={month} year={year}
           previewData={previewData}
           onReset={handleReset}
-          onViewSlips={() => navigate('/payroll/slips')}
+          onViewList={() => navigate('/payroll')}
         />
       )}
     </div>
