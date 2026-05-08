@@ -315,6 +315,8 @@ public class PayrollRunService {
             p.getPayrollPeriod().getMonth(), p.getPayrollPeriod().getYear()));
         response.setMonth(p.getPayrollPeriod().getMonth());
         response.setYear(p.getPayrollPeriod().getYear());
+        // Status payslip = status period (belum ada approve per-payslip)
+        response.setStatus(p.getPayrollPeriod().getStatus());
         response.setBasicSalary(p.getBasicSalary());
         response.setOvertimePay(p.getOvertimePay());
         response.setTotalOvertimeHours(p.getTotalOvertimeHours());

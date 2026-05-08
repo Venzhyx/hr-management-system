@@ -1,5 +1,6 @@
 package com.projek.hr_backend.dto;
 
+import com.projek.hr_backend.model.PayrollPeriodStatus;
 import com.projek.hr_backend.model.PayslipComponentType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,6 +24,9 @@ public class PayslipResponse {
     private String periodLabel;   // contoh: "April 2026"
     private Integer month;
     private Integer year;
+
+    // Status diambil dari PayrollPeriod — semua payslip dalam satu periode punya status sama
+    private PayrollPeriodStatus status;
 
     // Komponen gaji — snapshot immutable
     private BigDecimal basicSalary;
