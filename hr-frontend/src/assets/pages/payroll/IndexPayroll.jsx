@@ -310,7 +310,6 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
 
       {/* Actions */}
       <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
-        {/* ── Download payslip PDF — langsung trigger download, bukan navigate ── */}
         <button
           onClick={() => onDownload(payslip?.id, payslip?.employeeName)}
           disabled={dlPayslip}
@@ -322,15 +321,6 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
           {dlPayslip ? 'Mengunduh...' : 'Download Payslip PDF'}
         </button>
 
-        {/* DRAFT actions */}
-        {canEdit && (
-          <button onClick={() => onEdit(payslip)}
-            className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100
-                       text-blue-700 text-sm font-semibold py-2.5 rounded-xl transition-colors border border-blue-200">
-            <HiOutlinePencil className="w-4 h-4" />
-            Edit Payslip
-          </button>
-        )}
         {canApprove && (
           <button onClick={() => onApprove(payslip)} disabled={actionLoading}
             className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700
@@ -373,21 +363,17 @@ const PayrollIndex = () => {
   const [page,         setPage]         = useState(1);
   const [perPage,      setPerPage]      = useState(10);
 
-  // Panel
   const [panelData,    setPanelData]    = useState(null);
   const [panelMounted, setPanelMounted] = useState(false);
   const [panelIn,      setPanelIn]      = useState(false);
 
-  // Confirm modal
   const [confirmModal, setConfirmModal] = useState({
     open: false, type: null, payslip: null, loading: false,
   });
 
-  // Approve all
   const [approveAllLoading, setApproveAllLoading] = useState(false);
   const [approveAllModal,   setApproveAllModal]   = useState(false);
 
-  // Download payslip PDF per orang
   const [dlPayslip, setDlPayslip] = useState(false);
 
   useEffect(() => {
@@ -453,7 +439,6 @@ const PayrollIndex = () => {
   const compact       = panelMounted;
   const statusOptions = ['Semua Status', 'DRAFT', 'FINALIZED', 'APPROVED', 'PAID'];
 
-  // ── Approve single payslip ─────────────────────────────────────────────────
   const handleApproveClick = (payslip) => {
     setConfirmModal({ open: true, type: 'approve', payslip, loading: false });
   };
@@ -472,7 +457,6 @@ const PayrollIndex = () => {
     }
   };
 
-  // ── Delete single payslip ──────────────────────────────────────────────────
   const handleDeleteClick = (payslip) => {
     setConfirmModal({ open: true, type: 'delete', payslip, loading: false });
   };
@@ -489,7 +473,6 @@ const PayrollIndex = () => {
     }
   };
 
-  // ── Approve ALL draft ──────────────────────────────────────────────────────
   const handleApproveAll = async () => {
     setApproveAllLoading(true);
     try {
@@ -507,12 +490,10 @@ const PayrollIndex = () => {
     }
   };
 
-  // ── Edit payslip ───────────────────────────────────────────────────────────
   const handleEdit = (payslip) => {
     navigate(`/payroll/slips/${payslip.id}/edit`);
   };
 
-  // ── Download payslip PDF per orang — FIX: trigger blob download, bukan navigate ──
   const handleDownloadPayslipPdf = useCallback(async (payslipId, employeeName) => {
     if (dlPayslip) return;
     setDlPayslip(true);
@@ -537,7 +518,6 @@ const PayrollIndex = () => {
     }
   }, [dlPayslip]);
 
-  // ── Download payroll report (semua karyawan) ───────────────────────────────
   const [dlExcel, setDlExcel] = useState(false);
   const [dlPdf,   setDlPdf]   = useState(false);
 
@@ -590,7 +570,6 @@ const PayrollIndex = () => {
   return (
     <div className="flex h-full w-full bg-gray-50 overflow-hidden">
 
-      {/* ── Confirm Modal ─────────────────────────────────────────────────── */}
       <ConfirmModal
         open={confirmModal.open}
         loading={confirmModal.loading}
@@ -610,7 +589,6 @@ const PayrollIndex = () => {
         onCancel={() => setConfirmModal({ open: false, type: null, payslip: null, loading: false })}
       />
 
-      {/* Approve All Modal */}
       <ConfirmModal
         open={approveAllModal}
         loading={approveAllLoading}
@@ -622,7 +600,6 @@ const PayrollIndex = () => {
         onCancel={() => setApproveAllModal(false)}
       />
 
-      {/* ── Main content ───────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Top bar */}
@@ -633,7 +610,6 @@ const PayrollIndex = () => {
               <p className="text-sm text-gray-400 mt-0.5">Kelola penggajian karyawan perusahaan Anda</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Month navigator */}
               <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
                 <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
                   <HiOutlineChevronLeft className="w-4 h-4" />
@@ -650,7 +626,6 @@ const PayrollIndex = () => {
                 </button>
               </div>
 
-              {/* Status pill */}
               <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
                 <span className="text-xs text-gray-500">Status:</span>
                 <span className={`text-xs font-bold ${
@@ -665,7 +640,6 @@ const PayrollIndex = () => {
                 }`} />
               </div>
 
-              {/* Approve All — only visible if there are DRAFTs */}
               {draftCount > 0 && (
                 <button
                   onClick={() => setApproveAllModal(true)}
@@ -792,13 +766,12 @@ const PayrollIndex = () => {
                   {paginated.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-5 py-14 text-center">
-                        <div className="text-4xl mb-3">📋</div>
-                        <p className="font-semibold text-gray-500">
+                        <p className="font-semibold text-gray-400">
                           {history.length > 0 && allSlips.length === 0
                             ? `Tidak ada payroll untuk ${MONTHS[currentMonth]} ${currentYear}`
                             : 'Tidak ada data payroll'}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-300 mt-1">
                           {history.length > 0 && allSlips.length === 0
                             ? 'Pilih bulan lain atau generate payroll baru'
                             : 'Jalankan Generate Payroll terlebih dahulu'}
@@ -837,7 +810,7 @@ const PayrollIndex = () => {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                            {/* Eye / detail — always visible */}
+                            {/* Eye / detail */}
                             <button
                               onClick={() => isSelected ? closePanel() : openPanel(p)}
                               title="Lihat detail"
@@ -847,29 +820,12 @@ const PayrollIndex = () => {
                             </button>
 
                             {isDraft && (
-                              <>
-                                {/* Edit */}
-                                <button
-                                  onClick={() => handleEdit(p)}
-                                  title="Edit payslip"
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
-                                  <HiOutlinePencil className="w-3.5 h-3.5" />
-                                </button>
-                                {/* Approve */}
-                                <button
-                                  onClick={() => handleApproveClick(p)}
-                                  title="Approve"
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all">
-                                  <HiOutlineCheckCircle className="w-3.5 h-3.5" />
-                                </button>
-                                {/* Delete */}
-                                <button
-                                  onClick={() => handleDeleteClick(p)}
-                                  title="Hapus"
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all">
-                                  <HiOutlineTrash className="w-3.5 h-3.5" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => handleDeleteClick(p)}
+                                title="Hapus"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all">
+                                <HiOutlineTrash className="w-3.5 h-3.5" />
+                              </button>
                             )}
                           </div>
                         </td>
@@ -926,13 +882,13 @@ const PayrollIndex = () => {
             <DetailPanel
               payslip={panelData}
               onClose={closePanel}
-              onDownload={handleDownloadPayslipPdf}  
+              onDownload={handleDownloadPayslipPdf}
               empMap={empMap}
               onApprove={handleApproveClick}
               onDelete={handleDeleteClick}
               onEdit={handleEdit}
               actionLoading={actionLoading}
-              dlPayslip={dlPayslip}                  
+              dlPayslip={dlPayslip}
             />
           )}
         </div>
