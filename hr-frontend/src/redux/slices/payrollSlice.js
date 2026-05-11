@@ -2,9 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { payrollApi as api } from '../../ApiService/payrollApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HELPER — unwrap response: tangani { data: [...] } atau langsung array/object
-// payrollApi sudah return response.data (axios), tapi kadang backend membungkus
-// lagi dalam { data: [...], success: true, message: '...' }
+// HELPER
 // ─────────────────────────────────────────────────────────────────────────────
 const unwrap = (res) => {
   if (res && !Array.isArray(res) && typeof res === 'object' && 'data' in res) {
@@ -13,11 +11,10 @@ const unwrap = (res) => {
   return res;
 };
 
-// Khusus untuk response yang harus berupa array
 const unwrapArray = (res) => {
   const val = unwrap(res);
   if (Array.isArray(val)) return val;
-  if (val && typeof val === 'object' && 'content' in val) return val.content; // Spring Page
+  if (val && typeof val === 'object' && 'content' in val) return val.content;
   return [];
 };
 
@@ -134,11 +131,32 @@ export const fetchPayslipDetail = createAsyncThunk(
 );
 
 // ─── APPROVE PAYSLIP ──────────────────────────────────────────────────────────
+// ─── FIX: sertakan payslipId sebagai meta agar bisa dipakai di fulfilled
+//     jika API tidak mengembalikan body (204 No Content)
 export const approvePayslip = createAsyncThunk(
   'payroll/approvePayslip',
   async (payslipId, { rejectWithValue }) => {
-    try { return await api.approvePayslip(payslipId); }
+    try {
+      // payrollApi sudah return response.data langsung (bukan axios response)
+      // jadi tidak perlu res?.data lagi — langsung spread saja
+      const data = await api.approvePayslip(payslipId);
+      // Selalu sertakan payslipId agar reducer tidak bergantung pada response body
+      // (aman untuk API yang return 204 No Content)
+      return { payslipId, ...(data != null && typeof data === 'object' ? data : {}) };
+    }
     catch (e) { return rejectWithValue(e.response?.data?.message ?? 'Gagal approve payslip'); }
+  }
+);
+
+// ─── MARK AS PAID ─────────────────────────────────────────────────────────────
+export const markPayslipAsPaid = createAsyncThunk(
+  'payroll/markPayslipAsPaid',
+  async (payslipId, { rejectWithValue }) => {
+    try {
+      const data = await api.markAsPaid(payslipId);
+      return { payslipId, ...(data != null && typeof data === 'object' ? data : {}) };
+    }
+    catch (e) { return rejectWithValue(e.response?.data?.message ?? 'Gagal mark as paid'); }
   }
 );
 
@@ -155,7 +173,6 @@ export const deletePayslip = createAsyncThunk(
 // INITIAL STATE
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Persist runHistory ke localStorage supaya tidak hilang saat refresh
 const STORAGE_KEY = 'payroll_run_history';
 const loadRunHistory = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []; }
@@ -171,7 +188,7 @@ const initialState = {
   employeeSalaryDetail: null,
   salaryHistory:        [],
   runResult:            null,
-  runHistory:           loadRunHistory(), // cache localStorage, diganti data backend kalau ada
+  runHistory:           loadRunHistory(),
   payslips:             [],
   payslipDetail:        null,
   loading:              false,
@@ -179,6 +196,18 @@ const initialState = {
   error:                null,
   actionError:          null,
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — update satu payslip di dalam runHistory by ID
+// ─────────────────────────────────────────────────────────────────────────────
+const patchPayslipInHistory = (runHistory, targetId, patch) =>
+  runHistory.map(run => ({
+    ...run,
+    payslips: (run.payslips ?? []).map(p =>
+      // Bandingkan sebagai string agar tidak ada mismatch number vs string
+      String(p.id) === String(targetId) ? { ...p, ...patch } : p
+    ),
+  }));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SLICE
@@ -300,7 +329,7 @@ const payrollSlice = createSlice({
       })
       .addCase(fetchPayrollRuns.rejected, (s) => {
         s.loading = false;
-        // Jika endpoint belum ada di backend, fallback ke localStorage — tidak error
+        // fallback ke localStorage jika endpoint belum ada
       })
 
       // ── PAYSLIP ────────────────────────────────────────────────────────────
@@ -326,31 +355,52 @@ const payrollSlice = createSlice({
       .addCase(approvePayslip.pending,   onActionPending)
       .addCase(approvePayslip.fulfilled, (s, a) => {
         s.actionLoading = false;
-        const updated = a.payload?.data ?? a.payload;
-        // Update status payslip di runHistory secara optimistik
-        // (jika backend return payslip terupdate, pakai id-nya;
-        //  jika backend return null/empty, fallback pakai payslipId dari arg)
-        const updatedId = updated?.id;
-        if (updatedId) {
-          s.runHistory = s.runHistory.map(run => ({
-            ...run,
-            payslips: (run.payslips ?? []).map(p =>
-              p.id === updatedId ? { ...p, ...updated, status: 'APPROVED' } : p
-            ),
-          }));
-        }
+
+        // ─── FIX 1: pakai payslipId yang dikirim dari thunk (selalu ada)
+        //            bukan id dari response API (bisa null jika 204)
+        const { payslipId, ...rest } = a.payload ?? {};
+        const targetId = payslipId ?? rest?.id;
+
+        if (!targetId) return; // tidak ada ID sama sekali — skip
+
+        // ─── FIX 2: status harus 'FINALIZED', bukan 'APPROVED'
+        s.runHistory = patchPayslipInHistory(s.runHistory, targetId, {
+          ...rest,
+          status: 'FINALIZED',
+        });
         saveRunHistory(s.runHistory);
       })
       .addCase(approvePayslip.rejected,  onActionRejected)
+
+      // ── MARK AS PAID ───────────────────────────────────────────────────────
+      .addCase(markPayslipAsPaid.pending,   onActionPending)
+      .addCase(markPayslipAsPaid.fulfilled, (s, a) => {
+        s.actionLoading = false;
+
+        // ─── FIX 1: pakai payslipId yang dikirim dari thunk
+        const { payslipId, ...rest } = a.payload ?? {};
+        const targetId = payslipId ?? rest?.id;
+
+        if (!targetId) return;
+
+        s.runHistory = patchPayslipInHistory(s.runHistory, targetId, {
+          ...rest,
+          status: 'PAID',
+        });
+        saveRunHistory(s.runHistory);
+      })
+      .addCase(markPayslipAsPaid.rejected,  onActionRejected)
 
       // ── DELETE PAYSLIP ─────────────────────────────────────────────────────
       .addCase(deletePayslip.pending,   onActionPending)
       .addCase(deletePayslip.fulfilled, (s, a) => {
         s.actionLoading = false;
-        const deletedId = a.payload; // payslipId yang dikirim thunk
+        const deletedId = a.payload;
         s.runHistory = s.runHistory.map(run => ({
           ...run,
-          payslips: (run.payslips ?? []).filter(p => p.id !== deletedId),
+          payslips: (run.payslips ?? []).filter(p =>
+            String(p.id) !== String(deletedId)
+          ),
         }));
         saveRunHistory(s.runHistory);
       })

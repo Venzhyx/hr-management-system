@@ -8,8 +8,9 @@ import {
   runPayroll,
   fetchPayslipsByEmployee, fetchPayslipDetail,
   fetchPayrollRuns,
-  approvePayslip,   // ← baru
-  deletePayslip,    // ← baru
+  approvePayslip,
+  markPayslipAsPaid,  // ← NEW
+  deletePayslip,
   clearRunResult, clearPayslipDetail, clearEmployeeSalary, clearPayslips, clearError,
 } from '../slices/payrollSlice';
 
@@ -44,7 +45,7 @@ const usePayroll = () => {
   // ─── PAYROLL RUN ───────────────────────────────────────────────────────────
   const run = {
     result:   s.runResult,
-    history:  s.runHistory,   // ← persist dari localStorage, tidak hilang saat refresh
+    history:  s.runHistory,
     fetchAll: useCallback(()            => dispatch(fetchPayrollRuns()),           [dispatch]),
     execute:  useCallback((month, year) => dispatch(runPayroll({ month, year })), [dispatch]),
     clear:    useCallback(()            => dispatch(clearRunResult()),             [dispatch]),
@@ -96,11 +97,10 @@ const usePayroll = () => {
     actionError:   s.actionError,
     clearError:    useCallback(() => dispatch(clearError()), [dispatch]),
 
-    // ── Approve & Delete payslip ──────────────────────────────────────────
-    // Dipakai langsung di PayrollIndex:
-    //   const { approve, deletePayslip } = usePayroll();
-    approve:       useCallback((payslipId) => dispatch(approvePayslip(payslipId)), [dispatch]),
-    deletePayslip: useCallback((payslipId) => dispatch(deletePayslip(payslipId)),  [dispatch]),
+    // ── Payslip actions ───────────────────────────────────────────────────
+    approve:       useCallback((payslipId) => dispatch(approvePayslip(payslipId)),    [dispatch]),
+    markAsPaid:    useCallback((payslipId) => dispatch(markPayslipAsPaid(payslipId)), [dispatch]),  // ← NEW
+    deletePayslip: useCallback((payslipId) => dispatch(deletePayslip(payslipId)),     [dispatch]),
   };
 };
 

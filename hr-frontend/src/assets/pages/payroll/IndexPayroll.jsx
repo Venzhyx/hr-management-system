@@ -65,12 +65,17 @@ const getEmpPhoto = (emp) =>
   emp?.photo ?? emp?.photoUrl ?? emp?.profilePhoto ?? emp?.profilePicture ??
   emp?.avatarUrl ?? emp?.avatar ?? emp?.imageUrl ?? emp?.image ?? null;
 
-// ─── Status config ─────────────────────────────────────────────────────────────
+// ─── FIX 1: Normalize status ke uppercase ─────────────────────────────────────
+const normalizeStatus = (status) => {
+  if (!status) return 'DRAFT';
+  return String(status).toUpperCase().trim();
+};
+
+// ─── Status config — DRAFT → FINALIZED → PAID ─────────────────────────────────
 const STATUS_CONFIG = {
-  DRAFT:     { pill: 'bg-amber-50 text-amber-700 border-amber-200',       dot: 'bg-amber-400',   label: 'Draft'    },
-  FINALIZED: { pill: 'bg-blue-50 text-blue-700 border-blue-200',          dot: 'bg-blue-400',    label: 'Finalized'},
-  APPROVED:  { pill: 'bg-green-50 text-green-700 border-green-200',       dot: 'bg-green-400',   label: 'Approved' },
-  PAID:      { pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-400', label: 'Paid'     },
+  DRAFT:     { pill: 'bg-amber-50 text-amber-700 border-amber-200',         dot: 'bg-amber-400',   label: 'Draft'     },
+  FINALIZED: { pill: 'bg-blue-50 text-blue-700 border-blue-200',            dot: 'bg-blue-400',    label: 'Finalized' },
+  PAID:      { pill: 'bg-emerald-50 text-emerald-700 border-emerald-200',   dot: 'bg-emerald-400', label: 'Paid'      },
 };
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
@@ -182,7 +187,11 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub, subColor, 
 );
 
 // ─── DetailPanel ──────────────────────────────────────────────────────────────
-const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onDelete, onEdit, actionLoading, dlPayslip }) => {
+const DetailPanel = ({
+  payslip, onClose, onDownload, empMap = {},
+  onFinalize, onMarkAsPaid, onDelete,
+  actionLoading, dlPayslip,
+}) => {
   const earnings   = payslip?.components?.filter(c => c.type === 'EARNING')   ?? [];
   const deductions = payslip?.components?.filter(c => c.type === 'DEDUCTION') ?? [];
   const totalEarning   = Number(payslip?.totalEarning   ?? payslip?.basicSalary ?? 0);
@@ -190,12 +199,16 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
   const emp   = empMap?.[String(payslip?.employeeId)];
   const photo = getEmpPhoto(emp);
 
-  const isDraft    = payslip?.status === 'DRAFT';
-  const isApproved = payslip?.status === 'APPROVED';
-  const isPaid     = payslip?.status === 'PAID';
-  const canEdit    = isDraft;
-  const canApprove = isDraft;
-  const canDelete  = isDraft;
+  // ─── FIX 1 (panel): normalize status sebelum dipakai ──────────────────────
+  const status = normalizeStatus(payslip?.status);
+
+  const isDraft     = status === 'DRAFT';
+  const isFinalized = status === 'FINALIZED';
+  const isPaid      = status === 'PAID';
+
+  const canFinalize   = isDraft;
+  const canMarkAsPaid = isFinalized;
+  const canDelete     = isDraft;
 
   return (
     <div className="flex flex-col h-full bg-white w-full">
@@ -216,7 +229,7 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
             <p className="font-bold text-gray-900 text-sm truncate">{payslip?.employeeName ?? '-'}</p>
             <p className="text-xs text-gray-400 truncate">{payslip?.jobTitle ?? '-'}</p>
           </div>
-          <StatusBadge status={payslip?.status} />
+          <StatusBadge status={status} />
         </div>
 
         {/* Meta */}
@@ -295,21 +308,24 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
           <p className="text-white text-2xl font-bold">{formatRp(payslip?.netSalary)}</p>
         </div>
 
-        {/* Status info */}
-        {(isApproved || isPaid) && (
-          <div className={`rounded-xl p-3 text-xs flex items-center gap-2 ${isPaid ? 'bg-emerald-50 text-emerald-700' : 'bg-green-50 text-green-700'}`}>
+        {/* Status info banner */}
+        {isPaid && (
+          <div className="rounded-xl p-3 text-xs flex items-center gap-2 bg-emerald-50 text-emerald-700">
+            <HiOutlineCash className="w-4 h-4 flex-shrink-0" />
+            <span>Payslip ini sudah dibayarkan dan tidak dapat diubah.</span>
+          </div>
+        )}
+        {isFinalized && (
+          <div className="rounded-xl p-3 text-xs flex items-center gap-2 bg-blue-50 text-blue-700">
             <HiOutlineCheckCircle className="w-4 h-4 flex-shrink-0" />
-            <span>
-              {isPaid
-                ? 'Payslip ini sudah dibayarkan dan tidak dapat diubah.'
-                : 'Payslip ini sudah di-approve dan tidak dapat diedit.'}
-            </span>
+            <span>Payslip sudah difinalisasi. Tandai sebagai PAID setelah pembayaran dilakukan.</span>
           </div>
         )}
       </div>
 
       {/* Actions */}
       <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+        {/* Download — selalu tampil */}
         <button
           onClick={() => onDownload(payslip?.id, payslip?.employeeName)}
           disabled={dlPayslip}
@@ -321,14 +337,27 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
           {dlPayslip ? 'Mengunduh...' : 'Download Payslip PDF'}
         </button>
 
-        {canApprove && (
-          <button onClick={() => onApprove(payslip)} disabled={actionLoading}
-            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700
+        {/* Finalize — hanya DRAFT */}
+        {canFinalize && (
+          <button onClick={() => onFinalize(payslip)} disabled={actionLoading}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700
                        text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
             <HiOutlineCheckCircle className="w-4 h-4" />
-            {actionLoading ? 'Memproses...' : 'Approve Payslip'}
+            {actionLoading ? 'Memproses...' : 'Finalize Payslip'}
           </button>
         )}
+
+        {/* Mark as Paid — hanya FINALIZED */}
+        {canMarkAsPaid && (
+          <button onClick={() => onMarkAsPaid(payslip)} disabled={actionLoading}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700
+                       text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            <HiOutlineCash className="w-4 h-4" />
+            {actionLoading ? 'Memproses...' : 'Mark as Paid'}
+          </button>
+        )}
+
+        {/* Hapus — hanya DRAFT */}
         {canDelete && (
           <button onClick={() => onDelete(payslip)}
             className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100
@@ -345,7 +374,7 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
 // ─── PayrollIndex ─────────────────────────────────────────────────────────────
 const PayrollIndex = () => {
   const navigate = useNavigate();
-  const { run, loading, approve, deletePayslip, actionLoading } = usePayroll();
+  const { run, loading, approve, markAsPaid, deletePayslip, actionLoading } = usePayroll();
   const { employees, fetchEmployees } = useEmployee();
   const { fetchOvertimes } = useOvertime({ role: 'admin' });
 
@@ -367,14 +396,17 @@ const PayrollIndex = () => {
   const [panelMounted, setPanelMounted] = useState(false);
   const [panelIn,      setPanelIn]      = useState(false);
 
+  // confirmModal type: 'finalize' | 'paid' | 'delete'
   const [confirmModal, setConfirmModal] = useState({
     open: false, type: null, payslip: null, loading: false,
   });
 
-  const [approveAllLoading, setApproveAllLoading] = useState(false);
-  const [approveAllModal,   setApproveAllModal]   = useState(false);
+  const [finalizeAllLoading, setFinalizeAllLoading] = useState(false);
+  const [finalizeAllModal,   setFinalizeAllModal]   = useState(false);
 
   const [dlPayslip, setDlPayslip] = useState(false);
+  const [dlExcel,   setDlExcel]   = useState(false);
+  const [dlPdf,     setDlPdf]     = useState(false);
 
   useEffect(() => {
     run.fetchAll();
@@ -410,9 +442,10 @@ const PayrollIndex = () => {
 
   const lastRun = currentRun;
 
+  // ─── FIX 1: normalize status, jangan fallback ke currentRun?.status ──────────
   const allSlips = (currentRun?.payslips ?? []).map(p => ({
     ...p,
-    status: p.status ?? currentRun?.status ?? 'DRAFT',
+    status: normalizeStatus(p.status),
   }));
 
   const prevMonth = () => {
@@ -432,31 +465,60 @@ const PayrollIndex = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated  = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const totalNet       = allSlips.reduce((s, p) => s + Number(p.netSalary      ?? 0), 0);
-  const totalDeduction = allSlips.reduce((s, p) => s + Number(p.totalDeduction ?? 0), 0);
-  const draftCount     = allSlips.filter(p => p.status === 'DRAFT').length;
+  const totalNet        = allSlips.reduce((s, p) => s + Number(p.netSalary      ?? 0), 0);
+  const totalDeduction  = allSlips.reduce((s, p) => s + Number(p.totalDeduction ?? 0), 0);
+  const draftCount      = allSlips.filter(p => p.status === 'DRAFT').length;
+  const finalizedCount  = allSlips.filter(p => p.status === 'FINALIZED').length;
 
   const compact       = panelMounted;
-  const statusOptions = ['Semua Status', 'DRAFT', 'FINALIZED', 'APPROVED', 'PAID'];
+  const statusOptions = ['Semua Status', 'DRAFT', 'FINALIZED', 'PAID'];
 
-  const handleApproveClick = (payslip) => {
-    setConfirmModal({ open: true, type: 'approve', payslip, loading: false });
+  // ── Finalize ─────────────────────────────────────────────────────────────────
+  const handleFinalizeClick = (payslip) => {
+    setConfirmModal({ open: true, type: 'finalize', payslip, loading: false });
   };
-  const handleApproveConfirm = async () => {
+
+  // ─── FIX 2: fetchAll selesai dulu, lalu sinkronisasi panelData dari data terbaru
+  const handleFinalizeConfirm = async () => {
     setConfirmModal(s => ({ ...s, loading: true }));
     try {
       await approve(confirmModal.payslip?.id);
       await run.fetchAll();
+
+      // ─── FIX 3: update panelData dengan status baru hasil normalize ──────
       if (panelData?.id === confirmModal.payslip?.id) {
-        setPanelData(prev => ({ ...prev, status: 'APPROVED' }));
+        setPanelData(prev => ({ ...prev, status: 'FINALIZED' }));
       }
     } catch (err) {
-      console.error('Approve failed:', err);
+      console.error('Finalize failed:', err);
     } finally {
       setConfirmModal({ open: false, type: null, payslip: null, loading: false });
     }
   };
 
+  // ── Mark as Paid ─────────────────────────────────────────────────────────────
+  const handleMarkAsPaidClick = (payslip) => {
+    setConfirmModal({ open: true, type: 'paid', payslip, loading: false });
+  };
+
+  const handleMarkAsPaidConfirm = async () => {
+    setConfirmModal(s => ({ ...s, loading: true }));
+    try {
+      await markAsPaid(confirmModal.payslip?.id);
+      await run.fetchAll();
+
+      // ─── FIX 3: update panelData dengan status baru hasil normalize ──────
+      if (panelData?.id === confirmModal.payslip?.id) {
+        setPanelData(prev => ({ ...prev, status: 'PAID' }));
+      }
+    } catch (err) {
+      console.error('Mark as paid failed:', err);
+    } finally {
+      setConfirmModal({ open: false, type: null, payslip: null, loading: false });
+    }
+  };
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
   const handleDeleteClick = (payslip) => {
     setConfirmModal({ open: true, type: 'delete', payslip, loading: false });
   };
@@ -473,8 +535,35 @@ const PayrollIndex = () => {
     }
   };
 
-  const handleApproveAll = async () => {
-    setApproveAllLoading(true);
+  // ── Confirm modal config by type ─────────────────────────────────────────────
+  const confirmConfig = {
+    finalize: {
+      title:        `Finalisasi payslip ${confirmModal.payslip?.employeeName}?`,
+      message:      'Setelah difinalisasi, payslip tidak dapat diedit kembali.',
+      confirmLabel: 'Finalize',
+      confirmClass: 'bg-blue-600 hover:bg-blue-700',
+      onConfirm:    handleFinalizeConfirm,
+    },
+    paid: {
+      title:        `Tandai lunas payslip ${confirmModal.payslip?.employeeName}?`,
+      message:      'Status payslip akan berubah menjadi PAID. Tindakan ini tidak dapat dibatalkan.',
+      confirmLabel: 'Mark as Paid',
+      confirmClass: 'bg-emerald-600 hover:bg-emerald-700',
+      onConfirm:    handleMarkAsPaidConfirm,
+    },
+    delete: {
+      title:        `Hapus payslip ${confirmModal.payslip?.employeeName}?`,
+      message:      'Payslip yang dihapus tidak dapat dikembalikan.',
+      confirmLabel: 'Hapus',
+      confirmClass: 'bg-red-600 hover:bg-red-700',
+      onConfirm:    handleDeleteConfirm,
+    },
+  };
+  const activeConfirm = confirmConfig[confirmModal.type] ?? {};
+
+  // ── Finalize All ─────────────────────────────────────────────────────────────
+  const handleFinalizeAll = async () => {
+    setFinalizeAllLoading(true);
     try {
       const drafts = allSlips.filter(p => p.status === 'DRAFT');
       for (const p of drafts) {
@@ -483,17 +572,14 @@ const PayrollIndex = () => {
       await run.fetchAll();
       closePanel();
     } catch (err) {
-      console.error('Approve all failed:', err);
+      console.error('Finalize all failed:', err);
     } finally {
-      setApproveAllLoading(false);
-      setApproveAllModal(false);
+      setFinalizeAllLoading(false);
+      setFinalizeAllModal(false);
     }
   };
 
-  const handleEdit = (payslip) => {
-    navigate(`/payroll/slips/${payslip.id}/edit`);
-  };
-
+  // ── Download Payslip PDF ──────────────────────────────────────────────────────
   const handleDownloadPayslipPdf = useCallback(async (payslipId, employeeName) => {
     if (dlPayslip) return;
     setDlPayslip(true);
@@ -517,9 +603,6 @@ const PayrollIndex = () => {
       setDlPayslip(false);
     }
   }, [dlPayslip]);
-
-  const [dlExcel, setDlExcel] = useState(false);
-  const [dlPdf,   setDlPdf]   = useState(false);
 
   const triggerDownload = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
@@ -570,34 +653,28 @@ const PayrollIndex = () => {
   return (
     <div className="flex h-full w-full bg-gray-50 overflow-hidden">
 
+      {/* ── Confirm Modal (finalize / paid / delete) ── */}
       <ConfirmModal
         open={confirmModal.open}
         loading={confirmModal.loading}
-        title={
-          confirmModal.type === 'approve'
-            ? `Approve payslip ${confirmModal.payslip?.employeeName}?`
-            : `Hapus payslip ${confirmModal.payslip?.employeeName}?`
-        }
-        message={
-          confirmModal.type === 'approve'
-            ? 'Setelah di-approve, payslip tidak dapat diedit kembali.'
-            : 'Payslip yang dihapus tidak dapat dikembalikan.'
-        }
-        confirmLabel={confirmModal.type === 'approve' ? 'Approve' : 'Hapus'}
-        confirmClass={confirmModal.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-        onConfirm={confirmModal.type === 'approve' ? handleApproveConfirm : handleDeleteConfirm}
+        title={activeConfirm.title}
+        message={activeConfirm.message}
+        confirmLabel={activeConfirm.confirmLabel}
+        confirmClass={activeConfirm.confirmClass}
+        onConfirm={activeConfirm.onConfirm}
         onCancel={() => setConfirmModal({ open: false, type: null, payslip: null, loading: false })}
       />
 
+      {/* ── Finalize All Modal ── */}
       <ConfirmModal
-        open={approveAllModal}
-        loading={approveAllLoading}
-        title={`Approve semua ${draftCount} payslip DRAFT?`}
-        message="Semua payslip berstatus DRAFT akan diubah menjadi APPROVED. Tindakan ini tidak dapat dibatalkan."
-        confirmLabel="Approve Semua"
-        confirmClass="bg-green-600 hover:bg-green-700"
-        onConfirm={handleApproveAll}
-        onCancel={() => setApproveAllModal(false)}
+        open={finalizeAllModal}
+        loading={finalizeAllLoading}
+        title={`Finalisasi semua ${draftCount} payslip DRAFT?`}
+        message="Semua payslip berstatus DRAFT akan diubah menjadi FINALIZED. Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Finalize Semua"
+        confirmClass="bg-blue-600 hover:bg-blue-700"
+        onConfirm={handleFinalizeAll}
+        onCancel={() => setFinalizeAllModal(false)}
       />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -610,6 +687,7 @@ const PayrollIndex = () => {
               <p className="text-sm text-gray-400 mt-0.5">Kelola penggajian karyawan perusahaan Anda</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Month picker */}
               <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
                 <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
                   <HiOutlineChevronLeft className="w-4 h-4" />
@@ -626,28 +704,30 @@ const PayrollIndex = () => {
                 </button>
               </div>
 
+              {/* Run status badge */}
               <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
                 <span className="text-xs text-gray-500">Status:</span>
                 <span className={`text-xs font-bold ${
-                  lastRun?.status === 'APPROVED' ? 'text-green-600' :
-                  lastRun?.status === 'PAID'     ? 'text-emerald-600' :
+                  normalizeStatus(lastRun?.status) === 'PAID'      ? 'text-emerald-600' :
+                  normalizeStatus(lastRun?.status) === 'FINALIZED' ? 'text-blue-600'    :
                   'text-amber-600'
-                }`}>{lastRun?.status ?? 'DRAFT'}</span>
+                }`}>{normalizeStatus(lastRun?.status) ?? 'DRAFT'}</span>
                 <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                  lastRun?.status === 'APPROVED' ? 'bg-green-400' :
-                  lastRun?.status === 'PAID'     ? 'bg-emerald-400' :
+                  normalizeStatus(lastRun?.status) === 'PAID'      ? 'bg-emerald-400' :
+                  normalizeStatus(lastRun?.status) === 'FINALIZED' ? 'bg-blue-400'    :
                   'bg-amber-400'
                 }`} />
               </div>
 
+              {/* Finalize All — hanya jika ada DRAFT */}
               {draftCount > 0 && (
                 <button
-                  onClick={() => setApproveAllModal(true)}
-                  disabled={approveAllLoading}
-                  className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors disabled:opacity-50"
+                  onClick={() => setFinalizeAllModal(true)}
+                  disabled={finalizeAllLoading}
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors disabled:opacity-50"
                 >
                   <HiOutlineCheckCircle className="w-4 h-4" />
-                  Approve All ({draftCount})
+                  Finalize All ({draftCount})
                 </button>
               )}
 
@@ -698,7 +778,7 @@ const PayrollIndex = () => {
               icon={HiOutlineClock} iconBg="bg-purple-100" iconColor="text-purple-600"
               label="Pending (DRAFT)"
               value={loading ? '…' : draftCount}
-              sub={draftCount > 0 ? 'Menunggu approval' : 'Semua diproses'}
+              sub={draftCount > 0 ? 'Menunggu finalisasi' : 'Semua diproses'}
               subColor={draftCount > 0 ? 'text-amber-500' : 'text-gray-400'} compact={compact}
             />
           </div>
@@ -723,6 +803,11 @@ const PayrollIndex = () => {
                 {draftCount > 0 && (
                   <span className="text-[11px] bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
                     {draftCount} DRAFT
+                  </span>
+                )}
+                {finalizedCount > 0 && (
+                  <span className="text-[11px] bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                    {finalizedCount} FINALIZED
                   </span>
                 )}
               </div>
@@ -779,12 +864,15 @@ const PayrollIndex = () => {
                       </td>
                     </tr>
                   ) : paginated.map((p) => {
-                    const isSelected = panelData?.id === p.id;
-                    const emp   = empMap[String(p.employeeId)];
-                    const photo = getEmpPhoto(emp);
-                    const dept  = emp?.departmentName ?? emp?.department ?? null;
-                    const title = emp?.jobTitle ?? emp?.position ?? p.jobTitle ?? '-';
-                    const isDraft = p.status === 'DRAFT';
+                    const isSelected  = panelData?.id === p.id;
+                    const emp         = empMap[String(p.employeeId)];
+                    const photo       = getEmpPhoto(emp);
+                    const dept        = emp?.departmentName ?? emp?.department ?? null;
+                    const title       = emp?.jobTitle ?? emp?.position ?? p.jobTitle ?? '-';
+
+                    // ─── FIX 1 (tabel): status sudah dinormalize di allSlips ─
+                    const isDraft     = p.status === 'DRAFT';
+                    const isFinalized = p.status === 'FINALIZED';
 
                     return (
                       <tr key={p.id}
@@ -810,7 +898,7 @@ const PayrollIndex = () => {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                            {/* Eye / detail */}
+                            {/* Eye */}
                             <button
                               onClick={() => isSelected ? closePanel() : openPanel(p)}
                               title="Lihat detail"
@@ -819,6 +907,17 @@ const PayrollIndex = () => {
                               <HiOutlineEye className="w-3.5 h-3.5" />
                             </button>
 
+                            {/* Mark as Paid — inline di tabel, hanya FINALIZED */}
+                            {isFinalized && (
+                              <button
+                                onClick={() => handleMarkAsPaidClick(p)}
+                                title="Mark as Paid"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+                                <HiOutlineCash className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* Delete — hanya DRAFT */}
                             {isDraft && (
                               <button
                                 onClick={() => handleDeleteClick(p)}
@@ -875,7 +974,7 @@ const PayrollIndex = () => {
         </div>
       </div>
 
-      {/* ── Detail Panel ───────────────────────────────────────────────────── */}
+      {/* ── Detail Panel ── */}
       <div className={`flex-shrink-0 border-l border-gray-100 overflow-hidden transition-all duration-300 ease-in-out ${panelMounted ? 'w-80 xl:w-96' : 'w-0'}`}>
         <div className={`h-full w-80 xl:w-96 transition-transform duration-300 ease-in-out ${panelIn ? 'translate-x-0' : 'translate-x-full'}`}>
           {panelMounted && (
@@ -884,9 +983,9 @@ const PayrollIndex = () => {
               onClose={closePanel}
               onDownload={handleDownloadPayslipPdf}
               empMap={empMap}
-              onApprove={handleApproveClick}
+              onFinalize={handleFinalizeClick}
+              onMarkAsPaid={handleMarkAsPaidClick}
               onDelete={handleDeleteClick}
-              onEdit={handleEdit}
               actionLoading={actionLoading}
               dlPayslip={dlPayslip}
             />
