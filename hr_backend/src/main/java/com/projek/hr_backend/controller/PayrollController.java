@@ -159,6 +159,30 @@ public class PayrollController {
                 payslipService.getPayslipDetail(payslipId)));
     }
 
+    /**
+     * PATCH /api/payroll/payslips/{payslipId}/approve
+     * Approve payslip — mengubah status period dari DRAFT → FINALIZED.
+     * Hanya DRAFT yang boleh di-approve.
+     */
+    @PatchMapping("/payslips/{payslipId}/approve")
+    public ResponseEntity<ApiResponse<PayslipResponse>> approvePayslip(
+            @PathVariable Long payslipId) {
+        return ResponseEntity.ok(ApiResponse.success("Payslip approved successfully",
+                payslipService.approvePayslip(payslipId)));
+    }
+
+    /**
+     * DELETE /api/payroll/payslips/{payslipId}
+     * Hapus payslip — hanya boleh jika status period masih DRAFT.
+     * Hard delete: payslip + semua komponennya dihapus permanen.
+     */
+    @DeleteMapping("/payslips/{payslipId}")
+    public ResponseEntity<ApiResponse<Void>> deletePayslip(
+            @PathVariable Long payslipId) {
+        payslipService.deletePayslip(payslipId);
+        return ResponseEntity.ok(ApiResponse.success("Payslip deleted successfully", null));
+    }
+
     // ─── Export PDF ───────────────────────────────────────────────────────────
 
     /**
