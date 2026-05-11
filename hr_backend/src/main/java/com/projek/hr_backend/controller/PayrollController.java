@@ -183,6 +183,18 @@ public class PayrollController {
         return ResponseEntity.ok(ApiResponse.success("Payslip deleted successfully", null));
     }
 
+    /**
+     * PATCH /api/payroll/payslips/{payslipId}/paid
+     * Mark payslip as paid — mengubah status period dari FINALIZED → PAID.
+     * Hanya FINALIZED yang boleh di-mark as paid.
+     */
+    @PatchMapping("/payslips/{payslipId}/paid")
+    public ResponseEntity<ApiResponse<PayslipResponse>> markAsPaid(
+            @PathVariable Long payslipId) {
+        return ResponseEntity.ok(ApiResponse.success("Payslip marked as paid successfully",
+                payslipService.markAsPaid(payslipId)));
+    }
+
     // ─── Export PDF ───────────────────────────────────────────────────────────
 
     /**

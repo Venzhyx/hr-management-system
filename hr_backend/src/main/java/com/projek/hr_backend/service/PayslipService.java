@@ -112,4 +112,31 @@ public class PayslipService {
         payslipComponentRepository.deleteByPayslipId(payslipId);
         payslipRepository.deleteById(payslipId);
     }
+
+    /**
+     * Mark payslip as paid — mengubah status PayrollPeriod dari FINALIZED → PAID.
+     * Validasi: hanya FINALIZED yang boleh di-mark as paid.
+     */
+    @Transactional
+    public PayslipResponse markAsPaid(Long payslipId) {
+        Payslip payslip = payslipRepository.findByIdWithDetails(payslipId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Payslip not found with id: " + payslipId));
+
+        PayrollPeriod period = payslip.getPayrollPeriod();
+
+        if (period.getStatus() != PayrollPeriodStatus.FINALIZED) {
+            throw new BadRequestException(
+                "Cannot mark as paid. Period status is: " + period.getStatus().name()
+                + ". Only FINALIZED periods can be marked as paid.");
+        }
+
+        period.setStatus(PayrollPeriodStatus.PAID);
+        payrollPeriodRepository.save(period);
+
+        List<PayslipComponent> components =
+                payslipComponentRepository.findByPayslipId(payslipId);
+
+        return payrollRunService.mapToPayslipResponse(payslip, components);
+    }
 }
