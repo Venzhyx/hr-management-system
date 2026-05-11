@@ -133,6 +133,24 @@ export const fetchPayslipDetail = createAsyncThunk(
   }
 );
 
+// ─── APPROVE PAYSLIP ──────────────────────────────────────────────────────────
+export const approvePayslip = createAsyncThunk(
+  'payroll/approvePayslip',
+  async (payslipId, { rejectWithValue }) => {
+    try { return await api.approvePayslip(payslipId); }
+    catch (e) { return rejectWithValue(e.response?.data?.message ?? 'Gagal approve payslip'); }
+  }
+);
+
+// ─── DELETE PAYSLIP ───────────────────────────────────────────────────────────
+export const deletePayslip = createAsyncThunk(
+  'payroll/deletePayslip',
+  async (payslipId, { rejectWithValue }) => {
+    try { await api.deletePayslip(payslipId); return payslipId; }
+    catch (e) { return rejectWithValue(e.response?.data?.message ?? 'Gagal menghapus payslip'); }
+  }
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // INITIAL STATE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,10 +206,6 @@ const payrollSlice = createSlice({
       .addCase(fetchComponents.pending,   onFetchPending)
       .addCase(fetchComponents.fulfilled, (s, a) => {
         s.loading = false;
-        // Tangani semua kemungkinan struktur response:
-        // 1. Langsung array: [...]
-        // 2. Wrapped: { data: [...] }
-        // 3. Spring Page: { data: { content: [...] } }
         const raw = a.payload;
         if (Array.isArray(raw))               s.components = raw;
         else if (Array.isArray(raw?.data))    s.components = raw.data;
@@ -265,7 +279,6 @@ const payrollSlice = createSlice({
         const result = a.payload?.data ?? a.payload;
         s.runResult = result;
         if (result) {
-          // Simpan ke history, hindari duplikat berdasarkan id
           const exists = s.runHistory.some(r => r.id === result.id);
           if (!exists) s.runHistory.unshift(result);
           saveRunHistory(s.runHistory);
@@ -273,17 +286,17 @@ const payrollSlice = createSlice({
       })
       .addCase(runPayroll.rejected,  onActionRejected)
 
-      // ── PAYROLL RUNS LIST ──────────────────────────────────────────────────────
+      // ── PAYROLL RUNS LIST ──────────────────────────────────────────────────
       .addCase(fetchPayrollRuns.pending,   onFetchPending)
       .addCase(fetchPayrollRuns.fulfilled, (s, a) => {
         s.loading = false;
         const raw = a.payload;
-        const list = Array.isArray(raw) ? raw
-          : Array.isArray(raw?.data)    ? raw.data
-          : Array.isArray(raw?.content) ? raw.content
+        const list = Array.isArray(raw)        ? raw
+          : Array.isArray(raw?.data)           ? raw.data
+          : Array.isArray(raw?.content)        ? raw.content
           : [];
         s.runHistory = list;
-        saveRunHistory(list); // sync ke localStorage
+        saveRunHistory(list);
       })
       .addCase(fetchPayrollRuns.rejected, (s) => {
         s.loading = false;
@@ -307,7 +320,41 @@ const payrollSlice = createSlice({
         s.loading = false;
         s.payslipDetail = a.payload?.data ?? a.payload;
       })
-      .addCase(fetchPayslipDetail.rejected,  onFetchRejected);
+      .addCase(fetchPayslipDetail.rejected,  onFetchRejected)
+
+      // ── APPROVE PAYSLIP ────────────────────────────────────────────────────
+      .addCase(approvePayslip.pending,   onActionPending)
+      .addCase(approvePayslip.fulfilled, (s, a) => {
+        s.actionLoading = false;
+        const updated = a.payload?.data ?? a.payload;
+        // Update status payslip di runHistory secara optimistik
+        // (jika backend return payslip terupdate, pakai id-nya;
+        //  jika backend return null/empty, fallback pakai payslipId dari arg)
+        const updatedId = updated?.id;
+        if (updatedId) {
+          s.runHistory = s.runHistory.map(run => ({
+            ...run,
+            payslips: (run.payslips ?? []).map(p =>
+              p.id === updatedId ? { ...p, ...updated, status: 'APPROVED' } : p
+            ),
+          }));
+        }
+        saveRunHistory(s.runHistory);
+      })
+      .addCase(approvePayslip.rejected,  onActionRejected)
+
+      // ── DELETE PAYSLIP ─────────────────────────────────────────────────────
+      .addCase(deletePayslip.pending,   onActionPending)
+      .addCase(deletePayslip.fulfilled, (s, a) => {
+        s.actionLoading = false;
+        const deletedId = a.payload; // payslipId yang dikirim thunk
+        s.runHistory = s.runHistory.map(run => ({
+          ...run,
+          payslips: (run.payslips ?? []).filter(p => p.id !== deletedId),
+        }));
+        saveRunHistory(s.runHistory);
+      })
+      .addCase(deletePayslip.rejected,  onActionRejected)
   },
 });
 

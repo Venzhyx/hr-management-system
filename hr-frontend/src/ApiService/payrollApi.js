@@ -97,6 +97,19 @@ export const payrollApi = {
     return response;
   },
 
+  // PUT /payroll/payslips/{payslipId}/approve
+  // Sesuaikan method (PUT/PATCH/POST) dengan endpoint backend-mu
+  approvePayslip: async (payslipId) => {
+    const response = await API.put(`${BASE}/payslips/${payslipId}/approve`);
+    return response.data;
+  },
+
+  // DELETE /payroll/payslips/{payslipId}
+  deletePayslip: async (payslipId) => {
+    const response = await API.delete(`${BASE}/payslips/${payslipId}`);
+    return response.data;
+  },
+
   // ─── Report ───────────────────────────────────────────────────────────────
 
   // GET /payroll/reports/pdf?month=&year=
