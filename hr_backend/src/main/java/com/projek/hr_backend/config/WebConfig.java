@@ -13,23 +13,25 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     @Bean
-    public CorsFilter corsFilter() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
+public CorsFilter corsFilter() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowCredentials(true);
 
-        config.addAllowedOriginPattern("http://172.16.17.197:3000");
-        config.addAllowedOriginPattern("http://localhost:3000");
-        config.addAllowedOriginPattern("http://127.0.0.1:3000");
-        config.addAllowedOriginPattern("http://10.128.6.107:3000");
-        config.addAllowedOriginPattern("*"); // For development, allow all
+    // Daftarkan semua origin secara eksplisit — tidak bisa pakai * dengan allowCredentials
+    config.addAllowedOriginPattern("http://172.16.17.197:3000");
+    config.addAllowedOriginPattern("http://localhost:3000");
+    config.addAllowedOriginPattern("http://127.0.0.1:3000");
+    config.addAllowedOriginPattern("http://10.128.6.107:3000");
+    config.addAllowedOriginPattern("https://hr-management.democoncept.id");
+    // Hapus config.addAllowedOriginPattern("*") ← ini yang bikin konflik
 
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
+    config.addAllowedHeader("*");
+    config.addAllowedMethod("*");
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
-    }
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+    return new CorsFilter(source);
+}
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
