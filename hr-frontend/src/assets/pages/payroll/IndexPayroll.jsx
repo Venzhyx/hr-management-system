@@ -182,7 +182,7 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub, subColor, 
 );
 
 // ─── DetailPanel ──────────────────────────────────────────────────────────────
-const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onDelete, onEdit, actionLoading }) => {
+const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onDelete, onEdit, actionLoading, dlPayslip }) => {
   const earnings   = payslip?.components?.filter(c => c.type === 'EARNING')   ?? [];
   const deductions = payslip?.components?.filter(c => c.type === 'DEDUCTION') ?? [];
   const totalEarning   = Number(payslip?.totalEarning   ?? payslip?.basicSalary ?? 0);
@@ -310,12 +310,16 @@ const DetailPanel = ({ payslip, onClose, onDownload, empMap = {}, onApprove, onD
 
       {/* Actions */}
       <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
-        {/* Download */}
-        <button onClick={() => onDownload(payslip?.id)}
+        {/* ── Download payslip PDF — langsung trigger download, bukan navigate ── */}
+        <button
+          onClick={() => onDownload(payslip?.id, payslip?.employeeName)}
+          disabled={dlPayslip}
           className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700
-                     text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
-          <HiOutlineDocumentDownload className="w-4 h-4" />
-          Download Payslip PDF
+                     text-white text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60">
+          {dlPayslip
+            ? <HiOutlineRefresh className="w-4 h-4 animate-spin" />
+            : <HiOutlineDocumentDownload className="w-4 h-4" />}
+          {dlPayslip ? 'Mengunduh...' : 'Download Payslip PDF'}
         </button>
 
         {/* DRAFT actions */}
@@ -383,19 +387,14 @@ const PayrollIndex = () => {
   const [approveAllLoading, setApproveAllLoading] = useState(false);
   const [approveAllModal,   setApproveAllModal]   = useState(false);
 
+  // Download payslip PDF per orang
+  const [dlPayslip, setDlPayslip] = useState(false);
+
   useEffect(() => {
     run.fetchAll();
     fetchEmployees();
     fetchOvertimes();
   }, []);
-
-  // ── LOGGING: Monitor run.history changes ─────────────────────────────────
-  useEffect(() => {
-    console.log('=== PAYROLL DEBUG LOGS ===');
-    console.log('1. run.history:', run.history);
-    console.log('2. run.history length:', run.history?.length);
-    console.log('3. Current month (0-indexed):', currentMonth, '| Month name:', MONTHS[currentMonth], '| Year:', currentYear);
-  }, [run.history, currentMonth, currentYear]);
 
   const openPanel = useCallback((p) => {
     setPanelData(p);
@@ -410,101 +409,25 @@ const PayrollIndex = () => {
 
   const history = run.history ?? [];
 
-  // ── LOGGING: Detail history data ─────────────────────────────────────────
-  console.log('4. history array:', history);
-  if (history.length > 0) {
-    console.log('5. First history item structure:', {
-      ...history[0],
-      payslipsCount: history[0].payslips?.length,
-      firstPayslip: history[0].payslips?.[0]
-    });
-  }
-
   const currentRun = history.find(r => {
     const m = r.month ?? r.periodMonth ?? null;
     const y = r.year  ?? r.periodYear  ?? null;
-    
-    // ── LOGGING for each run ──────────────────────────────────────────────
-    console.log(`   Checking run: month=${m}, year=${y}, periodLabel=${r.periodLabel}`);
-    
     if (m != null && y != null) {
-      const match = Number(m) === currentMonth + 1 && Number(y) === currentYear;
-      console.log(`     - Using month/year: expected month=${currentMonth + 1}, year=${currentYear}, match=${match}`);
-      return match;
+      return Number(m) === currentMonth + 1 && Number(y) === currentYear;
     }
     if (r.periodLabel) {
       const label = r.periodLabel.toLowerCase();
-      const monthMatch = label.includes(MONTHS[currentMonth].toLowerCase());
-      const yearMatch = label.includes(String(currentYear));
-      const match = monthMatch && yearMatch;
-      console.log(`     - Using periodLabel: "${r.periodLabel}", monthMatch=${monthMatch}, yearMatch=${yearMatch}, match=${match}`);
-      return match;
+      return label.includes(MONTHS[currentMonth].toLowerCase()) && label.includes(String(currentYear));
     }
-    console.log(`     - No month/year/periodLabel found in run`);
     return false;
   }) ?? history[0] ?? null;
 
-  // ── LOGGING: Current run result ──────────────────────────────────────────
-  console.log('6. currentRun found:', currentRun ? 'YES' : 'NO');
-  if (currentRun) {
-    console.log('7. currentRun details:', {
-      id: currentRun.id,
-      status: currentRun.status,
-      periodLabel: currentRun.periodLabel,
-      month: currentRun.month,
-      year: currentRun.year,
-      periodMonth: currentRun.periodMonth,
-      periodYear: currentRun.periodYear,
-      totalEmployees: currentRun.totalEmployees,
-      payslipsCount: currentRun.payslips?.length || 0
-    });
-  } else {
-    console.log('7. currentRun is NULL - checking if any run exists in history');
-    if (history.length > 0) {
-      console.log('   History exists but no match found. Available periods:');
-      history.forEach((run, idx) => {
-        console.log(`     [${idx}] periodLabel=${run.periodLabel}, month=${run.month}, year=${run.year}, periodMonth=${run.periodMonth}, periodYear=${run.periodYear}`);
-      });
-    } else {
-      console.log('   No runs in history at all');
-    }
-  }
-
   const lastRun = currentRun;
-  
-  // Inject status from parent run if missing
+
   const allSlips = (currentRun?.payslips ?? []).map(p => ({
     ...p,
     status: p.status ?? currentRun?.status ?? 'DRAFT',
   }));
-
-  // ── LOGGING: All slips data ──────────────────────────────────────────────
-  console.log('8. allSlips count:', allSlips.length);
-  if (allSlips.length > 0) {
-    console.log('9. Sample payslip (first):', {
-      id: allSlips[0].id,
-      employeeName: allSlips[0].employeeName,
-      status: allSlips[0].status,
-      basicSalary: allSlips[0].basicSalary,
-      netSalary: allSlips[0].netSalary
-    });
-    console.log('10. Status distribution:');
-    const statusCount = {};
-    allSlips.forEach(slip => {
-      statusCount[slip.status] = (statusCount[slip.status] || 0) + 1;
-    });
-    console.log('    ', statusCount);
-  } else {
-    console.log('9. No payslips found for this period');
-  }
-
-  // ── LOGGING: Status pill calculation ─────────────────────────────────────
-  console.log('11. lastRun?.status:', lastRun?.status);
-  console.log('12. Status pill will show:', 
-    lastRun?.status === 'APPROVED' ? 'APPROVED (green)' :
-    lastRun?.status === 'PAID' ? 'PAID (emerald)' :
-    'DRAFT (amber)'
-  );
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
@@ -530,12 +453,6 @@ const PayrollIndex = () => {
   const compact       = panelMounted;
   const statusOptions = ['Semua Status', 'DRAFT', 'FINALIZED', 'APPROVED', 'PAID'];
 
-  // ── LOGGING setiap kali draftCount berubah ────────────────────────────────
-  useEffect(() => {
-    console.log('13. Draft count updated:', draftCount);
-    console.log('14. Total payslips with DRAFT status:', allSlips.filter(p => p.status === 'DRAFT').length);
-  }, [draftCount, allSlips]);
-
   // ── Approve single payslip ─────────────────────────────────────────────────
   const handleApproveClick = (payslip) => {
     setConfirmModal({ open: true, type: 'approve', payslip, loading: false });
@@ -543,9 +460,8 @@ const PayrollIndex = () => {
   const handleApproveConfirm = async () => {
     setConfirmModal(s => ({ ...s, loading: true }));
     try {
-      await approve?.(confirmModal.payslip?.id);
+      await approve(confirmModal.payslip?.id);
       await run.fetchAll();
-      // Update panel data jika terbuka
       if (panelData?.id === confirmModal.payslip?.id) {
         setPanelData(prev => ({ ...prev, status: 'APPROVED' }));
       }
@@ -563,7 +479,7 @@ const PayrollIndex = () => {
   const handleDeleteConfirm = async () => {
     setConfirmModal(s => ({ ...s, loading: true }));
     try {
-      await deletePayslip?.(confirmModal.payslip?.id);
+      await deletePayslip(confirmModal.payslip?.id);
       await run.fetchAll();
       if (panelData?.id === confirmModal.payslip?.id) closePanel();
     } catch (err) {
@@ -579,7 +495,7 @@ const PayrollIndex = () => {
     try {
       const drafts = allSlips.filter(p => p.status === 'DRAFT');
       for (const p of drafts) {
-        await approve?.(p.id);
+        await approve(p.id);
       }
       await run.fetchAll();
       closePanel();
@@ -596,7 +512,32 @@ const PayrollIndex = () => {
     navigate(`/payroll/slips/${payslip.id}/edit`);
   };
 
-  // ── Download ───────────────────────────────────────────────────────────────
+  // ── Download payslip PDF per orang — FIX: trigger blob download, bukan navigate ──
+  const handleDownloadPayslipPdf = useCallback(async (payslipId, employeeName) => {
+    if (dlPayslip) return;
+    setDlPayslip(true);
+    try {
+      const res  = await payrollApi.downloadPayslipPdf(payslipId);
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: 'application/pdf' });
+      const url  = window.URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `payslip-${employeeName ?? payslipId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+      alert(`Download payslip gagal: ${msg}`);
+    } finally {
+      setDlPayslip(false);
+    }
+  }, [dlPayslip]);
+
+  // ── Download payroll report (semua karyawan) ───────────────────────────────
   const [dlExcel, setDlExcel] = useState(false);
   const [dlPdf,   setDlPdf]   = useState(false);
 
@@ -895,7 +836,6 @@ const PayrollIndex = () => {
                           <StatusBadge status={p.status} />
                         </td>
                         <td className="px-4 py-3">
-                          {/* Inline action buttons — only show when DRAFT */}
                           <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                             {/* Eye / detail — always visible */}
                             <button
@@ -986,12 +926,13 @@ const PayrollIndex = () => {
             <DetailPanel
               payslip={panelData}
               onClose={closePanel}
-              onDownload={(id) => navigate(`/payroll/slips/${id}/pdf`)}
+              onDownload={handleDownloadPayslipPdf}  
               empMap={empMap}
               onApprove={handleApproveClick}
               onDelete={handleDeleteClick}
               onEdit={handleEdit}
               actionLoading={actionLoading}
+              dlPayslip={dlPayslip}                  
             />
           )}
         </div>

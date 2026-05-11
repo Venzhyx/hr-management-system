@@ -10,6 +10,8 @@ import {
   HiOutlineRefresh,
   HiCheck,
   HiOutlineInformationCircle,
+  HiOutlineBadgeCheck,
+  HiOutlineExclamationCircle,
 } from 'react-icons/hi';
 import usePayroll from '../../../redux/hooks/usePayroll';
 import { useEmployee } from '../../../redux/hooks/useEmployee';
@@ -22,6 +24,20 @@ const MONTHS = [
 const now = new Date();
 const formatRp = (val) =>
   val == null ? 'Rp 0' : 'Rp ' + Number(val).toLocaleString('id-ID');
+
+// ─── Helper: build a Set of "MM-YYYY" strings from runHistory ─────────────────
+const buildGeneratedSet = (runHistory = []) => {
+  const set = new Set();
+  runHistory.forEach((run) => {
+    // Backend mungkin simpan sebagai { month, year } atau { period: "2025-06" } atau { periodMonth, periodYear }
+    const m = run.month ?? run.periodMonth ?? run.period?.split('-')?.[1];
+    const y = run.year  ?? run.periodYear  ?? run.period?.split('-')?.[0];
+    if (m && y) set.add(`${String(m).padStart(2,'0')}-${y}`);
+  });
+  return set;
+};
+
+const periodKey = (month, year) => `${String(month).padStart(2,'0')}-${year}`;
 
 // ─── Step Bar ──────────────────────────────────────────────────────────────────
 const STEPS = ['Pilih Periode', 'Preview Payroll', 'Review & Konfirmasi', 'Selesai'];
@@ -71,55 +87,160 @@ const Avatar = ({ name, photo }) => {
   );
 };
 
+// ─── MonthYearPicker ───────────────────────────────────────────────────────────
+// Menampilkan grid bulan dengan indikator periode yang sudah di-generate
+const MonthYearPicker = ({ month, year, setMonth, setYear, generatedSet }) => {
+  const years = [2024, 2025, 2026, 2027];
+
+  return (
+    <div className="space-y-4">
+      {/* Year tabs */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-2">Tahun</label>
+        <div className="flex gap-2">
+          {years.map((y) => {
+            const hasGenerated = MONTHS.some((_, i) => generatedSet.has(periodKey(i + 1, y)));
+            return (
+              <button
+                key={y}
+                onClick={() => setYear(y)}
+                className={`relative px-4 py-2 rounded-xl text-sm font-semibold transition-all border
+                  ${year === y
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+              >
+                {y}
+                {/* Dot indicator: tahun ini punya bulan yang sudah di-generate */}
+                {hasGenerated && (
+                  <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2
+                    ${year === y ? 'border-blue-600 bg-green-400' : 'border-white bg-green-400'}`} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Month grid */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-2">Bulan</label>
+        <div className="grid grid-cols-4 gap-2">
+          {MONTHS.map((m, i) => {
+            const mNum      = i + 1;
+            const key       = periodKey(mNum, year);
+            const generated = generatedSet.has(key);
+            const isActive  = month === mNum;
+
+            return (
+              <button
+                key={mNum}
+                onClick={() => setMonth(mNum)}
+                className={`relative flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-medium
+                  border transition-all select-none
+                  ${isActive
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                    : generated
+                    ? 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-200 hover:text-blue-600'
+                  }`}
+              >
+                <span>{m.slice(0, 3)}</span>
+
+                {/* Badge status */}
+                {generated && !isActive && (
+                  <span className="mt-1 inline-flex items-center gap-0.5 bg-green-100 text-green-700 text-[9px] font-semibold
+                                   px-1.5 py-0.5 rounded-full leading-none">
+                    <HiCheck className="w-2.5 h-2.5" />
+                    Done
+                  </span>
+                )}
+                {generated && isActive && (
+                  <span className="mt-1 inline-flex items-center gap-0.5 bg-blue-500 text-white text-[9px] font-semibold
+                                   px-1.5 py-0.5 rounded-full leading-none">
+                    <HiCheck className="w-2.5 h-2.5" />
+                    Done
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-gray-400">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-green-400" />
+          <span>Sudah di-generate</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-gray-200" />
+          <span>Belum di-generate</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-blue-500" />
+          <span>Dipilih</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 1 — Pilih Periode
 // ─────────────────────────────────────────────────────────────────────────────
-const Step1 = ({ month, setMonth, year, setYear, onNext, onCancel }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-    <div>
-      <h2 className="text-base font-semibold text-gray-800">Pilih Periode Payroll</h2>
-      <p className="text-sm text-gray-400 mt-0.5">Pilih periode yang akan digunakan untuk membuat payroll</p>
-    </div>
+const Step1 = ({ month, setMonth, year, setYear, onNext, onCancel, generatedSet }) => {
+  const isGenerated = generatedSet.has(periodKey(month, year));
+  const periodLabel = `${MONTHS[month - 1]} ${year}`;
 
-    <div className="grid grid-cols-2 gap-4">
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Bulan</label>
-        <select value={month} onChange={e => setMonth(Number(e.target.value))}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm appearance-none
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-          {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </select>
+        <h2 className="text-base font-semibold text-gray-800">Pilih Periode Payroll</h2>
+        <p className="text-sm text-gray-400 mt-0.5">Pilih periode yang akan digunakan untuk membuat payroll</p>
       </div>
-      <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tahun</label>
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm appearance-none
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-          {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
+
+      <MonthYearPicker
+        month={month} setMonth={setMonth}
+        year={year}   setYear={setYear}
+        generatedSet={generatedSet}
+      />
+
+      {/* Warning: periode sudah di-generate */}
+      {isGenerated && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 flex items-start gap-2.5">
+          <HiOutlineExclamationCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
+          <div className="space-y-0.5">
+            <p className="font-semibold">Periode {periodLabel} sudah pernah di-generate</p>
+            <p className="text-xs text-amber-700">
+              Melanjutkan akan membuat payroll baru untuk periode ini. Pastikan payroll lama sudah di-review atau dihapus sebelumnya.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 space-y-1.5">
+        <p className="font-semibold text-blue-900 mb-2">Informasi</p>
+        <p>• Pastikan semua data kehadiran sudah lengkap</p>
+        <p>• Komponen gaji dan potongan sudah terisi</p>
+        <p>• Payroll akan disimpan sebagai <strong>DRAFT</strong> dan masih bisa diedit sebelum di-approve</p>
+      </div>
+
+      <div className="flex justify-between items-center pt-2">
+        <button onClick={onCancel}
+          className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
+          Batal
+        </button>
+        <button onClick={onNext}
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold bg-blue-600
+                     hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm">
+          Lanjutkan <HiOutlineChevronRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
-
-    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 space-y-1.5">
-      <p className="font-semibold text-blue-900 mb-2">Informasi</p>
-      <p>• Pastikan semua data kehadiran sudah lengkap</p>
-      <p>• Komponen gaji dan potongan sudah terisi</p>
-      <p>• Payroll akan disimpan sebagai <strong>DRAFT</strong> dan masih bisa diedit sebelum di-approve</p>
-    </div>
-
-    <div className="flex justify-between items-center pt-2">
-      <button onClick={onCancel}
-        className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
-        Batal
-      </button>
-      <button onClick={onNext}
-        className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold bg-blue-600
-                   hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm">
-        Lanjutkan <HiOutlineChevronRight className="w-4 h-4" />
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 2 — Preview Payroll
@@ -144,7 +265,6 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </button>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <HiOutlineClock className="w-7 h-7 text-blue-400 animate-spin" />
@@ -152,7 +272,6 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </div>
       )}
 
-      {/* Error */}
       {!loading && error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 flex items-start gap-2.5">
           <HiOutlineExclamation className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -167,7 +286,6 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </div>
       )}
 
-      {/* Empty */}
       {!loading && !error && !previewData && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center space-y-3">
           <p className="text-sm text-gray-500">Klik tombol di bawah untuk memuat preview payroll</p>
@@ -180,7 +298,6 @@ const Step2 = ({ month, year, previewData, empMap, loading, error, onRunPreview,
         </div>
       )}
 
-      {/* Data */}
       {!loading && !error && previewData && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -294,7 +411,6 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {/* Kiri: summary */}
         <div className="space-y-0 text-sm">
           {[
             ['Periode',        periodLabel],
@@ -313,7 +429,6 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
           ))}
         </div>
 
-        {/* Kanan: rincian komponen */}
         <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-3">
           <p className="font-semibold text-gray-800">Rincian Komponen</p>
           <div>
@@ -352,7 +467,6 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
         </div>
       </div>
 
-      {/* ── INFO: Payroll akan DRAFT, bukan langsung APPROVED ── */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-sm text-blue-800 flex items-start gap-2.5">
         <HiOutlineInformationCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500" />
         <div className="space-y-0.5">
@@ -363,7 +477,6 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
         </div>
       </div>
 
-      {/* Flow info */}
       <div className="flex items-center gap-2 text-xs text-gray-400 justify-center flex-wrap">
         {['Generate → DRAFT', 'Edit jika perlu', 'Approve → APPROVED', 'Mark as Paid → PAID'].map((s, i, arr) => (
           <React.Fragment key={s}>
@@ -395,7 +508,7 @@ const Step3 = ({ month, year, previewData, onConfirm, onBack }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STEP 4 — Selesai (status DRAFT)
+// STEP 4 — Selesai
 // ─────────────────────────────────────────────────────────────────────────────
 const Step4 = ({ month, year, previewData, onReset, onViewList }) => {
   const periodLabel   = `${MONTHS[month - 1]} ${year}`;
@@ -439,7 +552,6 @@ const Step4 = ({ month, year, previewData, onReset, onViewList }) => {
         ))}
       </div>
 
-      {/* Next steps */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-left max-w-sm mx-auto space-y-2">
         <p className="font-semibold text-blue-800 text-xs">Langkah selanjutnya:</p>
         {[
@@ -482,7 +594,11 @@ const RunPayrollPage = () => {
   const [previewData,  setPreviewData]  = useState(null);
   const [previewError, setPreviewError] = useState(null);
 
-  useEffect(() => { fetchEmployees(); }, []);
+  // Fetch employees & payroll run history on mount
+  useEffect(() => {
+    fetchEmployees();
+    run.fetchAll?.();
+  }, []);
 
   const empMap = useMemo(() => {
     const map = {};
@@ -490,19 +606,21 @@ const RunPayrollPage = () => {
     return map;
   }, [employees]);
 
+  // Build set of already-generated periods from run history
+  const generatedSet = useMemo(() => buildGeneratedSet(run.history ?? []), [run.history]);
+
   const handleRunPreview = async () => {
     setPreviewError(null);
     clearError?.();
     const res = await run.execute(month, year);
     if (res?.meta?.requestStatus === 'fulfilled') {
-      setPreviewData(run.result ?? res.payload);
+      const result = res.payload?.data ?? res.payload;
+      setPreviewData(result);
     } else {
-      setPreviewError(actionError ?? res?.error?.message ?? 'Gagal memproses payroll');
+      setPreviewError(res?.payload ?? actionError ?? res?.error?.message ?? 'Gagal memproses payroll');
     }
   };
 
-  // Step 3 konfirmasi → simpan sebagai DRAFT, ke step 4
-  // (run.execute() sudah dipanggil di step 2 — backend menyimpan sebagai DRAFT)
   const handleConfirm = () => {
     setStep(4);
   };
@@ -555,6 +673,7 @@ const RunPayrollPage = () => {
           year={year}   setYear={handleYearChange}
           onNext={() => { clearError?.(); setStep(2); }}
           onCancel={() => navigate('/payroll')}
+          generatedSet={generatedSet}
         />
       )}
 

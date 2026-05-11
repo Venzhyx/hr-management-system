@@ -97,10 +97,9 @@ export const payrollApi = {
     return response;
   },
 
-  // PUT /payroll/payslips/{payslipId}/approve
-  // Sesuaikan method (PUT/PATCH/POST) dengan endpoint backend-mu
+  // PATCH /payroll/payslips/{payslipId}/approve  ← PATCH bukan PUT
   approvePayslip: async (payslipId) => {
-    const response = await API.put(`${BASE}/payslips/${payslipId}/approve`);
+    const response = await API.patch(`${BASE}/payslips/${payslipId}/approve`);
     return response.data;
   },
 
