@@ -201,6 +201,7 @@ public class PayrollRunService {
         payslip.setNetSalary(netSalary);
         payslip.setTotalAbsent((int) absentCount);
         payslip.setTotalLate((int) lateCount);
+        payslip.setStatus(PayslipStatus.DRAFT);
         payslip = payslipRepository.save(payslip);
 
         // H. Simpan PayslipComponent — snapshot permanen semua rincian
@@ -315,8 +316,8 @@ public class PayrollRunService {
             p.getPayrollPeriod().getMonth(), p.getPayrollPeriod().getYear()));
         response.setMonth(p.getPayrollPeriod().getMonth());
         response.setYear(p.getPayrollPeriod().getYear());
-        // Status payslip = status period (belum ada approve per-payslip)
-        response.setStatus(p.getPayrollPeriod().getStatus());
+        // Status per-payslip — diambil dari field status payslip itu sendiri
+        response.setStatus(p.getStatus());
         response.setBasicSalary(p.getBasicSalary());
         response.setOvertimePay(p.getOvertimePay());
         response.setTotalOvertimeHours(p.getTotalOvertimeHours());

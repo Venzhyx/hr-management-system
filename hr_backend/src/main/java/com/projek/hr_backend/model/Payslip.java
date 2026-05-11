@@ -77,4 +77,12 @@ public class Payslip {
     @CreationTimestamp
     @Column(name = "generated_at", updatable = false)
     private LocalDateTime generatedAt;
+
+    /**
+     * Status per-payslip — independen dari PayrollPeriod.
+     * Default DRAFT saat generate, bisa di-approve (FINALIZED) atau di-paid (PAID) per individu.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private PayslipStatus status = PayslipStatus.DRAFT;
 }
