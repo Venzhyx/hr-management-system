@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineUsers,
@@ -36,6 +36,13 @@ const MONTHS = [
   'Juli','Agustus','September','Oktober','November','Desember',
 ];
 
+const YEARS = (() => {
+  const y = [];
+  const now = new Date().getFullYear();
+  for (let i = now - 3; i <= now + 1; i++) y.push(i);
+  return y;
+})();
+
 const formatRp = (val) => {
   if (val == null || val === '') return 'Rp 0';
   return 'Rp ' + Number(val).toLocaleString('id-ID');
@@ -65,13 +72,11 @@ const getEmpPhoto = (emp) =>
   emp?.photo ?? emp?.photoUrl ?? emp?.profilePhoto ?? emp?.profilePicture ??
   emp?.avatarUrl ?? emp?.avatar ?? emp?.imageUrl ?? emp?.image ?? null;
 
-// ─── FIX 1: Normalize status ke uppercase ─────────────────────────────────────
 const normalizeStatus = (status) => {
   if (!status) return 'DRAFT';
   return String(status).toUpperCase().trim();
 };
 
-// ─── Status config — DRAFT → FINALIZED → PAID ─────────────────────────────────
 const STATUS_CONFIG = {
   DRAFT:     { pill: 'bg-amber-50 text-amber-700 border-amber-200',         dot: 'bg-amber-400',   label: 'Draft'     },
   FINALIZED: { pill: 'bg-blue-50 text-blue-700 border-blue-200',            dot: 'bg-blue-400',    label: 'Finalized' },
@@ -136,6 +141,121 @@ const ConfirmModal = ({ open, title, message, confirmLabel, confirmClass, onConf
   );
 };
 
+// ─── MonthYearPicker ──────────────────────────────────────────────────────────
+// Dropdown yang menampilkan grid bulan + select tahun
+const MonthYearPicker = ({ currentMonth, currentYear, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [draftYear, setDraftYear] = useState(currentYear);
+  const ref = useRef(null);
+
+  // Tutup kalau klik di luar
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Sinkron draftYear saat prop berubah
+  useEffect(() => { setDraftYear(currentYear); }, [currentYear]);
+
+  const handlePrev = () => {
+    if (currentMonth === 0) onChange(11, currentYear - 1);
+    else onChange(currentMonth - 1, currentYear);
+  };
+  const handleNext = () => {
+    if (currentMonth === 11) onChange(0, currentYear + 1);
+    else onChange(currentMonth + 1, currentYear);
+  };
+  const handleSelectMonth = (mIdx) => {
+    onChange(mIdx, draftYear);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+        {/* Prev */}
+        <button
+          onClick={handlePrev}
+          className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors"
+        >
+          <HiOutlineChevronLeft className="w-4 h-4" />
+        </button>
+
+        {/* Label — klik buka dropdown */}
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex items-center gap-1.5 px-2 hover:text-indigo-600 transition-colors"
+        >
+          <HiOutlineCalendar className="w-4 h-4 text-gray-400" />
+          <span className="text-sm font-semibold text-gray-700 min-w-[96px] text-center">
+            {MONTHS[currentMonth]} {currentYear}
+          </span>
+          <HiOutlineChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Next */}
+        <button
+          onClick={handleNext}
+          className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors"
+        >
+          <HiOutlineChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-40 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-72">
+          {/* Year selector */}
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setDraftYear(y => y - 1)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors"
+            >
+              <HiOutlineChevronLeft className="w-4 h-4" />
+            </button>
+            <select
+              value={draftYear}
+              onChange={e => setDraftYear(Number(e.target.value))}
+              className="text-sm font-bold text-gray-800 bg-transparent border-0 focus:outline-none cursor-pointer text-center"
+            >
+              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <button
+              onClick={() => setDraftYear(y => y + 1)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors"
+            >
+              <HiOutlineChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Month grid */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {MONTHS.map((m, i) => {
+              const isActive = i === currentMonth && draftYear === currentYear;
+              return (
+                <button
+                  key={m}
+                  onClick={() => handleSelectMonth(i)}
+                  className={`py-2 rounded-xl text-xs font-semibold transition-all
+                    ${isActive
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                    }`}
+                >
+                  {m.slice(0, 3)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── QuickActionCards ─────────────────────────────────────────────────────────
 const QuickActionCards = ({ onEmployeeSalary, onSalaryComponent }) => (
   <div className="grid grid-cols-2 gap-3">
@@ -187,6 +307,8 @@ const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, sub, subColor, 
 );
 
 // ─── DetailPanel ──────────────────────────────────────────────────────────────
+// FIX: Tombol aksi sticky di bawah — gunakan flex flex-col h-full,
+//      area konten flex-1 overflow-y-auto, footer flex-shrink-0
 const DetailPanel = ({
   payslip, onClose, onDownload, empMap = {},
   onFinalize, onMarkAsPaid, onDelete,
@@ -199,9 +321,7 @@ const DetailPanel = ({
   const emp   = empMap?.[String(payslip?.employeeId)];
   const photo = getEmpPhoto(emp);
 
-  // ─── FIX 1 (panel): normalize status sebelum dipakai ──────────────────────
   const status = normalizeStatus(payslip?.status);
-
   const isDraft     = status === 'DRAFT';
   const isFinalized = status === 'FINALIZED';
   const isPaid      = status === 'PAID';
@@ -211,8 +331,10 @@ const DetailPanel = ({
   const canDelete     = isDraft;
 
   return (
-    <div className="flex flex-col h-full bg-white w-full">
-      {/* Header */}
+    // style={{ height:'100%' }} memastikan panel mengisi fixed container sepenuhnya
+    <div className="flex flex-col w-full bg-white overflow-hidden" style={{ height: '100%' }}>
+
+      {/* ── Header (tidak scroll) ─────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
         <h3 className="font-bold text-gray-800 text-sm">Detail Payslip</h3>
         <button onClick={onClose}
@@ -221,7 +343,8 @@ const DetailPanel = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      {/* ── Scrollable content ────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
         {/* Employee */}
         <div className="flex items-center gap-3">
           <Avatar name={payslip?.employeeName} photo={photo} size="lg" />
@@ -323,8 +446,8 @@ const DetailPanel = ({
         )}
       </div>
 
-      {/* Actions */}
-      <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+      {/* ── Actions footer — SELALU di bawah, tidak ikut scroll ──────── */}
+      <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2 bg-white">
         {/* Download — selalu tampil */}
         <button
           onClick={() => onDownload(payslip?.id, payslip?.employeeName)}
@@ -396,7 +519,6 @@ const PayrollIndex = () => {
   const [panelMounted, setPanelMounted] = useState(false);
   const [panelIn,      setPanelIn]      = useState(false);
 
-  // confirmModal type: 'finalize' | 'paid' | 'delete'
   const [confirmModal, setConfirmModal] = useState({
     open: false, type: null, payslip: null, loading: false,
   });
@@ -442,19 +564,16 @@ const PayrollIndex = () => {
 
   const lastRun = currentRun;
 
-  // ─── FIX 1: normalize status, jangan fallback ke currentRun?.status ──────────
   const allSlips = (currentRun?.payslips ?? []).map(p => ({
     ...p,
     status: normalizeStatus(p.status),
   }));
 
-  const prevMonth = () => {
-    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
-    else setCurrentMonth(m => m - 1);
-  };
-  const nextMonth = () => {
-    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
-    else setCurrentMonth(m => m + 1);
+  // Handler untuk MonthYearPicker
+  const handleMonthYearChange = (month, year) => {
+    setCurrentMonth(month);
+    setCurrentYear(year);
+    setPage(1);
   };
 
   const filtered = allSlips.filter(p => {
@@ -478,14 +597,11 @@ const PayrollIndex = () => {
     setConfirmModal({ open: true, type: 'finalize', payslip, loading: false });
   };
 
-  // ─── FIX 2: fetchAll selesai dulu, lalu sinkronisasi panelData dari data terbaru
   const handleFinalizeConfirm = async () => {
     setConfirmModal(s => ({ ...s, loading: true }));
     try {
       await approve(confirmModal.payslip?.id);
       await run.fetchAll();
-
-      // ─── FIX 3: update panelData dengan status baru hasil normalize ──────
       if (panelData?.id === confirmModal.payslip?.id) {
         setPanelData(prev => ({ ...prev, status: 'FINALIZED' }));
       }
@@ -506,8 +622,6 @@ const PayrollIndex = () => {
     try {
       await markAsPaid(confirmModal.payslip?.id);
       await run.fetchAll();
-
-      // ─── FIX 3: update panelData dengan status baru hasil normalize ──────
       if (panelData?.id === confirmModal.payslip?.id) {
         setPanelData(prev => ({ ...prev, status: 'PAID' }));
       }
@@ -535,7 +649,6 @@ const PayrollIndex = () => {
     }
   };
 
-  // ── Confirm modal config by type ─────────────────────────────────────────────
   const confirmConfig = {
     finalize: {
       title:        `Finalisasi payslip ${confirmModal.payslip?.employeeName}?`,
@@ -566,9 +679,7 @@ const PayrollIndex = () => {
     setFinalizeAllLoading(true);
     try {
       const drafts = allSlips.filter(p => p.status === 'DRAFT');
-      for (const p of drafts) {
-        await approve(p.id);
-      }
+      for (const p of drafts) await approve(p.id);
       await run.fetchAll();
       closePanel();
     } catch (err) {
@@ -653,7 +764,7 @@ const PayrollIndex = () => {
   return (
     <div className="flex h-full w-full bg-gray-50 overflow-hidden">
 
-      {/* ── Confirm Modal (finalize / paid / delete) ── */}
+      {/* ── Confirm Modal ── */}
       <ConfirmModal
         open={confirmModal.open}
         loading={confirmModal.loading}
@@ -677,7 +788,9 @@ const PayrollIndex = () => {
         onCancel={() => setFinalizeAllModal(false)}
       />
 
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div
+        className={`flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 ${panelMounted ? 'pr-80 xl:pr-96' : 'pr-0'}`}
+      >
 
         {/* Top bar */}
         <div className="bg-white border-b border-gray-100 px-6 py-4 flex-shrink-0">
@@ -687,22 +800,13 @@ const PayrollIndex = () => {
               <p className="text-sm text-gray-400 mt-0.5">Kelola penggajian karyawan perusahaan Anda</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Month picker */}
-              <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
-                  <HiOutlineChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="flex items-center gap-1.5 px-2">
-                  <HiOutlineCalendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-700 min-w-[96px] text-center">
-                    {MONTHS[currentMonth]} {currentYear}
-                  </span>
-                  <HiOutlineChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                </div>
-                <button onClick={nextMonth} className="text-gray-400 hover:text-gray-700 p-0.5 rounded transition-colors">
-                  <HiOutlineChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+
+              {/* ── Month/Year Picker (dropdown) ── */}
+              <MonthYearPicker
+                currentMonth={currentMonth}
+                currentYear={currentYear}
+                onChange={handleMonthYearChange}
+              />
 
               {/* Run status badge */}
               <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
@@ -719,7 +823,7 @@ const PayrollIndex = () => {
                 }`} />
               </div>
 
-              {/* Finalize All — hanya jika ada DRAFT */}
+              {/* Finalize All */}
               {draftCount > 0 && (
                 <button
                   onClick={() => setFinalizeAllModal(true)}
@@ -869,8 +973,6 @@ const PayrollIndex = () => {
                     const photo       = getEmpPhoto(emp);
                     const dept        = emp?.departmentName ?? emp?.department ?? null;
                     const title       = emp?.jobTitle ?? emp?.position ?? p.jobTitle ?? '-';
-
-                    // ─── FIX 1 (tabel): status sudah dinormalize di allSlips ─
                     const isDraft     = p.status === 'DRAFT';
                     const isFinalized = p.status === 'FINALIZED';
 
@@ -898,7 +1000,6 @@ const PayrollIndex = () => {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                            {/* Eye */}
                             <button
                               onClick={() => isSelected ? closePanel() : openPanel(p)}
                               title="Lihat detail"
@@ -906,8 +1007,6 @@ const PayrollIndex = () => {
                                           ${isSelected ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}>
                               <HiOutlineEye className="w-3.5 h-3.5" />
                             </button>
-
-                            {/* Mark as Paid — inline di tabel, hanya FINALIZED */}
                             {isFinalized && (
                               <button
                                 onClick={() => handleMarkAsPaidClick(p)}
@@ -916,8 +1015,6 @@ const PayrollIndex = () => {
                                 <HiOutlineCash className="w-3.5 h-3.5" />
                               </button>
                             )}
-
-                            {/* Delete — hanya DRAFT */}
                             {isDraft && (
                               <button
                                 onClick={() => handleDeleteClick(p)}
@@ -975,23 +1072,36 @@ const PayrollIndex = () => {
       </div>
 
       {/* ── Detail Panel ── */}
-      <div className={`flex-shrink-0 border-l border-gray-100 overflow-hidden transition-all duration-300 ease-in-out ${panelMounted ? 'w-80 xl:w-96' : 'w-0'}`}>
-        <div className={`h-full w-80 xl:w-96 transition-transform duration-300 ease-in-out ${panelIn ? 'translate-x-0' : 'translate-x-full'}`}>
-          {panelMounted && (
-            <DetailPanel
-              payslip={panelData}
-              onClose={closePanel}
-              onDownload={handleDownloadPayslipPdf}
-              empMap={empMap}
-              onFinalize={handleFinalizeClick}
-              onMarkAsPaid={handleMarkAsPaidClick}
-              onDelete={handleDeleteClick}
-              actionLoading={actionLoading}
-              dlPayslip={dlPayslip}
-            />
-          )}
+      {/*
+        Pakai position:fixed agar tinggi panel selalu = tinggi viewport,
+        tidak bergantung pada h-full dari ancestor yang mungkin tidak
+        punya height constraint. Ini memastikan footer tombol SELALU
+        di bawah layar, tidak ikut scroll.
+      */}
+      {panelMounted && (
+        <div
+          className={`
+            fixed top-0 right-0 bottom-0 z-30
+            border-l border-gray-100 bg-white shadow-xl
+            transition-all duration-300 ease-in-out
+            ${panelIn ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
+            w-80 xl:w-96
+          `}
+          style={{ display: 'flex', flexDirection: 'column' }}
+        >
+          <DetailPanel
+            payslip={panelData}
+            onClose={closePanel}
+            onDownload={handleDownloadPayslipPdf}
+            empMap={empMap}
+            onFinalize={handleFinalizeClick}
+            onMarkAsPaid={handleMarkAsPaidClick}
+            onDelete={handleDeleteClick}
+            actionLoading={actionLoading}
+            dlPayslip={dlPayslip}
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -8,6 +8,7 @@ import {
   HiOutlineLocationMarker, HiOutlineCamera, HiOutlineX, HiOutlineArrowLeft, HiOutlineArrowRight,
 } from 'react-icons/hi';
 import { useAttendance } from '../../../redux/hooks/useAttendance';
+import { useEmployee } from '../../../redux/hooks/useEmployee';
 
 const PER_PAGE = 10;
 
@@ -24,6 +25,11 @@ const buildPhotoUrl = (path) => {
 
 // ✅ Fallback image Base64 (no external request)
 const FALLBACK_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='14' fill='%239ca3af' text-anchor='middle' dy='.3em'%3EFoto Tidak Tersedia%3C/text%3E%3C/svg%3E";
+
+// ✅ Helper ambil foto employee — sama persis dengan AttendanceCorrection
+const getEmpPhoto = (emp) =>
+  emp?.photo ?? emp?.photoUrl ?? emp?.profilePhoto ?? emp?.profilePicture ??
+  emp?.avatarUrl ?? emp?.avatar ?? emp?.imageUrl ?? emp?.image ?? null;
 
 const STATUS_CONFIG = {
   PRESENT: { label: 'Present', color: 'bg-green-100 text-green-700',   icon: <HiOutlineCheckCircle className="w-3.5 h-3.5" /> },
@@ -58,9 +64,9 @@ const formatDate = (dt) => {
 const formatDateTime = (dt) => {
   if (!dt) return '-';
   const d = new Date(dt);
-  return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { 
-    day: '2-digit', 
-    month: 'long', 
+  return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
@@ -153,9 +159,7 @@ const PhotoPreviewModal = ({ isOpen, onClose, photos, initialIndex = 0 }) => {
           src={currentPhoto.url}
           alt={currentPhoto.alt}
           className="max-w-[90vw] max-h-[90vh] object-contain"
-          onError={(e) => {
-            e.target.src = FALLBACK_IMAGE;
-          }}
+          onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
         />
 
         {/* Caption */}
@@ -204,7 +208,7 @@ const PhotoPreviewModal = ({ isOpen, onClose, photos, initialIndex = 0 }) => {
 const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
-  
+
   const photos = [];
   if (checkInPhoto) {
     photos.push({
@@ -227,9 +231,7 @@ const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime 
     });
   }
 
-  const openPreview = () => {
-    setPreviewOpen(true);
-  };
+  const openPreview = () => setPreviewOpen(true);
 
   if (photos.length === 0) {
     return (
@@ -253,16 +255,14 @@ const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime 
             alt={currentPhoto.alt}
             className="w-full h-full object-cover cursor-pointer transition-transform hover:scale-105"
             onClick={openPreview}
-            onError={(e) => {
-              e.target.src = FALLBACK_IMAGE;
-            }}
+            onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
           />
-          
+
           {/* Overlay badge */}
           <div className="absolute top-3 left-3">
             <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-              currentPhoto.type === "Check In" 
-                ? "bg-indigo-600 text-white" 
+              currentPhoto.type === "Check In"
+                ? "bg-indigo-600 text-white"
                 : "bg-emerald-600 text-white"
             }`}>
               {currentPhoto.type}
@@ -272,58 +272,52 @@ const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime 
           {/* Zoom indicator */}
           <div className="absolute bottom-3 right-3">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openPreview();
-              }}
+              onClick={(e) => { e.stopPropagation(); openPreview(); }}
               className="px-2 py-1 rounded-lg bg-black/50 hover:bg-black/70 text-white text-xs flex items-center gap-1 transition-colors"
             >
               <HiOutlineEye className="w-3 h-3" />
               Preview
             </button>
           </div>
-          
+
           {/* Navigation buttons */}
           {photos.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
-                  }}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
-                >
-                  <HiOutlineArrowLeft className="w-5 h-5 text-white" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
-                >
-                  <HiOutlineArrowRight className="w-5 h-5 text-white" />
-                </button>
-                
-                {/* Indicator dots */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                  {photos.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentIndex(idx);
-                      }}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        idx === currentIndex ? "bg-white w-4" : "bg-white/50"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+                }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+              >
+                <HiOutlineArrowLeft className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+              >
+                <HiOutlineArrowRight className="w-5 h-5 text-white" />
+              </button>
+
+              {/* Indicator dots */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                {photos.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => { e.stopPropagation(); setCurrentIndex(idx); }}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      idx === currentIndex ? "bg-white w-4" : "bg-white/50"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
-        
+
         {/* Caption and actions */}
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-gray-700">
@@ -353,9 +347,7 @@ const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime 
                   src={photo.url}
                   alt=""
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = FALLBACK_IMAGE;
-                  }}
+                  onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
                 />
               </button>
             ))}
@@ -375,7 +367,8 @@ const PhotoCarousel = ({ checkInPhoto, checkOutPhoto, checkInTime, checkOutTime 
 };
 
 // ─── Detail Modal Component ───────────────────────────────────────────────────
-const DetailModal = ({ item, onClose }) => {
+// ✅ Tambah prop empPhoto — ikut pola AttendanceCorrection
+const DetailModal = ({ item, onClose, empPhoto }) => {
   if (!item) return null;
 
   const empName  = item.employee?.name ?? item.employeeName ?? '-';
@@ -394,6 +387,8 @@ const DetailModal = ({ item, onClose }) => {
   const mapsUrl    = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
   const mapsUrlOut = latOut && lngOut ? `https://www.google.com/maps?q=${latOut},${lngOut}` : null;
 
+  const initials = empName !== '-' ? empName.charAt(0).toUpperCase() : '?';
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -406,16 +401,33 @@ const DetailModal = ({ item, onClose }) => {
         {/* Header */}
         <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
-              {empName.charAt(0).toUpperCase()}
+            {/* ✅ Avatar dengan foto employee — sama persis pola AttendanceCorrection */}
+            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm">
+              {empPhoto ? (
+                <img
+                  src={empPhoto}
+                  alt={empName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div
+                className="w-full h-full bg-indigo-100 items-center justify-center text-indigo-600 font-bold text-sm"
+                style={{ display: empPhoto ? 'none' : 'flex' }}
+              >
+                {initials}
+              </div>
             </div>
             <div>
               <p className="font-semibold text-gray-800">{empName}</p>
               {deptName && <p className="text-xs text-gray-400">{deptName}</p>}
             </div>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
             <HiOutlineX className="w-5 h-5" />
@@ -426,12 +438,12 @@ const DetailModal = ({ item, onClose }) => {
           {/* Info Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { label: 'Tanggal', value: formatDate(item.date) },
-              { label: 'Status', value: <StatusBadge status={item.status} /> },
-              { label: 'Check In', value: formatTime(item.checkIn) },
+              { label: 'Tanggal',   value: formatDate(item.date) },
+              { label: 'Status',    value: <StatusBadge status={item.status} /> },
+              { label: 'Check In',  value: formatTime(item.checkIn) },
               { label: 'Check Out', value: formatTime(item.checkOut) },
-              { label: 'Durasi', value: calcDuration(item.checkIn, item.checkOut) },
-              { label: 'Tipe Kerja', value: workType ? <WorkTypeBadge type={workType} /> : '-' },
+              { label: 'Durasi',    value: calcDuration(item.checkIn, item.checkOut) },
+              { label: 'Tipe Kerja',value: workType ? <WorkTypeBadge type={workType} /> : '-' },
             ].map(({ label, value }) => (
               <div key={label} className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">{label}</p>
@@ -451,9 +463,9 @@ const DetailModal = ({ item, onClose }) => {
                   {formatCoord(lat)}, {formatCoord(lng)}
                 </p>
                 {mapsUrl && (
-                  <a 
-                    href={mapsUrl} 
-                    target="_blank" 
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
                   >
@@ -475,9 +487,9 @@ const DetailModal = ({ item, onClose }) => {
                   {formatCoord(latOut)}, {formatCoord(lngOut)}
                 </p>
                 {mapsUrlOut && (
-                  <a 
-                    href={mapsUrlOut} 
-                    target="_blank" 
+                  <a
+                    href={mapsUrlOut}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
                   >
@@ -494,7 +506,7 @@ const DetailModal = ({ item, onClose }) => {
               <HiOutlineCamera className="w-4 h-4 text-indigo-500" />
               Dokumentasi Foto
             </p>
-            <PhotoCarousel 
+            <PhotoCarousel
               checkInPhoto={photoIn}
               checkOutPhoto={photoOut}
               checkInTime={item.checkIn}
@@ -616,9 +628,18 @@ const EmployeeDropdown = ({ employees, loadingEmployees, selectedEmployee, onCha
 // ─── Main AttendanceList Component ───────────────────────────────────────────
 const AttendanceList = () => {
   const {
-    attendances, employees, loading, loadingEmployees, error,
-    loadEmployees, loadAttendance, resetAttendance,
+    attendances,
+    employees: attendanceEmployees, // ✅ rename agar tidak bentrok
+    loading,
+    loadingEmployees,
+    error,
+    loadEmployees,
+    loadAttendance,
+    resetAttendance,
   } = useAttendance();
+
+  // ✅ Ambil semua data employee untuk keperluan foto — sama persis pola AttendanceCorrection
+  const { employees: allEmployees, fetchEmployees } = useEmployee();
 
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -627,8 +648,16 @@ const AttendanceList = () => {
   const [page, setPage] = useState(1);
   const [detailItem, setDetailItem] = useState(null);
 
+  // ✅ Build empMap dari allEmployees — sama persis pola AttendanceCorrection
+  const empMap = useMemo(() => {
+    const m = {};
+    (allEmployees ?? []).forEach((e) => { m[String(e.id)] = e; });
+    return m;
+  }, [allEmployees]);
+
   useEffect(() => {
     loadEmployees();
+    fetchEmployees(); // ✅ fetch untuk data foto
     return () => resetAttendance();
   }, []);
 
@@ -658,7 +687,7 @@ const AttendanceList = () => {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  const selectedObj = employees.find((e) => String(e.id) === String(selectedEmployee));
+  const selectedObj = attendanceEmployees.find((e) => String(e.id) === String(selectedEmployee));
 
   const handleReset = useCallback(() => {
     setSelectedEmployee(''); setFilterStatus(''); setFilterDate(''); setSearch(''); setPage(1);
@@ -689,7 +718,7 @@ const AttendanceList = () => {
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row flex-wrap gap-3">
           <EmployeeDropdown
-            employees={employees}
+            employees={attendanceEmployees}
             loadingEmployees={loadingEmployees}
             selectedEmployee={selectedEmployee}
             onChange={setSelectedEmployee}
@@ -810,14 +839,19 @@ const AttendanceList = () => {
                 </tr>
               ) : (
                 paginated.map((item, idx) => {
-                  const empName = item.employee?.name ?? item.employeeName ?? '-';
+                  const empName  = item.employee?.name ?? item.employeeName ?? '-';
                   const deptName = item.employee?.departmentName ?? item.departmentName ?? item.employee?.department?.name ?? '';
-                  const initial = empName !== '-' ? empName.charAt(0).toUpperCase() : '?';
-                  const lat = item.latitude ?? null;
-                  const lng = item.longitude ?? null;
+                  const initial  = empName !== '-' ? empName.charAt(0).toUpperCase() : '?';
+                  const lat      = item.latitude ?? null;
+                  const lng      = item.longitude ?? null;
                   const workType = item.attendanceType ?? null;
-                  const lngFmt = formatCoord(lng);
-                  const mapsUrl = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+                  const lngFmt   = formatCoord(lng);
+                  const mapsUrl  = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+
+                  // ✅ Ambil foto dari empMap — sama persis pola AttendanceCorrection
+                  const empId    = item.employee?.id ?? item.employeeId ?? null;
+                  const empData  = empId ? empMap[String(empId)] : null;
+                  const empPhoto = getEmpPhoto(empData);
 
                   return (
                     <tr key={item.id ?? idx} className="hover:bg-indigo-50/30 transition-colors">
@@ -826,8 +860,25 @@ const AttendanceList = () => {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-xs flex-shrink-0">
-                            {initial}
+                          {/* ✅ Avatar foto di table row — sama persis pola AttendanceCorrection */}
+                          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100">
+                            {empPhoto ? (
+                              <img
+                                src={empPhoto}
+                                alt={empName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="w-full h-full bg-indigo-100 items-center justify-center text-indigo-600 font-semibold text-xs"
+                              style={{ display: empPhoto ? 'none' : 'flex' }}
+                            >
+                              {initial}
+                            </div>
                           </div>
                           <div>
                             <p className="font-medium text-gray-800 leading-tight text-sm">{empName}</p>
@@ -931,8 +982,16 @@ const AttendanceList = () => {
         )}
       </div>
 
-      {/* Detail Modal */}
-      {detailItem && <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
+      {/* ✅ Detail Modal — pass empPhoto dari empMap, sama persis pola AttendanceCorrection */}
+      {detailItem && (
+        <DetailModal
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+          empPhoto={getEmpPhoto(
+            empMap[String(detailItem.employee?.id ?? detailItem.employeeId ?? '')]
+          )}
+        />
+      )}
     </div>
   );
 };

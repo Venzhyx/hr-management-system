@@ -18,7 +18,7 @@ public CorsFilter corsFilter() {
     config.setAllowCredentials(true);
 
     // Daftarkan semua origin secara eksplisit — tidak bisa pakai * dengan allowCredentials
-    config.addAllowedOriginPattern("http://172.16.17.197:3000");
+    config.addAllowedOriginPattern("http://172.16.17.88:3000");
     config.addAllowedOriginPattern("http://localhost:3000");
     config.addAllowedOriginPattern("http://127.0.0.1:3000");
     config.addAllowedOriginPattern("http://10.128.6.107:3000");

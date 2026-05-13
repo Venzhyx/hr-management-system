@@ -64,6 +64,11 @@ const fmtDateTime = (dt) => {
   catch { return "—"; }
 };
 
+// ─── Photo Helper ─────────────────────────────────────────────────────────────
+const getEmpPhoto = (emp) =>
+  emp?.photo ?? emp?.photoUrl ?? emp?.profilePhoto ?? emp?.profilePicture ??
+  emp?.avatarUrl ?? emp?.avatar ?? emp?.imageUrl ?? emp?.image ?? null;
+
 const getDisplayStatus = (correction) => {
   if (correction.status === "REJECTED") return "REJECTED";
   if (correction.status === "APPROVED") return "APPROVED";
@@ -427,7 +432,7 @@ const ApprovalTimeline = ({ approvals = [] }) => {
 };
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
-const DetailModal = ({ correction, onClose, onApprove, onReject, onEdit, onDelete, actionLoading, actionError, isAdmin }) => {
+const DetailModal = ({ correction, onClose, onApprove, onReject, onEdit, onDelete, actionLoading, actionError, isAdmin, empPhoto }) => {
   if (!correction) return null;
 
   const displayStatus = getDisplayStatus(correction);
@@ -540,8 +545,14 @@ const DetailModal = ({ correction, onClose, onApprove, onReject, onEdit, onDelet
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
           <Section title="Informasi Pengaju">
             <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl">
-              <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm bg-amber-100 flex items-center justify-center">
-                <span className="text-amber-700 font-bold text-lg">{initials}</span>
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm">
+                {empPhoto ? (
+                  <img src={empPhoto} alt={correction.employeeName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-amber-100 flex items-center justify-center">
+                    <span className="text-amber-700 font-bold text-lg">{initials}</span>
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{correction.employeeName}</p>
@@ -843,7 +854,7 @@ const EmptyState = ({ onNew, isAdmin }) => (
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
- const AttendanceCorrection = ({ role = "admin", employeeId = null, adminId }) => {
+const AttendanceCorrection = ({ role = "admin", employeeId = null, adminId }) => {
   const location = useLocation();
   const isAdmin = role === "admin";
 
@@ -870,24 +881,26 @@ const EmptyState = ({ onNew, isAdmin }) => (
     handleUpdate, handleDelete,
   } = useAttendanceCorrection({ role, employeeId, adminId });
 
+  // ─── empMap: lookup employee by id for photo ──────────────────────────────
+  const empMap = useMemo(() => {
+    const m = {};
+    (employees ?? []).forEach((e) => { m[String(e.id)] = e; });
+    return m;
+  }, [employees]);
+
   useEffect(() => {
-  fetchEmployees();
-  handleRefresh(); // ini cukup
-}, [employeeId, role]);
-
-  
+    fetchEmployees();
+    handleRefresh();
+  }, [employeeId, role]);
 
   useEffect(() => {
-  fetchEmployees();
-}, []);
+    fetchEmployees();
+  }, []);
 
-useEffect(() => {
-  if (!employeeId && role !== "admin") return;
-
-  console.log("FETCH JALAN ", { role, employeeId });
-
-  handleRefresh();
-}, [role, employeeId]);
+  useEffect(() => {
+    if (!employeeId && role !== "admin") return;
+    handleRefresh();
+  }, [role, employeeId]);
 
   const hasProcessedRef = useRef(false);
 
@@ -928,9 +941,9 @@ useEffect(() => {
   }, [isModalOpen, autoOpenModal]);
 
   useEffect(() => {
-    if (autoOpenModal && !isModalOpen) { 
-      openCreateModal(); 
-      setAutoOpenModal(false); 
+    if (autoOpenModal && !isModalOpen) {
+      openCreateModal();
+      setAutoOpenModal(false);
     }
   }, [autoOpenModal, isModalOpen, openCreateModal]);
 
@@ -1080,13 +1093,31 @@ useEffect(() => {
                 {filteredCorrections.map((c) => {
                   const displayStatus = getDisplayStatus(c);
                   const canEditDelete = displayStatus === "SUBMITTED";
-                  
+                  const emp = empMap[String(c.employeeId)];
+                  const photo = getEmpPhoto(emp);
+
                   return (
                     <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                            <span className="text-xs font-bold text-indigo-600">{c.employeeName?.charAt(0)?.toUpperCase() ?? "?"}</span>
+                          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100">
+                            {photo ? (
+                              <img
+                                src={photo}
+                                alt={c.employeeName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                  e.currentTarget.nextSibling.style.display = "flex";
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="w-full h-full bg-indigo-100 items-center justify-center"
+                              style={{ display: photo ? "none" : "flex" }}
+                            >
+                              <span className="text-xs font-bold text-indigo-600">{c.employeeName?.charAt(0)?.toUpperCase() ?? "?"}</span>
+                            </div>
                           </div>
                           <div>
                             <p className="font-semibold text-gray-900 text-sm">{c.employeeName}</p>
@@ -1127,8 +1158,8 @@ useEffect(() => {
                             </>
                           )}
                         </div>
-                       </td>
-                     </tr>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -1168,6 +1199,7 @@ useEffect(() => {
           actionLoading={actionLoading}
           actionError={actionError}
           isAdmin={isAdmin}
+          empPhoto={selectedCorrection ? getEmpPhoto(empMap[String(selectedCorrection.employeeId)]) : null}
         />
       )}
 
@@ -1182,7 +1214,7 @@ useEffect(() => {
         />
       )}
     </div>
-  );f
+  );
 };
 
 export default AttendanceCorrection;
